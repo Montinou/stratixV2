@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/lib/hooks/use-auth"
-import type { Objective, OKRStatus } from "@/lib/types/okr"
+import type { Objective } from "@/lib/database/services"
+import { createObjective, updateObjective } from "@/lib/actions/objectives"
 import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
+
+type OKRStatus = 'draft' | 'in_progress' | 'completed' | 'cancelled'
 
 interface ObjectiveFormProps {
   objective?: Objective
@@ -27,7 +29,7 @@ export function ObjectiveForm({ objective, onSuccess, onCancel }: ObjectiveFormP
     title: objective?.title || "",
     description: objective?.description || "",
     department: objective?.department || profile?.department || "",
-    status: objective?.status || ("no_iniciado" as OKRStatus),
+    status: objective?.status || ("draft" as OKRStatus),
     progress: objective?.progress || 0,
     start_date: objective?.start_date || new Date().toISOString().split("T")[0],
     end_date: objective?.end_date || "",
@@ -38,29 +40,28 @@ export function ObjectiveForm({ objective, onSuccess, onCancel }: ObjectiveFormP
     if (!profile) return
 
     setLoading(true)
-    const supabase = createClient()
 
     try {
       const objectiveData = {
         title: formData.title,
-        description: formData.description || null,
-        owner_id: profile.id,
+        description: formData.description || undefined,
         department: formData.department,
         status: formData.status,
-        progress: formData.progress,
+        priority: 'medium' as const, // Default priority
         start_date: formData.start_date,
         end_date: formData.end_date,
       }
 
+      let result;
       if (objective) {
         // Update existing objective
-        const { error } = await supabase.from("objectives").update(objectiveData).eq("id", objective.id)
-        if (error) throw error
+        result = await updateObjective(objective.id, objectiveData)
+        if (result.error) throw new Error(result.error)
         toast({ title: "Objetivo actualizado", description: "El objetivo ha sido actualizado correctamente." })
       } else {
         // Create new objective
-        const { error } = await supabase.from("objectives").insert(objectiveData)
-        if (error) throw error
+        result = await createObjective(objectiveData)
+        if (result.error) throw new Error(result.error)
         toast({ title: "Objetivo creado", description: "El objetivo ha sido creado correctamente." })
       }
 
@@ -69,7 +70,7 @@ export function ObjectiveForm({ objective, onSuccess, onCancel }: ObjectiveFormP
       console.error("Error saving objective:", error)
       toast({
         title: "Error",
-        description: "No se pudo guardar el objetivo. Inténtalo de nuevo.",
+        description: error instanceof Error ? error.message : "No se pudo guardar el objetivo. Inténtalo de nuevo.",
         variant: "destructive",
       })
     } finally {
@@ -122,10 +123,10 @@ export function ObjectiveForm({ objective, onSuccess, onCancel }: ObjectiveFormP
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="no_iniciado">No Iniciado</SelectItem>
-              <SelectItem value="en_progreso">En Progreso</SelectItem>
-              <SelectItem value="completado">Completado</SelectItem>
-              <SelectItem value="pausado">Pausado</SelectItem>
+              <SelectItem value="draft">Borrador</SelectItem>
+              <SelectItem value="in_progress">En Progreso</SelectItem>
+              <SelectItem value="completed">Completado</SelectItem>
+              <SelectItem value="cancelled">Cancelado</SelectItem>
             </SelectContent>
           </Select>
         </div>
