@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/lib/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -22,10 +22,10 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { signUp } = useAuth()
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
@@ -36,22 +36,11 @@ export function RegisterForm() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
-          data: {
-            full_name: fullName,
-            role: role,
-            department: department,
-          },
-        },
-      })
-      if (error) throw error
-      router.push("/auth/verify-email")
+      await signUp(email, password, fullName)
+      // Note: Additional profile data (role, department) will need to be handled
+      // after the user is created, since NeonAuth doesn't support custom metadata
+      // in the same way as Supabase. This will be implemented when database schema is ready.
+      router.push("/dashboard")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {

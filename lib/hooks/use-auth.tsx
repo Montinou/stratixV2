@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
-import type { User } from "@supabase/supabase-js"
+import { createNeonClient } from "@/lib/neon-auth/client"
+import type { User } from "@stackframe/stack"
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 
 interface Profile {
@@ -35,6 +35,8 @@ interface AuthContextType {
   loading: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, displayName?: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -45,44 +47,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
   
-  // Create supabase client once using useMemo to prevent recreating on every render
-  const supabase = useMemo(() => createClient(), [])
+  // Create neon client once using useMemo to prevent recreating on every render
+  const neonClient = useMemo(() => createNeonClient(), [])
 
   const fetchProfile = useCallback(
     async (userId: string) => {
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select(`
-          *,
-          companies (
-            id,
-            name,
-            slug,
-            logo_url,
-            settings,
-            created_at,
-            updated_at
-          )
-        `)
-          .eq("id", userId)
-          .single()
-
-        if (error) {
-          console.error("Error fetching profile:", error)
+        // TODO: Replace with actual database query once database migration is complete
+        // For now, return mock data based on user info
+        const userData = await neonClient.getUser()
+        if (!userData) {
           return { profile: null, company: null }
         }
 
+        // Create mock profile from NeonAuth user data
+        const mockProfile: Profile = {
+          id: userData.id,
+          email: userData.primaryEmail || '',
+          full_name: userData.displayName || userData.primaryEmail || '',
+          role: "empleado" as const, // Default role
+          department: null,
+          manager_id: null,
+          company_id: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
+        const mockCompany: Company = {
+          id: "default-company",
+          name: "Default Company",
+          slug: "default",
+          logo_url: null,
+          settings: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+
         return {
-          profile: data as Profile,
-          company: data.companies as Company,
+          profile: mockProfile,
+          company: mockCompany,
         }
       } catch (error) {
         console.error("Error fetching profile:", error)
         return { profile: null, company: null }
       }
     },
-    [supabase], // supabase is stable due to useMemo, but include to satisfy linter
+    [neonClient], // neonClient is stable due to useMemo
   )
 
   const refreshProfile = useCallback(async () => {
@@ -94,34 +104,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile])
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut()
+    await neonClient.signOut()
     setUser(null)
     setProfile(null)
     setCompany(null)
-  }, [supabase]) // supabase is stable due to useMemo, but include to satisfy linter
+  }, [neonClient])
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    try {
+      await neonClient.signInWithCredential({ email, password })
+      // User state will be updated by the auth state change listener
+    } catch (error) {
+      console.error("Error signing in:", error)
+      throw error
+    }
+  }, [neonClient])
+
+  const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
+    try {
+      await neonClient.signUpWithCredential({ 
+        email, 
+        password,
+        ...(displayName && { displayName })
+      })
+      // User state will be updated by the auth state change listener
+    } catch (error) {
+      console.error("Error signing up:", error)
+      throw error
+    }
+  }, [neonClient])
 
   useEffect(() => {
     let mounted = true
 
     const getInitialSession = async () => {
       try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser()
+        const user = neonClient.getUser()
 
         if (!mounted) return
-
-        if (error) {
-          console.error("Error getting user:", error)
-          if (mounted) {
-            setUser(null)
-            setProfile(null)
-            setCompany(null)
-            setLoading(false)
-          }
-          return
-        }
 
         if (user) {
           setUser(user)
@@ -144,15 +164,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getInitialSession()
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Set up auth state change listener
+    const unsubscribe = neonClient.onUserChange(async (user) => {
       if (!mounted) return
 
       try {
-        if (session?.user) {
-          setUser(session.user)
-          const { profile: profileData, company: companyData } = await fetchProfile(session.user.id)
+        if (user) {
+          setUser(user)
+          const { profile: profileData, company: companyData } = await fetchProfile(user.id)
           if (mounted) {
             setProfile(profileData)
             setCompany(companyData)
@@ -177,12 +196,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false
-      subscription.unsubscribe()
+      unsubscribe()
     }
-  }, [supabase, fetchProfile]) // supabase is stable due to useMemo, but include to satisfy linter
+  }, [neonClient, fetchProfile])
 
   return (
-    <AuthContext.Provider value={{ user, profile, company, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, company, loading, signOut, refreshProfile, signIn, signUp }}>
       {children}
     </AuthContext.Provider>
   )

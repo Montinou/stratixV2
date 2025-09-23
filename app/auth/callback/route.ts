@@ -1,19 +1,12 @@
-import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
+// NeonAuth handles authentication differently than Supabase
+// This callback route may not be needed for NeonAuth, but keeping it for compatibility
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get("code")
-  const next = searchParams.get("next") ?? "/dashboard"
+  const { origin } = new URL(request.url)
+  const next = "/dashboard"
 
-  if (code) {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
-    }
-  }
-
-  // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  // For NeonAuth, we can directly redirect to the dashboard
+  // since authentication is handled by the NeonAuth provider
+  return NextResponse.redirect(`${origin}${next}`)
 }

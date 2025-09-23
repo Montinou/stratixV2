@@ -1,15 +1,18 @@
-import { createClient } from "@/lib/supabase/server"
+import { createNeonServerClient } from "@/lib/neon-auth/server"
 import { redirect } from "next/navigation"
 import { RegisterForm } from "@/components/auth/register-form"
 
 export default async function RegisterPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (user) {
-    redirect("/dashboard")
+  const neonServer = createNeonServerClient()
+  
+  try {
+    const user = await neonServer.getUser()
+    if (user) {
+      redirect("/dashboard")
+    }
+  } catch (error) {
+    // User not authenticated, continue to show register form
+    console.log("User not authenticated")
   }
 
   return (
