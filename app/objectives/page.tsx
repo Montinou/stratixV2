@@ -20,17 +20,15 @@ import {
 } from "@/components/ui/alert-dialog"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
-import type { Objective } from "@/lib/types/okr"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { getObjectives, deleteObjective } from "@/lib/actions/objectives"
+import type { Objective } from "@/lib/database/services"
+import { useState, useEffect, useCallback } from "react"
 import { Plus, Search, Filter, Calendar } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 import { toast } from "@/hooks/use-toast"
 
 export default function ObjectivesPage() {
   const { profile } = useAuth()
-  // Create supabase client once to prevent recreating on every function call
-  const supabase = useMemo(() => createClient(), [])
   
   const [objectives, setObjectives] = useState<Objective[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,29 +46,24 @@ export default function ObjectivesPage() {
     setLoading(true)
 
     try {
-      let query = supabase.from("objectives").select(`
-        *,
-        owner:profiles(*)
-      `)
-
-      // Apply role-based filtering
-      if (profile.role === "empleado") {
-        query = query.eq("owner_id", profile.id)
-      } else if (profile.role === "gerente") {
-        query = query.eq("department", profile.department)
+      const result = await getObjectives()
+      
+      if (result.error) {
+        throw new Error(result.error)
       }
 
-      const { data, error } = await query.order("created_at", { ascending: false })
-
-      if (error) throw error
-
-      setObjectives(data || [])
+      setObjectives(result.data || [])
     } catch (error) {
       console.error("Error fetching objectives:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los objetivos. Inténtalo de nuevo.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
-  }, [profile, supabase])
+  }, [profile])
 
   useEffect(() => {
     fetchObjectives()
@@ -78,8 +71,11 @@ export default function ObjectivesPage() {
 
   const handleDelete = async (objective: Objective) => {
     try {
-      const { error } = await supabase.from("objectives").delete().eq("id", objective.id)
-      if (error) throw error
+      const result = await deleteObjective(objective.id)
+      
+      if (result.error) {
+        throw new Error(result.error)
+      }
 
       toast({ title: "Objetivo eliminado", description: "El objetivo ha sido eliminado correctamente." })
       fetchObjectives()
