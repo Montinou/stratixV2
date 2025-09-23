@@ -3,10 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "bash @scripts/deploy/pre-build-migration.sh",
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "migrate": "bash @scripts/run_migration_neondb.sh migrate",
+    "migrate:with-seed": "bash @scripts/run_migration_neondb.sh migrate --with-seed",
+    "migrate:validate": "bash @scripts/run_migration_neondb.sh validate",
+    "migrate:test-connection": "bash @scripts/run_migration_neondb.sh test-connection",
+    "deploy:health-check": "bash @scripts/deploy/pre-build-migration.sh health-check",
+    "deploy:check-migration": "bash @scripts/deploy/pre-build-migration.sh check-needed",
+    "rollback": "bash @scripts/deploy/rollback-migration.sh auto",
+    "rollback:manual": "bash @scripts/deploy/rollback-migration.sh manual",
+    "rollback:emergency": "bash @scripts/deploy/rollback-migration.sh emergency",
+    "rollback:backup": "bash @scripts/deploy/rollback-migration.sh backup",
+    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
@@ -39,8 +51,6 @@
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
     "@stackframe/stack": "^2.8.39",
-    "@supabase/ssr": "latest",
-    "@supabase/supabase-js": "latest",
     "@types/lodash": "^4.17.20",
     "@types/pg": "^8.15.5",
     "@vercel/analytics": "latest",

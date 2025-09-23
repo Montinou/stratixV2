@@ -1,34 +1,20 @@
-import { createClient } from "@/lib/supabase/server"
+import { neonServerClient } from "@/lib/neon-auth/server"
 import { redirect } from "next/navigation"
 import { DashboardContent } from "@/components/dashboard/dashboard-content"
+import { getCurrentProfile } from "@/lib/actions/profiles"
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
+  // Check authentication
+  const user = await neonServerClient.getUser()
+  if (!user) {
     redirect("/auth/login")
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(`
-      *,
-      companies (
-        id,
-        name,
-        slug,
-        logo_url,
-        settings,
-        created_at,
-        updated_at
-      )
-    `)
-    .eq("id", user.id)
-    .single()
+  // Get user profile
+  const { data: profile, error } = await getCurrentProfile()
+  if (error || !profile) {
+    redirect("/auth/login")
+  }
 
-  return <DashboardContent user={user} profile={profile} />
+  return <DashboardContent profile={profile} />
 }

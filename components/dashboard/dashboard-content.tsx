@@ -2,42 +2,19 @@
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/client"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Target } from "lucide-react"
 import Link from "next/link"
-import type { Objective, Initiative, Activity as ActivityType } from "@/lib/types/okr"
-import type { User } from "@supabase/supabase-js"
-
-interface Profile {
-  id: string
-  email: string
-  full_name: string
-  role: "corporativo" | "gerente" | "empleado"
-  department: string | null
-  manager_id: string | null
-  company_id: string | null
-  created_at: string
-  updated_at: string
-  companies?: {
-    id: string
-    name: string
-    slug: string
-    logo_url: string | null
-    settings: any
-    created_at: string
-    updated_at: string
-  }
-}
+import type { Objective, Initiative, Activity as ActivityType, Profile } from "@/lib/database/services"
+import { getObjectives } from "@/lib/actions/objectives"
+import { getInitiatives } from "@/lib/actions/initiatives"
+import { getActivities } from "@/lib/actions/activities"
 
 interface DashboardContentProps {
-  user: User
-  profile: Profile | null
+  profile: Profile
 }
 
-export function DashboardContent({ user, profile }: DashboardContentProps) {
-  // Create supabase client once to prevent recreating on every function call
-  const supabase = useMemo(() => createClient(), [])
+export function DashboardContent({ profile }: DashboardContentProps) {
   
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -66,15 +43,13 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
   ]
 
   const fetchDashboardData = useCallback(async () => {
-    if (!profile) return
-
     setLoading(true)
 
     try {
       const [objectivesResult, initiativesResult, activitiesResult] = await Promise.all([
-        supabase.from("objectives").select("*, owner:profiles(*)").order("created_at", { ascending: false }).limit(5),
-        supabase.from("initiatives").select("id, progress"),
-        supabase.from("activities").select("id, progress"),
+        getObjectives(),
+        getInitiatives(),
+        getActivities(),
       ])
 
       const objectives = objectivesResult.data || []
@@ -83,7 +58,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
 
       const allItems = [...objectives, ...initiatives, ...activities]
       const averageProgress = allItems.length
-        ? Math.round(allItems.reduce((sum, item) => sum + item.progress, 0) / allItems.length)
+        ? Math.round(allItems.reduce((sum, item) => sum + (item.progress || 0), 0) / allItems.length)
         : 0
 
       setStats({
@@ -100,7 +75,7 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     } finally {
       setLoading(false)
     }
-  }, [profile, supabase])
+  }, [])
 
   useEffect(() => {
     fetchDashboardData()
