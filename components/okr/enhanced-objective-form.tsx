@@ -8,12 +8,14 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { createClient } from "@/lib/supabase/client"
+import { createObjective, updateObjective } from "@/lib/actions/objectives"
 import { useAuth } from "@/lib/hooks/use-auth"
-import type { Objective, OKRStatus } from "@/lib/types/okr"
+import type { Objective } from "@/lib/database/services"
 import { toast } from "@/hooks/use-toast"
 import { SuggestionPanel } from "@/components/ai/suggestion-panel"
 import { SmartInput } from "@/components/ai/smart-input"
+
+type OKRStatus = 'draft' | 'in_progress' | 'completed' | 'cancelled';
 
 interface EnhancedObjectiveFormProps {
   objective?: Objective
@@ -28,7 +30,7 @@ export function EnhancedObjectiveForm({ objective, onSuccess, onCancel }: Enhanc
     title: objective?.title || "",
     description: objective?.description || "",
     department: objective?.department || profile?.department || "",
-    status: objective?.status || ("no_iniciado" as OKRStatus),
+    status: objective?.status || ("draft" as OKRStatus),
     progress: objective?.progress || 0,
     start_date: objective?.start_date || new Date().toISOString().split("T")[0],
     end_date: objective?.end_date || "",
@@ -39,15 +41,14 @@ export function EnhancedObjectiveForm({ objective, onSuccess, onCancel }: Enhanc
     if (!profile) return
 
     setLoading(true)
-    const supabase = createClient()
 
     try {
       const objectiveData = {
         title: formData.title,
         description: formData.description || null,
-        owner_id: profile.id,
         department: formData.department,
         status: formData.status,
+        priority: 'medium' as const, // Default priority
         progress: formData.progress,
         start_date: formData.start_date,
         end_date: formData.end_date,
@@ -55,13 +56,13 @@ export function EnhancedObjectiveForm({ objective, onSuccess, onCancel }: Enhanc
 
       if (objective) {
         // Update existing objective
-        const { error } = await supabase.from("objectives").update(objectiveData).eq("id", objective.id)
-        if (error) throw error
+        const result = await updateObjective(objective.id, objectiveData)
+        if (result.error) throw new Error(result.error)
         toast({ title: "Objetivo actualizado", description: "El objetivo ha sido actualizado correctamente." })
       } else {
         // Create new objective
-        const { error } = await supabase.from("objectives").insert(objectiveData)
-        if (error) throw error
+        const result = await createObjective(objectiveData)
+        if (result.error) throw new Error(result.error)
         toast({ title: "Objetivo creado", description: "El objetivo ha sido creado correctamente." })
       }
 
