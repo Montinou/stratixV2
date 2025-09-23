@@ -8,11 +8,19 @@
 -- ENUMS
 -- =============================================================================
 
--- Create enum for user roles
-CREATE TYPE user_role AS ENUM ('corporativo', 'gerente', 'empleado');
+-- Create enum for user roles (only if it doesn't exist)
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('corporativo', 'gerente', 'empleado');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- Create enum for OKR status
-CREATE TYPE okr_status AS ENUM ('no_iniciado', 'en_progreso', 'completado', 'pausado');
+-- Create enum for OKR status (only if it doesn't exist)
+DO $$ BEGIN
+    CREATE TYPE okr_status AS ENUM ('no_iniciado', 'en_progreso', 'completado', 'pausado');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- =============================================================================
 -- AUTH SIMULATION (for NeonDB without Supabase Auth)
@@ -40,6 +48,9 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create auth schema if it doesn't exist
+CREATE SCHEMA IF NOT EXISTS auth;
+
 -- Create auth function simulation
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID AS $$
 BEGIN
@@ -48,9 +59,6 @@ BEGIN
   RETURN (SELECT id FROM public.users LIMIT 1);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create auth schema if it doesn't exist
-CREATE SCHEMA IF NOT EXISTS auth;
 
 -- Create view in auth schema for compatibility
 CREATE OR REPLACE VIEW auth.users AS 
