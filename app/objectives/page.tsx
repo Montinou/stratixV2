@@ -22,13 +22,16 @@ import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { createClient } from "@/lib/supabase/client"
 import type { Objective } from "@/lib/types/okr"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Plus, Search, Filter, Calendar } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 import { toast } from "@/hooks/use-toast"
 
 export default function ObjectivesPage() {
   const { profile } = useAuth()
+  // Create supabase client once to prevent recreating on every function call
+  const supabase = useMemo(() => createClient(), [])
+  
   const [objectives, setObjectives] = useState<Objective[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -39,10 +42,9 @@ export default function ObjectivesPage() {
   const [editingObjective, setEditingObjective] = useState<Objective | undefined>()
   const [deletingObjective, setDeletingObjective] = useState<Objective | undefined>()
 
-  const fetchObjectives = async () => {
+  const fetchObjectives = useCallback(async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
@@ -68,15 +70,13 @@ export default function ObjectivesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [profile, supabase])
 
   useEffect(() => {
     fetchObjectives()
-  }, [profile])
+  }, [fetchObjectives])
 
   const handleDelete = async (objective: Objective) => {
-    const supabase = createClient()
-
     try {
       const { error } = await supabase.from("objectives").delete().eq("id", objective.id)
       if (error) throw error

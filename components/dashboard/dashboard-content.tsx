@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Target } from "lucide-react"
 import Link from "next/link"
 import type { Objective, Initiative, Activity as ActivityType } from "@/lib/types/okr"
@@ -36,6 +36,9 @@ interface DashboardContentProps {
 }
 
 export function DashboardContent({ user, profile }: DashboardContentProps) {
+  // Create supabase client once to prevent recreating on every function call
+  const supabase = useMemo(() => createClient(), [])
+  
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     objectives: 0,
@@ -62,10 +65,9 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     { month: "Jun", objectives: 78, initiatives: 82, activities: 87 },
   ]
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
@@ -98,11 +100,11 @@ export function DashboardContent({ user, profile }: DashboardContentProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [profile, supabase])
 
   useEffect(() => {
     fetchDashboardData()
-  }, [profile])
+  }, [fetchDashboardData])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("es-ES", {
