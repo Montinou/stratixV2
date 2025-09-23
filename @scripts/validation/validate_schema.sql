@@ -37,6 +37,24 @@ SELECT
 FROM pg_type 
 WHERE typname = 'okr_status' AND typtype = 'e';
 
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memory_type_enum',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'memory_type enum exists' ELSE 'memory_type enum missing' END,
+    'Expected values: insight, lesson, pattern, outcome, decision, blocker'
+FROM pg_type 
+WHERE typname = 'memory_type' AND typtype = 'e';
+
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memory_relationship_type_enum',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'memory_relationship_type enum exists' ELSE 'memory_relationship_type enum missing' END,
+    'Expected values: related, builds_on, contradicts, similar, caused_by, led_to'
+FROM pg_type 
+WHERE typname = 'memory_relationship_type' AND typtype = 'e';
+
 -- =============================================================================
 -- TABLE VALIDATION
 -- =============================================================================
@@ -45,7 +63,9 @@ WHERE typname = 'okr_status' AND typtype = 'e';
 WITH required_tables AS (
     SELECT unnest(ARRAY[
         'profiles', 'objectives', 'initiatives', 'activities', 
-        'companies', 'import_logs', 'ai_suggestions'
+        'companies', 'import_logs', 'ai_suggestions',
+        'memories', 'memory_tags', 'memory_relationships', 
+        'memory_analytics', 'memory_search_history'
     ]) AS table_name
 ),
 existing_tables AS (
@@ -77,7 +97,16 @@ WITH required_columns AS (
         ('activities', 'company_id'),
         ('profiles', 'role'),
         ('objectives', 'status'),
-        ('ai_suggestions', 'suggestion_type')
+        ('ai_suggestions', 'suggestion_type'),
+        ('memories', 'search_vector'),
+        ('memories', 'memory_type'),
+        ('memories', 'creator_id'),
+        ('memory_tags', 'memory_id'),
+        ('memory_tags', 'tag'),
+        ('memory_relationships', 'source_memory_id'),
+        ('memory_relationships', 'target_memory_id'),
+        ('memory_analytics', 'action_type'),
+        ('memory_search_history', 'search_query')
     ) AS t(table_name, column_name)
 ),
 existing_columns AS (
@@ -112,7 +141,16 @@ WITH required_fks AS (
         ('activities', 'initiative_id', 'initiatives', 'id'),
         ('activities', 'owner_id', 'profiles', 'id'),
         ('import_logs', 'company_id', 'companies', 'id'),
-        ('import_logs', 'user_id', 'profiles', 'id')
+        ('import_logs', 'user_id', 'profiles', 'id'),
+        ('memories', 'creator_id', 'users', 'id'),
+        ('memories', 'company_id', 'companies', 'id'),
+        ('memories', 'objective_id', 'objectives', 'id'),
+        ('memory_tags', 'memory_id', 'memories', 'id'),
+        ('memory_tags', 'created_by', 'users', 'id'),
+        ('memory_relationships', 'source_memory_id', 'memories', 'id'),
+        ('memory_relationships', 'target_memory_id', 'memories', 'id'),
+        ('memory_analytics', 'memory_id', 'memories', 'id'),
+        ('memory_analytics', 'user_id', 'users', 'id')
     ) AS t(table_name, column_name, ref_table, ref_column)
 ),
 existing_fks AS (
@@ -150,7 +188,8 @@ LEFT JOIN existing_fks ef ON rf.table_name = ef.table_name
 -- Check if required functions exist
 WITH required_functions AS (
     SELECT unnest(ARRAY[
-        'handle_new_user', 'update_updated_at_column', 'set_company_id'
+        'handle_new_user', 'update_updated_at_column', 'set_company_id',
+        'update_memory_search_vector', 'set_memory_company_id', 'set_memory_analytics_company_id'
     ]) AS function_name
 ),
 existing_functions AS (
@@ -210,7 +249,9 @@ LEFT JOIN existing_triggers et ON rt.trigger_name = et.trigger_name AND rt.table
 WITH required_rls_tables AS (
     SELECT unnest(ARRAY[
         'profiles', 'objectives', 'initiatives', 'activities', 
-        'companies', 'import_logs', 'ai_suggestions'
+        'companies', 'import_logs', 'ai_suggestions',
+        'memories', 'memory_tags', 'memory_relationships', 
+        'memory_analytics', 'memory_search_history'
     ]) AS table_name
 ),
 rls_enabled AS (
@@ -238,7 +279,18 @@ WITH required_indexes AS (
     SELECT * FROM (VALUES
         ('idx_ai_suggestions_user_id', 'ai_suggestions'),
         ('idx_ai_suggestions_created_at', 'ai_suggestions'),
-        ('idx_ai_suggestions_suggestion_type', 'ai_suggestions')
+        ('idx_ai_suggestions_suggestion_type', 'ai_suggestions'),
+        ('idx_memories_search_vector', 'memories'),
+        ('idx_memories_content_gin', 'memories'),
+        ('idx_memories_creator_id', 'memories'),
+        ('idx_memories_company_id', 'memories'),
+        ('idx_memories_type', 'memories'),
+        ('idx_memory_tags_memory_id', 'memory_tags'),
+        ('idx_memory_tags_tag', 'memory_tags'),
+        ('idx_memory_relationships_source', 'memory_relationships'),
+        ('idx_memory_relationships_target', 'memory_relationships'),
+        ('idx_memory_analytics_memory_id', 'memory_analytics'),
+        ('idx_memory_search_history_user_id', 'memory_search_history')
     ) AS t(index_name, table_name)
 ),
 existing_indexes AS (
