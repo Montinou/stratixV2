@@ -13,14 +13,26 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     // Only validate on server-side builds to avoid duplication
     if (isServer) {
-      try {
-        // Import and run validation
-        const { validateEnvironmentForBuild } = require('./lib/config/env-validation.ts')
-        validateEnvironmentForBuild()
-      } catch (error) {
-        // Allow the build to continue in case the validation file doesn't exist yet
-        // This prevents chicken-and-egg problems during initial setup
-        console.warn('Environment validation skipped:', error.message)
+      // Simple environment validation without dynamic imports
+      const requiredVars = [
+        'DATABASE_URL',
+        'DATABASE_URL_UNPOOLED', 
+        'NEON_PROJECT_ID',
+        'NEXT_PUBLIC_STACK_PROJECT_ID',
+        'NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY',
+        'STACK_SECRET_SERVER_KEY'
+      ]
+      
+      const missingVars = requiredVars.filter(varName => !process.env[varName])
+      
+      if (missingVars.length > 0) {
+        console.error('❌ Missing required environment variables:')
+        missingVars.forEach(varName => console.error(`  - ${varName}`))
+        console.error('\nPlease check your .env.local file and ensure all required variables are set.')
+        console.error('See .env.example for the complete list of required variables.')
+        throw new Error('Environment validation failed')
+      } else {
+        console.log('✅ Environment validation passed')
       }
     }
     return config
