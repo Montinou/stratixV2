@@ -1,24 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateOKRSuggestions } from "@/lib/ai/suggestions"
-import { createClient } from "@/lib/supabase/server"
+import { verifyAuthentication, verifyUserRole, storeAISuggestion } from "@/lib/database/auth"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
     // Verify user authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    const { user, error: authError } = await verifyAuthentication(request)
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get user profile to check if they're corporate
-    const { data: profile } = await supabase.from("user_profiles").select("role_type").eq("user_id", user.id).single()
-
-    if (profile?.role_type !== "corporativo") {
+    // Check if user has corporate role
+    const isCorporate = await verifyUserRole(user.id, "corporativo")
+    if (!isCorporate) {
       return NextResponse.json({ error: "Feature only available for corporate users" }, { status: 403 })
     }
 
@@ -34,12 +28,12 @@ export async function POST(request: NextRequest) {
     })
 
     // Store suggestion in database for analytics
-    await supabase.from("ai_suggestions").insert({
-      user_id: user.id,
-      suggestion_type: "okr_generation",
-      input_data: { title, description, department },
-      output_data: suggestions,
-    })
+    await storeAISuggestion(
+      user.id,
+      "okr_generation",
+      { title, description, department },
+      suggestions
+    )
 
     return NextResponse.json(suggestions)
   } catch (error) {

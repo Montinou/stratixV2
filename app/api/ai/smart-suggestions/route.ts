@@ -1,24 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateSmartSuggestions } from "@/lib/ai/suggestions"
-import { createClient } from "@/lib/supabase/server"
+import { verifyAuthentication, verifyUserRole } from "@/lib/database/auth"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
     // Verify user authentication
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    const { user, error: authError } = await verifyAuthentication(request)
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get user profile to check if they're corporate
-    const { data: profile } = await supabase.from("user_profiles").select("role_type").eq("user_id", user.id).single()
-
-    if (profile?.role_type !== "corporativo") {
+    // Check if user has corporate role
+    const isCorporate = await verifyUserRole(user.id, "corporativo")
+    if (!isCorporate) {
       return NextResponse.json({ error: "Feature only available for corporate users" }, { status: 403 })
     }
 
