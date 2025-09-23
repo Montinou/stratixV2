@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/lib/hooks/use-auth"
 import { createClient } from "@/lib/supabase/client"
 import type { Activity } from "@/lib/types/okr"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Plus, Search, Filter } from "lucide-react"
 import { ActivityForm } from "@/components/okr/activity-form"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -29,6 +29,9 @@ import { toast } from "@/hooks/use-toast"
 
 export default function ActivitiesPage() {
   const { profile } = useAuth()
+  // Create supabase client once to prevent recreating on every function call
+  const supabase = useMemo(() => createClient(), [])
+  
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -38,10 +41,9 @@ export default function ActivitiesPage() {
   const [editingActivity, setEditingActivity] = useState<Activity | undefined>()
   const [deletingActivity, setDeletingActivity] = useState<Activity | undefined>()
 
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
@@ -67,15 +69,13 @@ export default function ActivitiesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [profile, supabase])
 
   useEffect(() => {
     fetchActivities()
-  }, [profile])
+  }, [fetchActivities])
 
   const handleDelete = async (activity: Activity) => {
-    const supabase = createClient()
-
     try {
       const { error } = await supabase.from("activities").delete().eq("id", activity.id)
       if (error) throw error
@@ -218,7 +218,6 @@ export default function ActivitiesPage() {
                 activity={editingActivity}
                 onClose={() => setShowForm(false)}
                 onSubmit={async (activityData) => {
-                  const supabase = createClient()
                   const { error } = editingActivity
                     ? await supabase.from("activities").update(activityData).eq("id", editingActivity.id)
                     : await supabase.from("activities").insert([activityData])
