@@ -4,7 +4,7 @@ import type React from "react"
 
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 
 interface Profile {
   id: string
@@ -44,7 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  
+  // Create supabase client once using useMemo to prevent recreating on every render
+  const supabase = useMemo(() => createClient(), [])
 
   const fetchProfile = useCallback(
     async (userId: string) => {
@@ -80,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { profile: null, company: null }
       }
     },
-    [supabase],
+    [supabase], // supabase is stable due to useMemo, but include to satisfy linter
   )
 
   const refreshProfile = useCallback(async () => {
@@ -96,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setProfile(null)
     setCompany(null)
-  }, [supabase.auth])
+  }, [supabase]) // supabase is stable due to useMemo, but include to satisfy linter
 
   useEffect(() => {
     let mounted = true
@@ -177,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [supabase.auth, fetchProfile])
+  }, [supabase, fetchProfile]) // supabase is stable due to useMemo, but include to satisfy linter
 
   return (
     <AuthContext.Provider value={{ user, profile, company, loading, signOut, refreshProfile }}>

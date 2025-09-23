@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/hooks/use-auth"
 import { createClient } from "@/lib/supabase/client"
 import { generateDailyInsights, generateTeamInsights } from "@/lib/ai/insights"
 import type { Objective, Initiative, Activity } from "@/lib/types/okr"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Lightbulb, Sparkles, TrendingUp, Users, RefreshCw, Calendar } from "lucide-react"
 
 export default function InsightsPage() {
@@ -17,6 +17,9 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(true)
   const [generatingInsights, setGeneratingInsights] = useState(false)
   const [timeRange, setTimeRange] = useState("week")
+
+  // Create supabase client once to prevent recreating on every function call
+  const supabase = useMemo(() => createClient(), [])
 
   const [data, setData] = useState<{
     objectives: Objective[]
@@ -34,10 +37,9 @@ export default function InsightsPage() {
     lastGenerated: null as Date | null,
   })
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
@@ -57,9 +59,9 @@ export default function InsightsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [profile, supabase])
 
-  const generateInsights = async () => {
+  const generateInsights = useCallback(async () => {
     if (!profile) return
 
     setGeneratingInsights(true)
@@ -94,17 +96,17 @@ export default function InsightsPage() {
     } finally {
       setGeneratingInsights(false)
     }
-  }
+  }, [profile, data])
 
   useEffect(() => {
     fetchData()
-  }, [profile])
+  }, [fetchData])
 
   useEffect(() => {
     if (data.objectives.length > 0 && !insights.daily) {
       generateInsights()
     }
-  }, [data])
+  }, [data, insights.daily, generateInsights])
 
   const formatLastGenerated = (date: Date | null) => {
     if (!date) return "Nunca"
