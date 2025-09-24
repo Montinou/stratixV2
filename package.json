@@ -27,7 +27,7 @@
     "db:up": "drizzle-kit up",
     "db:check": "drizzle-kit check",
     "db:drop": "drizzle-kit drop",
-    "db:studio": "drizzle-kit studio
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
