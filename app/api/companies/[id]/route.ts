@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthentication } from '@/lib/database/auth';
 import { CompaniesRepository } from '@/lib/database/queries/companies';
+import { DatabaseError, DatabaseErrorCode } from '@/lib/errors/database-errors';
 import { z } from 'zod';
 
 const companiesRepository = new CompaniesRepository();
@@ -151,18 +152,45 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating company:', error);
     
-    if (error instanceof Error && error.message.includes('not found')) {
-      return NextResponse.json(
-        { success: false, error: 'Company not found' },
-        { status: 404 }
-      );
+    if (error instanceof DatabaseError) {
+      switch (error.code) {
+        case DatabaseErrorCode.UNIQUE_VIOLATION:
+          return NextResponse.json(
+            { success: false, error: 'Company name already exists' },
+            { status: 409 }
+          );
+        case DatabaseErrorCode.FOREIGN_KEY_VIOLATION:
+          return NextResponse.json(
+            { success: false, error: 'Invalid company reference' },
+            { status: 400 }
+          );
+        case DatabaseErrorCode.NOT_NULL_VIOLATION:
+          return NextResponse.json(
+            { success: false, error: 'Required field missing' },
+            { status: 400 }
+          );
+        default:
+          return NextResponse.json(
+            { success: false, error: 'Database error occurred' },
+            { status: 500 }
+          );
+      }
     }
 
-    if (error instanceof Error && error.message.includes('duplicate key')) {
-      return NextResponse.json(
-        { success: false, error: 'Company name already exists' },
-        { status: 409 }
-      );
+    // Handle legacy string-based errors for backward compatibility
+    if (error instanceof Error) {
+      if (error.message.includes('not found')) {
+        return NextResponse.json(
+          { success: false, error: 'Company not found' },
+          { status: 404 }
+        );
+      }
+      if (error.message.includes('duplicate key')) {
+        return NextResponse.json(
+          { success: false, error: 'Company name already exists' },
+          { status: 409 }
+        );
+      }
     }
 
     return NextResponse.json(
@@ -234,6 +262,27 @@ export async function DELETE(
   } catch (error) {
     console.error('Error deleting company:', error);
     
+    if (error instanceof DatabaseError) {
+      switch (error.code) {
+        case DatabaseErrorCode.FOREIGN_KEY_VIOLATION:
+          return NextResponse.json(
+            { success: false, error: 'Cannot delete company: it has associated users or data' },
+            { status: 400 }
+          );
+        case DatabaseErrorCode.CONSTRAINT_VIOLATION:
+          return NextResponse.json(
+            { success: false, error: 'Cannot delete company: constraint violation' },
+            { status: 400 }
+          );
+        default:
+          return NextResponse.json(
+            { success: false, error: 'Database error occurred' },
+            { status: 500 }
+          );
+      }
+    }
+
+    // Handle legacy string-based errors for backward compatibility
     if (error instanceof Error && error.message.includes('foreign key')) {
       return NextResponse.json(
         { success: false, error: 'Cannot delete company: it has associated users or data' },

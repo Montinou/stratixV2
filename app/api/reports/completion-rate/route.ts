@@ -46,22 +46,18 @@ export async function GET(request: NextRequest) {
       ? Math.round((completedObjectives / totalObjectives) * 100)
       : 0
 
-    // Generate weekly completion rate data (mock trend based on current data)
+    // TODO: Replace with real weekly completion rate data from database
+    // For now, using current completion rate as placeholder
     const weeks = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6']
-    const baseTarget = 70 // Base target of 70%
+    const baseTarget = 75 // Standard target completion rate
     
-    const completionRateData: CompletionRateData[] = weeks.map((week, index) => {
-      // Simulate a gradual improvement trend leading to current rate
-      const progressFactor = (index + 1) / weeks.length
-      const simulatedRate = Math.round(currentCompletionRate * progressFactor)
-      
-      // Target increases slightly over time
-      const weeklyTarget = baseTarget + (index * 2.5) // Increase target by 2.5% per week
-      
+    const completionRateData: CompletionRateData[] = weeks.map((week) => {
+      // Using current completion rate as baseline - this should be replaced with
+      // actual weekly historical data when time-based tracking is implemented
       return {
         week,
-        completionRate: Math.max(0, Math.min(100, simulatedRate)),
-        target: Math.min(100, Math.round(weeklyTarget))
+        completionRate: currentCompletionRate,
+        target: baseTarget
       }
     })
 

@@ -289,12 +289,19 @@ export class ProfileLifecycleService implements ProfileLifecycleManager {
     try {
       console.log(`Deleting profile for user ${userId}`)
       
-      // Note: ProfilesService doesn't have a delete method in the current implementation
-      // This would typically be handled by CASCADE DELETE when the user is deleted
-      // from the users table, but we can add logging here for audit purposes
+      // Check if profile exists before attempting deletion
+      const existingProfile = await ProfilesService.getByUserId(userId)
+      if (!existingProfile) {
+        console.warn(`Profile for user ${userId} not found, nothing to delete`)
+        return
+      }
+
+      // Use ProfilesRepository for proper deletion
+      const { ProfilesRepository } = await import('@/lib/database/queries/profiles')
+      const profilesRepo = new ProfilesRepository()
+      await profilesRepo.delete(userId)
       
-      console.log(`Profile deletion requested for user ${userId}`)
-      // TODO: Implement profile deletion if needed, or rely on database cascade
+      console.log(`Successfully deleted profile for user ${userId}`)
       
     } catch (error) {
       console.error('Error deleting profile:', error)

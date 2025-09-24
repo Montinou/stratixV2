@@ -62,17 +62,17 @@ export async function GET(request: NextRequest) {
       ? Math.round((completedActivities / activitiesData.length) * 100)
       : 0
 
-    // Generate trend data for the last 6 months (mock data based on current values)
+    // TODO: Replace with real historical data from database
+    // For now, using current data as placeholder until historical tracking is implemented
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun']
     const trendData: ProgressTrendData[] = months.map((month, index) => {
-      // Simulate a slight upward trend
-      const trendFactor = 1 + (index * 0.02) // 2% increase per month
-      
+      // Using current values as baseline - this should be replaced with actual historical data
+      // when progress tracking over time is implemented in the database
       return {
         month,
-        objectives: Math.min(100, Math.round(currentObjectiveProgress * trendFactor)),
-        initiatives: Math.min(100, Math.round(currentInitiativeProgress * trendFactor)),
-        activities: Math.min(100, Math.round(currentActivityProgress * trendFactor))
+        objectives: currentObjectiveProgress,
+        initiatives: currentInitiativeProgress,
+        activities: currentActivityProgress
       }
     })
 

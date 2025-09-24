@@ -61,18 +61,24 @@ This document summarizes the performance optimization and connection pooling imp
 #### Environment-Specific Settings
 ```typescript
 // Production: Optimized for high performance
-max: 10-30 connections (calculated based on load)
-idleTimeoutMillis: 60000 (aggressive cleanup)
-connectionTimeoutMillis: 2000 (fast establishment)
+const productionConfig = {
+  max: 30, // 10-30 connections (calculated based on load)
+  idleTimeoutMillis: 60000, // aggressive cleanup
+  connectionTimeoutMillis: 2000, // fast establishment
+};
 
 // Staging: Balanced for testing  
-max: 15 connections
-verbose: true (extended logging)
-breakpoints: true (safe migrations)
+const stagingConfig = {
+  max: 15, // connections
+  verbose: true, // extended logging
+  breakpoints: true, // safe migrations
+};
 
 // Development: Minimal resource usage
-max: 5 connections
-statement_timeout: 0 (no timeout for debugging)
+const developmentConfig = {
+  max: 5, // connections
+  statement_timeout: 0, // no timeout for debugging
+};
 ```
 
 ## Coordination with Stream B

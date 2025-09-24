@@ -363,6 +363,7 @@ export class ProfilesRepository {
   /**
    * Create profile for Stack Auth user if it doesn't exist
    * Used during Stack Auth integration to ensure profiles exist
+   * Fixed: Uses UPSERT to avoid race conditions
    */
   async createOrUpdate(userId: string, profileData: {
     fullName: string;
@@ -371,19 +372,39 @@ export class ProfilesRepository {
     companyId: string;
   }): Promise<Profile> {
     try {
-      // Check if profile already exists
-      const existing = await this.getByUserId(userId);
-      
-      if (existing) {
-        // Update existing profile
-        return await this.update(userId, profileData);
-      } else {
-        // Create new profile
-        return await this.create({
+      // Use ON CONFLICT to handle race conditions atomically
+      const results = await this.db
+        .insert(profiles)
+        .values({
           userId,
-          ...profileData
-        });
-      }
+          fullName: profileData.fullName,
+          roleType: profileData.roleType,
+          department: profileData.department,
+          companyId: profileData.companyId,
+        })
+        .onConflictDoUpdate({
+          target: profiles.userId,
+          set: {
+            fullName: profileData.fullName,
+            roleType: profileData.roleType,
+            department: profileData.department,
+            companyId: profileData.companyId,
+            updatedAt: new Date(),
+          }
+        })
+        .returning();
+
+      const result = results[0];
+
+      return {
+        userId: result.userId,
+        fullName: result.fullName,
+        roleType: result.roleType,
+        department: result.department,
+        companyId: result.companyId,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      };
 
     } catch (error) {
       console.error('Error creating or updating profile:', error);

@@ -199,23 +199,71 @@ export class CompaniesRepository {
   /**
    * Get companies with profile counts
    * Used for admin dashboard and company listing with stats
+   * Fixed: Optimized to avoid N+1 query problem
    */
   async getAllWithStats(): Promise<CompanyWithStats[]> {
     try {
-      // Get all companies
-      const allCompanies = await this.getAll();
+      // Single query to get all companies with their profile counts and departments
+      const results = await this.db
+        .select({
+          // Company fields
+          id: companies.id,
+          name: companies.name,
+          description: companies.description,
+          industry: companies.industry,
+          size: companies.size,
+          createdAt: companies.createdAt,
+          updatedAt: companies.updatedAt,
+          // Aggregated profile count
+          profilesCount: count(profiles.userId),
+        })
+        .from(companies)
+        .leftJoin(profiles, eq(companies.id, profiles.companyId))
+        .groupBy(
+          companies.id,
+          companies.name,
+          companies.description,
+          companies.industry,
+          companies.size,
+          companies.createdAt,
+          companies.updatedAt
+        )
+        .orderBy(desc(companies.createdAt));
 
-      // Get profile counts for each company
-      const companiesWithStats: CompanyWithStats[] = [];
+      // Get departments for all companies in a separate optimized query
+      const departmentsResults = await this.db
+        .selectDistinct({
+          companyId: profiles.companyId,
+          department: profiles.department
+        })
+        .from(profiles)
+        .where(sql`${profiles.department} IS NOT NULL`);
 
-      for (const company of allCompanies) {
-        const stats = await this.getByIdWithStats(company.id);
-        if (stats) {
-          companiesWithStats.push(stats);
+      // Group departments by company ID
+      const departmentsByCompany = departmentsResults.reduce<Record<string, string[]>>((acc, row) => {
+        if (row.companyId) {
+          if (!acc[row.companyId]) {
+            acc[row.companyId] = [];
+          }
+          if (row.department) {
+            acc[row.companyId].push(row.department);
+          }
         }
-      }
+        return acc;
+      }, {});
 
-      return companiesWithStats;
+      // Combine results
+      return results.map(row => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        industry: row.industry,
+        size: row.size,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        profilesCount: Number(row.profilesCount),
+        departments: departmentsByCompany[row.id] || []
+      }));
 
     } catch (error) {
       console.error('Error fetching companies with stats:', error);

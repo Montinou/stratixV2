@@ -34,6 +34,10 @@ export async function GET(request: NextRequest) {
       const objectivesRepo = new ObjectivesRepository()
       const allObjectives = await objectivesRepo.getAll(user.id, 'corporativo', '')
 
+      // TODO: Optimize with database aggregation query instead of in-memory processing
+      // This current implementation has O(n) complexity and should be replaced with
+      // a proper GROUP BY query for better performance with large datasets
+      
       // Group by department and calculate stats
       const departmentStats: { [key: string]: { [status: string]: number } } = {}
 

@@ -373,29 +373,42 @@ export class UsersRepository {
   /**
    * Create or update user for Stack Auth integration
    * Ensures user exists in database when coming from Stack Auth
+   * Fixed: Uses UPSERT to avoid race conditions
    */
   async createOrUpdate(id: string, userData: {
     email: string;
     emailConfirmed?: Date | null;
   }): Promise<User> {
     try {
-      // Check if user already exists
-      const existing = await this.getById(id);
-      
-      if (existing) {
-        // Update existing user
-        return await this.update(id, {
-          email: userData.email,
-          emailConfirmed: userData.emailConfirmed,
-        });
-      } else {
-        // Create new user with Stack Auth ID
-        return await this.createWithId(id, {
+      // Use ON CONFLICT to handle race conditions atomically
+      const results = await this.db
+        .insert(users)
+        .values({
+          id,
           email: userData.email,
           passwordHash: null, // Stack Auth manages passwords
           emailConfirmed: userData.emailConfirmed,
-        });
-      }
+        })
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            email: userData.email,
+            emailConfirmed: userData.emailConfirmed,
+            updatedAt: new Date(),
+          }
+        })
+        .returning();
+
+      const result = results[0];
+
+      return {
+        id: result.id,
+        email: result.email,
+        passwordHash: result.passwordHash,
+        emailConfirmed: result.emailConfirmed,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      };
 
     } catch (error) {
       console.error('Error creating or updating user:', error);

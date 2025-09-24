@@ -1,10 +1,11 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then node .vercel/neon-branch.js; fi && npm run build",
   "framework": "nextjs",
   "installCommand": "npm ci",
   "env": {
     "ENABLE_MIGRATION_LOGS": "true",
-    "MIGRATION_TIMEOUT": "300"
+    "MIGRATION_TIMEOUT": "300",
+    "NEON_AUTO_BRANCH": "true"
   },
   "build": {
     "env": {

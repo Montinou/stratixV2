@@ -55,8 +55,8 @@ export default function AnalyticsPage() {
   // Progress overview data based on analytics stats
   const progressOverviewData = [
     { name: "Completados", value: analytics.completionRate, color: "hsl(var(--chart-1))" },
-    { name: "En Progreso", value: Math.max(0, analytics.onTrackPercentage - analytics.completionRate), color: "hsl(var(--chart-2))" },
-    { name: "No Iniciados", value: Math.max(0, 100 - analytics.onTrackPercentage), color: "hsl(var(--chart-3))" },
+    { name: "En Progreso", value: Math.max(0, analytics.averageProgress - analytics.completionRate), color: "hsl(var(--chart-2))" },
+    { name: "No Iniciados", value: Math.max(0, 100 - analytics.averageProgress), color: "hsl(var(--chart-3))" },
     { name: "Pausados", value: Math.max(0, analytics.onTrackPercentage - analytics.averageProgress), color: "hsl(var(--chart-4))" },
   ]
 
