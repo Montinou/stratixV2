@@ -126,6 +126,9 @@ run_migration() {
     # AI suggestions (NeonDB version)
     run_script "$SCRIPT_DIR/migrations/003_add_ai_suggestions_neondb.sql" "AI Suggestions (NeonDB)" || exit 1
     
+    # Memory system (NeonDB version)
+    run_script "$SCRIPT_DIR/migrations/004_add_memory_system_neondb.sql" "Memory System (NeonDB)" || exit 1
+    
     # Seed data (NeonDB version)
     if [ "$1" = "--with-seed-data" ]; then
         log_info "Including seed data..."
