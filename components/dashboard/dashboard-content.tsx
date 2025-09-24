@@ -1,7 +1,3 @@
-// TODO: Replace Supabase queries with API calls
-// This file needs manual migration to use API endpoints
-
-
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"

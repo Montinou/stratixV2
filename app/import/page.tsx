@@ -1,7 +1,3 @@
-// TODO: Replace Supabase queries with API calls
-// This file needs manual migration to use API endpoints
-
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -30,14 +26,13 @@ export default function ImportPage() {
 
   const fetchImportLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("import_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-      setImportLogs(data || [])
+      // TODO: Implement import logs API endpoint
+      // const response = await fetch('/api/import/logs')
+      // const data = await response.json()
+      // setImportLogs(data || [])
+      
+      // For now, return empty array until import API is implemented
+      setImportLogs([])
     } catch (error) {
       console.error("Error fetching import logs:", error)
     } finally {
