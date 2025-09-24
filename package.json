@@ -19,8 +19,15 @@
     "rollback:emergency": "bash @scripts/deploy/rollback-migration.sh emergency",
     "rollback:backup": "bash @scripts/deploy/rollback-migration.sh backup",
     "rollback:state": "bash @scripts/deploy/rollback-migration.sh state",
-    "neon:cleanup": "node .vercel/cleanup-neon-branches.js",
-    "neon:branch": "node .vercel/neon-branch.js"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:pull": "drizzle-kit pull",
+    "db:introspect": "drizzle-kit introspect",
+    "db:up": "drizzle-kit up",
+    "db:check": "drizzle-kit check",
+    "db:drop": "drizzle-kit drop",
+    "db:studio": "drizzle-kit studio
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
@@ -85,7 +92,7 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
     "xlsx": "latest",
-    "zod": "3.25.67"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",

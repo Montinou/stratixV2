@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
 import { useState, useEffect } from "react"
 import { Download, Calendar, TrendingUp, Target, Users, Activity } from "lucide-react"
 
@@ -27,38 +26,38 @@ export default function AnalyticsPage() {
     onTrackPercentage: 0,
   })
 
-  // Mock data for charts - In a real app, this would come from the database
-  const progressOverviewData = [
-    { name: "Completados", value: 25, color: "hsl(var(--chart-1))" },
-    { name: "En Progreso", value: 45, color: "hsl(var(--chart-2))" },
-    { name: "No Iniciados", value: 20, color: "hsl(var(--chart-3))" },
-    { name: "Pausados", value: 10, color: "hsl(var(--chart-4))" },
-  ]
-
-  const progressTrendData = [
+  const [progressTrendData, setProgressTrendData] = useState([
     { month: "Ene", objectives: 65, initiatives: 70, activities: 75 },
     { month: "Feb", objectives: 68, initiatives: 72, activities: 78 },
     { month: "Mar", objectives: 70, initiatives: 75, activities: 80 },
     { month: "Abr", objectives: 72, initiatives: 78, activities: 82 },
     { month: "May", objectives: 75, initiatives: 80, activities: 85 },
     { month: "Jun", objectives: 78, initiatives: 82, activities: 87 },
-  ]
+  ])
 
-  const departmentPerformanceData = [
+  const [departmentPerformanceData, setDepartmentPerformanceData] = useState([
     { department: "Ventas", completed: 8, inProgress: 12, notStarted: 3, paused: 1 },
     { department: "Marketing", completed: 6, inProgress: 8, notStarted: 2, paused: 0 },
     { department: "Tecnología", completed: 10, inProgress: 15, notStarted: 4, paused: 2 },
     { department: "RRHH", completed: 4, inProgress: 6, notStarted: 1, paused: 0 },
     { department: "Finanzas", completed: 5, inProgress: 7, notStarted: 2, paused: 1 },
-  ]
+  ])
 
-  const completionRateData = [
+  const [completionRateData, setCompletionRateData] = useState([
     { week: "S1", completionRate: 65, target: 70 },
     { week: "S2", completionRate: 68, target: 70 },
     { week: "S3", completionRate: 72, target: 75 },
     { week: "S4", completionRate: 75, target: 75 },
     { week: "S5", completionRate: 78, target: 80 },
     { week: "S6", completionRate: 82, target: 80 },
+  ])
+
+  // Progress overview data based on analytics stats
+  const progressOverviewData = [
+    { name: "Completados", value: analytics.completionRate, color: "hsl(var(--chart-1))" },
+    { name: "En Progreso", value: Math.max(0, analytics.onTrackPercentage - analytics.completionRate), color: "hsl(var(--chart-2))" },
+    { name: "No Iniciados", value: Math.max(0, 100 - analytics.onTrackPercentage), color: "hsl(var(--chart-3))" },
+    { name: "Pausados", value: Math.max(0, analytics.onTrackPercentage - analytics.averageProgress), color: "hsl(var(--chart-4))" },
   ]
 
   const teamPerformanceData = [
@@ -73,43 +72,44 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
-      // Fetch basic counts
-      const [objectivesResult, initiativesResult, activitiesResult] = await Promise.all([
-        supabase.from("objectives").select("id, progress, status"),
-        supabase.from("initiatives").select("id, progress, status"),
-        supabase.from("activities").select("id, progress, status"),
+      // Fetch analytics data from new API endpoints
+      const [overviewResponse, progressTrendResponse, departmentResponse, completionRateResponse] = await Promise.all([
+        fetch('/api/analytics/overview'),
+        fetch('/api/analytics/progress-trend'),
+        fetch('/api/analytics/department-performance'),
+        fetch('/api/reports/completion-rate'),
       ])
 
-      const objectives = objectivesResult.data || []
-      const initiatives = initiativesResult.data || []
-      const activities = activitiesResult.data || []
+      if (overviewResponse.ok) {
+        const overviewData = await overviewResponse.json()
+        setAnalytics({
+          totalObjectives: overviewData.totalObjectives,
+          totalInitiatives: overviewData.totalInitiatives,
+          totalActivities: overviewData.totalActivities,
+          averageProgress: overviewData.averageProgress,
+          completionRate: overviewData.completionRate,
+          onTrackPercentage: overviewData.onTrackPercentage,
+        })
+      }
 
-      const totalObjectives = objectives.length
-      const totalInitiatives = initiatives.length
-      const totalActivities = activities.length
+      if (progressTrendResponse.ok) {
+        const progressData = await progressTrendResponse.json()
+        setProgressTrendData(progressData)
+      }
 
-      const averageProgress = objectives.length
-        ? Math.round(objectives.reduce((sum, obj) => sum + obj.progress, 0) / objectives.length)
-        : 0
+      if (departmentResponse.ok) {
+        const departmentData = await departmentResponse.json()
+        setDepartmentPerformanceData(departmentData)
+      }
 
-      const completedObjectives = objectives.filter((obj) => obj.status === "completado").length
-      const completionRate = totalObjectives ? Math.round((completedObjectives / totalObjectives) * 100) : 0
+      if (completionRateResponse.ok) {
+        const completionData = await completionRateResponse.json()
+        setCompletionRateData(completionData)
+      }
 
-      const onTrackObjectives = objectives.filter((obj) => obj.progress >= 70).length
-      const onTrackPercentage = totalObjectives ? Math.round((onTrackObjectives / totalObjectives) * 100) : 0
-
-      setAnalytics({
-        totalObjectives,
-        totalInitiatives,
-        totalActivities,
-        averageProgress,
-        completionRate,
-        onTrackPercentage,
-      })
     } catch (error) {
       console.error("Error fetching analytics:", error)
     } finally {

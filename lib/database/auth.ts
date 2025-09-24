@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server';
 import { neonServerClient } from '@/lib/neon-auth/server';
-import { query } from './client';
+import { ProfilesRepository } from './queries/profiles';
+import { UsersRepository } from './queries/users';
+import type { UserRole, ProfileWithCompany } from './types';
+
+// Repository instances
+const profilesRepository = new ProfilesRepository();
+const usersRepository = new UsersRepository();
 
 export interface AuthenticatedUser {
   id: string;
@@ -47,16 +53,26 @@ export async function verifyAuthentication(
 }
 
 /**
- * Get user profile from database
+ * Get user profile from database using Drizzle ORM
  */
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   try {
-    const result = await query<UserProfile>(
-      'SELECT * FROM profiles WHERE user_id = $1',
-      [userId]
-    );
+    const profile = await profilesRepository.getByUserId(userId);
     
-    return result.rows[0] || null;
+    if (!profile) {
+      return null;
+    }
+
+    // Transform to legacy format for backward compatibility
+    return {
+      user_id: profile.userId,
+      full_name: profile.fullName,
+      role_type: profile.roleType,
+      department: profile.department,
+      company_id: profile.companyId,
+      created_at: profile.createdAt.toISOString(),
+      updated_at: profile.updatedAt.toISOString(),
+    };
   } catch (error) {
     console.error('Error fetching user profile:', error);
     return null;
@@ -64,15 +80,27 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 }
 
 /**
- * Check if user has required role
+ * Get user with full profile and company information using Drizzle ORM
+ */
+export async function getUserWithProfile(userId: string): Promise<ProfileWithCompany | null> {
+  try {
+    return await profilesRepository.getByUserId(userId);
+  } catch (error) {
+    console.error('Error fetching user with profile:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if user has required role using Drizzle ORM
  */
 export async function verifyUserRole(
   userId: string, 
   requiredRole: 'corporativo' | 'gerente' | 'empleado'
 ): Promise<boolean> {
   try {
-    const profile = await getUserProfile(userId);
-    return profile?.role_type === requiredRole;
+    const profile = await profilesRepository.getByUserId(userId);
+    return profile?.roleType === requiredRole;
   } catch (error) {
     console.error('Error verifying user role:', error);
     return false;
@@ -80,7 +108,50 @@ export async function verifyUserRole(
 }
 
 /**
+ * Create or sync user from Stack Auth
+ * Ensures user exists in database when authenticated via Stack Auth
+ */
+export async function createOrSyncUser(stackUser: {
+  id: string;
+  primaryEmail: string;
+  emailVerified?: boolean;
+}): Promise<{ success: boolean; user?: any; error?: string }> {
+  try {
+    // Create or update user in database
+    const user = await usersRepository.createOrUpdate(stackUser.id, {
+      email: stackUser.primaryEmail,
+      emailConfirmed: stackUser.emailVerified ? new Date() : null,
+    });
+
+    return { success: true, user };
+  } catch (error) {
+    console.error('Error creating/syncing user:', error);
+    return { success: false, error: 'Failed to sync user data' };
+  }
+}
+
+/**
+ * Create or sync user profile 
+ * Used during Stack Auth integration to ensure complete user setup
+ */
+export async function createOrSyncProfile(userId: string, profileData: {
+  fullName: string;
+  roleType: UserRole;
+  department: string;
+  companyId: string;
+}): Promise<{ success: boolean; profile?: any; error?: string }> {
+  try {
+    const profile = await profilesRepository.createOrUpdate(userId, profileData);
+    return { success: true, profile };
+  } catch (error) {
+    console.error('Error creating/syncing profile:', error);
+    return { success: false, error: 'Failed to sync profile data' };
+  }
+}
+
+/**
  * Store AI suggestion in database
+ * Note: This would need an AI suggestions table - keeping for compatibility
  */
 export async function storeAISuggestion(
   userId: string,
@@ -89,11 +160,15 @@ export async function storeAISuggestion(
   outputData: any
 ): Promise<void> {
   try {
-    await query(
-      `INSERT INTO ai_suggestions (user_id, suggestion_type, input_data, output_data, created_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [userId, suggestionType, JSON.stringify(inputData), JSON.stringify(outputData)]
-    );
+    // TODO: Implement with Drizzle ORM when AI suggestions table is created
+    // For now, just log the suggestion
+    console.log('AI Suggestion:', {
+      userId,
+      suggestionType,
+      inputData,
+      outputData,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error storing AI suggestion:', error);
     // Don't throw error for analytics - just log it

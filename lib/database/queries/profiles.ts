@@ -1,73 +1,89 @@
-import { eq, and } from 'drizzle-orm';
-import { getDrizzleClient } from '../client';
-import { profiles, companies, type Profile as DrizzleProfile, type InsertProfile } from '../schema';
+import { eq, and, desc } from 'drizzle-orm';
+import { getDrizzleDb } from '../client';
+import { profiles, users, companies } from '../schema';
+import type { 
+  Profile, 
+  InsertProfile, 
+  UpdateProfile,
+  ProfileWithCompany,
+  User,
+  Company,
+  UserRole 
+} from '../types';
 
-// Interface to match existing services.ts Profile for API compatibility
-export interface Profile {
-  user_id: string;
-  full_name: string;
-  role_type: 'corporativo' | 'gerente' | 'empleado';
-  department: string;
-  company_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-/**
- * ProfilesRepository - Type-safe repository for profile operations using Drizzle ORM
- * 
- * Maintains exact API compatibility with existing ProfilesService while using
- * Drizzle ORM for type safety and better query performance.
- */
 export class ProfilesRepository {
-  private static db = getDrizzleClient();
+  private db = getDrizzleDb();
 
   /**
-   * Convert Drizzle profile to service API format
+   * Get profile by user ID with company information
+   * Maintains exact API compatibility for authentication flow
    */
-  private static toDomainModel(drizzleProfile: DrizzleProfile): Profile {
-    return {
-      user_id: drizzleProfile.userId,
-      full_name: drizzleProfile.fullName,
-      role_type: drizzleProfile.roleType,
-      department: drizzleProfile.department,
-      company_id: drizzleProfile.companyId,
-      created_at: drizzleProfile.createdAt?.toISOString() || new Date().toISOString(),
-      updated_at: drizzleProfile.updatedAt?.toISOString() || new Date().toISOString(),
-    };
-  }
-
-  /**
-   * Convert service API format to Drizzle insert format
-   */
-  private static toDbModel(profile: Omit<Profile, 'created_at' | 'updated_at'>): InsertProfile {
-    return {
-      userId: profile.user_id,
-      fullName: profile.full_name,
-      roleType: profile.role_type,
-      department: profile.department,
-      companyId: profile.company_id,
-    };
-  }
-
-  /**
-   * Get profile by user ID
-   * @param userId - User ID to lookup
-   * @returns Profile or null if not found
-   */
-  static async getByUserId(userId: string): Promise<Profile | null> {
+  async getByUserId(userId: string): Promise<ProfileWithCompany | null> {
     try {
-      const result = await this.db
-        .select()
+      const results = await this.db
+        .select({
+          userId: profiles.userId,
+          fullName: profiles.fullName,
+          roleType: profiles.roleType,
+          department: profiles.department,
+          companyId: profiles.companyId,
+          createdAt: profiles.createdAt,
+          updatedAt: profiles.updatedAt,
+          // User information
+          user_id: users.id,
+          user_email: users.email,
+          user_email_confirmed: users.emailConfirmed,
+          user_created_at: users.createdAt,
+          user_updated_at: users.updatedAt,
+          // Company information
+          company_id: companies.id,
+          company_name: companies.name,
+          company_description: companies.description,
+          company_industry: companies.industry,
+          company_size: companies.size,
+          company_created_at: companies.createdAt,
+          company_updated_at: companies.updatedAt,
+        })
         .from(profiles)
+        .leftJoin(users, eq(profiles.userId, users.id))
+        .leftJoin(companies, eq(profiles.companyId, companies.id))
         .where(eq(profiles.userId, userId))
         .limit(1);
 
-      if (result.length === 0) {
+      if (results.length === 0) {
         return null;
       }
 
-      return this.toDomainModel(result[0]);
+      const row = results[0];
+
+      return {
+        userId: row.userId,
+        fullName: row.fullName,
+        roleType: row.roleType,
+        department: row.department,
+        companyId: row.companyId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        // Include user info for backward compatibility
+        user: row.user_id ? {
+          id: row.user_id,
+          email: row.user_email!,
+          passwordHash: null, // Don't expose password hash
+          emailConfirmed: row.user_email_confirmed,
+          createdAt: row.user_created_at!,
+          updatedAt: row.user_updated_at!,
+        } : undefined,
+        // Include company info 
+        company: row.company_id ? {
+          id: row.company_id,
+          name: row.company_name!,
+          description: row.company_description,
+          industry: row.company_industry,
+          size: row.company_size,
+          createdAt: row.company_created_at!,
+          updatedAt: row.company_updated_at!,
+        } : undefined
+      };
     } catch (error) {
       console.error('Error fetching profile by user ID:', error);
       throw error;
@@ -75,28 +91,90 @@ export class ProfilesRepository {
   }
 
   /**
-   * Get all profiles, optionally filtered by company
-   * @param companyId - Optional company ID filter
-   * @returns Array of profiles
+   * Get all profiles with optional company and role filtering
+   * Used for team management and user listing
    */
-  static async getAll(companyId?: string): Promise<Profile[]> {
+  async getAll(filters?: {
+    companyId?: string;
+    roleType?: UserRole;
+    department?: string;
+  }): Promise<ProfileWithCompany[]> {
     try {
-      let result;
-      
-      if (companyId) {
-        result = await this.db
-          .select()
-          .from(profiles)
-          .where(eq(profiles.companyId, companyId))
-          .orderBy(profiles.fullName);
-      } else {
-        result = await this.db
-          .select()
-          .from(profiles)
-          .orderBy(profiles.fullName);
+      let query = this.db
+        .select({
+          userId: profiles.userId,
+          fullName: profiles.fullName,
+          roleType: profiles.roleType,
+          department: profiles.department,
+          companyId: profiles.companyId,
+          createdAt: profiles.createdAt,
+          updatedAt: profiles.updatedAt,
+          // User information
+          user_id: users.id,
+          user_email: users.email,
+          user_email_confirmed: users.emailConfirmed,
+          user_created_at: users.createdAt,
+          user_updated_at: users.updatedAt,
+          // Company information
+          company_id: companies.id,
+          company_name: companies.name,
+          company_description: companies.description,
+          company_industry: companies.industry,
+          company_size: companies.size,
+          company_created_at: companies.createdAt,
+          company_updated_at: companies.updatedAt,
+        })
+        .from(profiles)
+        .leftJoin(users, eq(profiles.userId, users.id))
+        .leftJoin(companies, eq(profiles.companyId, companies.id))
+        .orderBy(desc(profiles.createdAt));
+
+      // Apply filters
+      const conditions = [];
+      if (filters?.companyId) {
+        conditions.push(eq(profiles.companyId, filters.companyId));
       }
-      
-      return result.map(profile => this.toDomainModel(profile));
+      if (filters?.roleType) {
+        conditions.push(eq(profiles.roleType, filters.roleType));
+      }
+      if (filters?.department) {
+        conditions.push(eq(profiles.department, filters.department));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+
+      const results = await query;
+
+      return results.map(row => ({
+        userId: row.userId,
+        fullName: row.fullName,
+        roleType: row.roleType,
+        department: row.department,
+        companyId: row.companyId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        // Include user info for backward compatibility
+        user: row.user_id ? {
+          id: row.user_id,
+          email: row.user_email!,
+          passwordHash: null, // Don't expose password hash
+          emailConfirmed: row.user_email_confirmed,
+          createdAt: row.user_created_at!,
+          updatedAt: row.user_updated_at!,
+        } : undefined,
+        // Include company info 
+        company: row.company_id ? {
+          id: row.company_id,
+          name: row.company_name!,
+          description: row.company_description,
+          industry: row.company_industry,
+          size: row.company_size,
+          createdAt: row.company_created_at!,
+          updatedAt: row.company_updated_at!,
+        } : undefined
+      }));
     } catch (error) {
       console.error('Error fetching all profiles:', error);
       throw error;
@@ -104,24 +182,33 @@ export class ProfilesRepository {
   }
 
   /**
-   * Create a new profile
-   * @param profile - Profile data (without timestamps)
-   * @returns Created profile
+   * Create a new user profile
+   * Used during user registration and Stack Auth integration
    */
-  static async create(profile: Omit<Profile, 'created_at' | 'updated_at'>): Promise<Profile> {
+  async create(profileData: Omit<InsertProfile, 'createdAt' | 'updatedAt'>): Promise<Profile> {
     try {
-      const dbProfile = this.toDbModel(profile);
-      
-      const result = await this.db
+      const results = await this.db
         .insert(profiles)
-        .values(dbProfile)
+        .values({
+          userId: profileData.userId,
+          fullName: profileData.fullName,
+          roleType: profileData.roleType,
+          department: profileData.department,
+          companyId: profileData.companyId,
+        })
         .returning();
 
-      if (result.length === 0) {
-        throw new Error('Failed to create profile');
-      }
+      const created = results[0];
 
-      return this.toDomainModel(result[0]);
+      return {
+        userId: created.userId,
+        fullName: created.fullName,
+        roleType: created.roleType,
+        department: created.department,
+        companyId: created.companyId,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+      };
     } catch (error) {
       console.error('Error creating profile:', error);
       throw error;
@@ -130,39 +217,44 @@ export class ProfilesRepository {
 
   /**
    * Update an existing profile
-   * @param userId - User ID of profile to update
-   * @param updates - Partial profile updates
-   * @returns Updated profile
+   * Maintains exact API compatibility for profile updates
    */
-  static async update(userId: string, updates: Partial<Profile>): Promise<Profile> {
+  async update(userId: string, updates: UpdateProfile): Promise<Profile> {
     try {
-      // Convert updates to database format
-      const dbUpdates: Partial<InsertProfile> = {};
-      
-      if (updates.full_name !== undefined) {
-        dbUpdates.fullName = updates.full_name;
-      }
-      if (updates.role_type !== undefined) {
-        dbUpdates.roleType = updates.role_type;
-      }
-      if (updates.department !== undefined) {
-        dbUpdates.department = updates.department;
-      }
-      if (updates.company_id !== undefined) {
-        dbUpdates.companyId = updates.company_id;
-      }
+      // Build update object
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
 
-      const result = await this.db
+      // Only include fields that are actually being updated
+      if (updates.fullName !== undefined) updateData.fullName = updates.fullName;
+      if (updates.roleType !== undefined) updateData.roleType = updates.roleType;
+      if (updates.department !== undefined) updateData.department = updates.department;
+      if (updates.companyId !== undefined) updateData.companyId = updates.companyId;
+
+      const results = await this.db
         .update(profiles)
-        .set(dbUpdates)
+        .set(updateData)
         .where(eq(profiles.userId, userId))
         .returning();
 
-      if (result.length === 0) {
-        throw new Error(`Profile with user_id ${userId} not found`);
+      if (results.length === 0) {
+        throw new Error(`Profile for user ID ${userId} not found`);
       }
 
-      return this.toDomainModel(result[0]);
+      const updated = results[0];
+
+      return {
+        userId: updated.userId,
+        fullName: updated.fullName,
+        roleType: updated.roleType,
+        department: updated.department,
+        companyId: updated.companyId,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+      };
+
+
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
@@ -170,74 +262,131 @@ export class ProfilesRepository {
   }
 
   /**
-   * Get profile with company information (for extended queries)
-   * @param userId - User ID to lookup
-   * @returns Profile with company data or null if not found
+   * Delete a profile
+   * Used for user account cleanup
    */
-  static async getByUserIdWithCompany(userId: string): Promise<(Profile & { company_name?: string }) | null> {
+  async delete(userId: string): Promise<void> {
     try {
-      const result = await this.db
+      await this.db
+        .delete(profiles)
+        .where(eq(profiles.userId, userId));
+
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+
+      throw error;
+    }
+  }
+
+  /**
+   * Get profiles by department for team management
+   * Used for departmental filtering and team views
+   */
+  async getByDepartment(department: string, companyId?: string): Promise<ProfileWithCompany[]> {
+    try {
+      let query = this.db
         .select({
-          profile: profiles,
-          companyName: companies.name,
+          userId: profiles.userId,
+          fullName: profiles.fullName,
+          roleType: profiles.roleType,
+          department: profiles.department,
+          companyId: profiles.companyId,
+          createdAt: profiles.createdAt,
+          updatedAt: profiles.updatedAt,
+          // User information
+          user_id: users.id,
+          user_email: users.email,
+          user_email_confirmed: users.emailConfirmed,
+          user_created_at: users.createdAt,
+          user_updated_at: users.updatedAt,
+          // Company information
+          company_id: companies.id,
+          company_name: companies.name,
+          company_description: companies.description,
+          company_industry: companies.industry,
+          company_size: companies.size,
+          company_created_at: companies.createdAt,
+          company_updated_at: companies.updatedAt,
         })
         .from(profiles)
+        .leftJoin(users, eq(profiles.userId, users.id))
         .leftJoin(companies, eq(profiles.companyId, companies.id))
-        .where(eq(profiles.userId, userId))
-        .limit(1);
+        .where(eq(profiles.department, department))
+        .orderBy(desc(profiles.createdAt));
 
-      if (result.length === 0) {
-        return null;
+      // Add company filter if provided
+      if (companyId) {
+        query = query.where(and(
+          eq(profiles.department, department),
+          eq(profiles.companyId, companyId)
+        ));
       }
 
-      const profile = this.toDomainModel(result[0].profile);
-      return {
-        ...profile,
-        company_name: result[0].companyName || undefined,
-      };
+      const results = await query;
+
+      return results.map(row => ({
+        userId: row.userId,
+        fullName: row.fullName,
+        roleType: row.roleType,
+        department: row.department,
+        companyId: row.companyId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        // Include user info for backward compatibility
+        user: row.user_id ? {
+          id: row.user_id,
+          email: row.user_email!,
+          passwordHash: null, // Don't expose password hash
+          emailConfirmed: row.user_email_confirmed,
+          createdAt: row.user_created_at!,
+          updatedAt: row.user_updated_at!,
+        } : undefined,
+        // Include company info 
+        company: row.company_id ? {
+          id: row.company_id,
+          name: row.company_name!,
+          description: row.company_description,
+          industry: row.company_industry,
+          size: row.company_size,
+          createdAt: row.company_created_at!,
+          updatedAt: row.company_updated_at!,
+        } : undefined
+      }));
+
     } catch (error) {
-      console.error('Error fetching profile with company:', error);
+      console.error('Error fetching profiles by department:', error);
       throw error;
     }
   }
 
   /**
-   * Get profiles by role within a company (for role-based filtering)
-   * @param companyId - Company ID
-   * @param role - User role to filter by
-   * @returns Array of profiles matching the role
+   * Create profile for Stack Auth user if it doesn't exist
+   * Used during Stack Auth integration to ensure profiles exist
    */
-  static async getByRole(companyId: string, role: Profile['role_type']): Promise<Profile[]> {
+  async createOrUpdate(userId: string, profileData: {
+    fullName: string;
+    roleType: UserRole;
+    department: string;
+    companyId: string;
+  }): Promise<Profile> {
     try {
-      const result = await this.db
-        .select()
-        .from(profiles)
-        .where(and(eq(profiles.companyId, companyId), eq(profiles.roleType, role)))
-        .orderBy(profiles.fullName);
+      // Check if profile already exists
+      const existing = await this.getByUserId(userId);
+      
+      if (existing) {
+        // Update existing profile
+        return await this.update(userId, profileData);
+      } else {
+        // Create new profile
+        return await this.create({
+          userId,
+          ...profileData
+        });
+      }
 
-      return result.map(profile => this.toDomainModel(profile));
     } catch (error) {
-      console.error('Error fetching profiles by role:', error);
-      throw error;
-    }
-  }
+      console.error('Error creating or updating profile:', error);
 
-  /**
-   * Check if a profile exists
-   * @param userId - User ID to check
-   * @returns Boolean indicating if profile exists
-   */
-  static async exists(userId: string): Promise<boolean> {
-    try {
-      const result = await this.db
-        .select({ userId: profiles.userId })
-        .from(profiles)
-        .where(eq(profiles.userId, userId))
-        .limit(1);
-
-      return result.length > 0;
-    } catch (error) {
-      console.error('Error checking profile existence:', error);
       throw error;
     }
   }

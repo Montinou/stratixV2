@@ -1,143 +1,154 @@
-import { eq, and, desc } from 'drizzle-orm';
-import { getDrizzleClient } from '../client';
-import { objectives, profiles, companies, type Objective as DrizzleObjective, type InsertObjective } from '../schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
+import { getDrizzleDb } from '../client';
+import { objectives, profiles, companies, initiatives } from '../schema';
+import type { 
+  Objective, 
+  InsertObjective, 
+  UpdateObjective,
+  ObjectiveWithOwner,
+  ObjectiveWithRelations,
+  UserRole 
+} from '../types';
 
-// Interface to match existing services.ts Objective for API compatibility
-export interface Objective {
-  id: string;
-  title: string;
-  description?: string;
-  department: string;
-  status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high';
-  start_date: string;
-  end_date: string;
-  owner_id: string;
-  company_id: string;
-  created_at: string;
-  updated_at: string;
-  progress?: number;
-  owner?: {
-    full_name: string;
-    role_type: string;
-  };
-}
-
-// Parameters for role-based filtering (matching existing API)
-export interface FilterParams {
-  userId: string;
-  userRole: string;
-  userDepartment: string;
-}
-
-/**
- * ObjectivesRepository - Type-safe repository for objective operations using Drizzle ORM
- * 
- * Maintains exact API compatibility with existing ObjectivesService while using
- * Drizzle ORM for type safety and better query performance.
- */
 export class ObjectivesRepository {
-  private static db = getDrizzleClient();
-
-  /**
-   * Convert Drizzle objective to service API format
-   */
-  private static toDomainModel(drizzleObjective: DrizzleObjective, ownerName?: string, ownerRole?: string): Objective {
-    return {
-      id: drizzleObjective.id,
-      title: drizzleObjective.title,
-      description: drizzleObjective.description,
-      department: drizzleObjective.department,
-      status: drizzleObjective.status,
-      priority: drizzleObjective.priority,
-      start_date: drizzleObjective.startDate,
-      end_date: drizzleObjective.endDate,
-      owner_id: drizzleObjective.ownerId,
-      company_id: drizzleObjective.companyId,
-      progress: drizzleObjective.progress,
-      created_at: drizzleObjective.createdAt?.toISOString() || new Date().toISOString(),
-      updated_at: drizzleObjective.updatedAt?.toISOString() || new Date().toISOString(),
-      owner: ownerName ? {
-        full_name: ownerName,
-        role_type: ownerRole || '',
-      } : undefined,
-    };
-  }
-
-  /**
-   * Convert service API format to Drizzle insert format
-   */
-  private static toDbModel(objective: Omit<Objective, 'id' | 'created_at' | 'updated_at' | 'owner'>): InsertObjective {
-    return {
-      title: objective.title,
-      description: objective.description,
-      department: objective.department,
-      status: objective.status,
-      priority: objective.priority,
-      startDate: objective.start_date,
-      endDate: objective.end_date,
-      ownerId: objective.owner_id,
-      companyId: objective.company_id,
-      progress: objective.progress,
-    };
-  }
+  private db = getDrizzleDb();
 
   /**
    * Get all objectives with role-based filtering
-   * Matches ObjectivesService.getAll signature
+   * Maintains exact API compatibility with existing ObjectivesService.getAll
    */
-  static async getAll(filterParams: FilterParams): Promise<Objective[]> {
-    const { userId, userRole, userDepartment } = filterParams;
-    
-    const baseQuery = this.db
-      .select({
-        objective: objectives,
-        ownerName: profiles.fullName,
-        ownerRole: profiles.roleType,
-      })
-      .from(objectives)
-      .leftJoin(profiles, eq(objectives.ownerId, profiles.userId));
+  async getAll(userId: string, userRole: UserRole, userDepartment: string): Promise<ObjectiveWithOwner[]> {
+    try {
+      let query = this.db
+        .select({
+          id: objectives.id,
+          title: objectives.title,
+          description: objectives.description,
+          department: objectives.department,
+          status: objectives.status,
+          priority: objectives.priority,
+          progress: objectives.progress,
+          startDate: objectives.startDate,
+          endDate: objectives.endDate,
+          ownerId: objectives.ownerId,
+          companyId: objectives.companyId,
+          createdAt: objectives.createdAt,
+          updatedAt: objectives.updatedAt,
+          // Owner profile information (maintaining compatibility with legacy query)
+          owner_name: profiles.fullName,
+          owner_role: profiles.roleType,
+        })
+        .from(objectives)
+        .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
+        .orderBy(desc(objectives.createdAt));
 
-    // Apply role-based filtering
-    let result;
-    if (userRole === 'empleado') {
-      result = await baseQuery
-        .where(eq(objectives.ownerId, userId))
-        .orderBy(desc(objectives.createdAt));
-    } else if (userRole === 'gerente') {
-      result = await baseQuery
-        .where(eq(objectives.department, userDepartment))
-        .orderBy(desc(objectives.createdAt));
-    } else {
-      result = await baseQuery.orderBy(desc(objectives.createdAt));
+      // Apply role-based filtering (exactly as in existing service)
+      if (userRole === 'empleado') {
+        query = query.where(eq(objectives.ownerId, userId));
+      } else if (userRole === 'gerente') {
+        query = query.where(eq(objectives.department, userDepartment));
+      }
+
+      const results = await query;
+
+      // Transform results to maintain API compatibility
+      return results.map(row => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        department: row.department,
+        status: row.status,
+        priority: row.priority,
+        progress: row.progress ?? 0,
+        start_date: row.startDate.toISOString(),
+        end_date: row.endDate.toISOString(),
+        owner_id: row.ownerId,
+        company_id: row.companyId,
+        created_at: row.createdAt.toISOString(),
+        updated_at: row.updatedAt.toISOString(),
+        // Include owner information if available
+        owner: row.owner_name ? {
+          user_id: row.ownerId,
+          full_name: row.owner_name,
+          role_type: row.owner_role!,
+          department: row.department,
+          company_id: row.companyId,
+          created_at: row.createdAt.toISOString(),
+          updated_at: row.updatedAt.toISOString(),
+        } : undefined
+      }));
+
+    } catch (error) {
+      console.error('Error fetching objectives:', error);
+      throw error;
     }
-
-    return result.map(row => this.toDomainModel(row.objective, row.ownerName || undefined, row.ownerRole || undefined));
   }
 
   /**
-   * Get objective by ID with owner information
-   * Matches ObjectivesService.getById signature
+   * Get objective by ID with owner relations
+   * Maintains exact API compatibility with existing ObjectivesService.getById
    */
-  static async getById(id: string, userId: string): Promise<Objective | null> {
+  async getById(id: string, userId: string): Promise<ObjectiveWithOwner | null> {
     try {
-      const result = await this.db
+      const results = await this.db
         .select({
-          objective: objectives,
-          ownerName: profiles.fullName,
-          ownerRole: profiles.roleType,
+          id: objectives.id,
+          title: objectives.title,
+          description: objectives.description,
+          department: objectives.department,
+          status: objectives.status,
+          priority: objectives.priority,
+          progress: objectives.progress,
+          startDate: objectives.startDate,
+          endDate: objectives.endDate,
+          ownerId: objectives.ownerId,
+          companyId: objectives.companyId,
+          createdAt: objectives.createdAt,
+          updatedAt: objectives.updatedAt,
+          // Owner profile information
+          owner_name: profiles.fullName,
+          owner_role: profiles.roleType,
+
         })
         .from(objectives)
         .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
         .where(eq(objectives.id, id))
         .limit(1);
 
-      if (result.length === 0) {
+
+      if (results.length === 0) {
         return null;
       }
 
-      const row = result[0];
-      return this.toDomainModel(row.objective, row.ownerName || undefined, row.ownerRole || undefined);
+      const row = results[0];
+
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        department: row.department,
+        status: row.status,
+        priority: row.priority,
+        progress: row.progress ?? 0,
+        start_date: row.startDate.toISOString(),
+        end_date: row.endDate.toISOString(),
+        owner_id: row.ownerId,
+        company_id: row.companyId,
+        created_at: row.createdAt.toISOString(),
+        updated_at: row.updatedAt.toISOString(),
+        // Include owner information if available
+        owner: row.owner_name ? {
+          user_id: row.ownerId,
+          full_name: row.owner_name,
+          role_type: row.owner_role!,
+          department: row.department,
+          company_id: row.companyId,
+          created_at: row.createdAt.toISOString(),
+          updated_at: row.updatedAt.toISOString(),
+        } : undefined
+      };
+
+
     } catch (error) {
       console.error('Error fetching objective by ID:', error);
       throw error;
@@ -146,82 +157,103 @@ export class ObjectivesRepository {
 
   /**
    * Create a new objective
-   * Matches ObjectivesService.create signature
+   * Maintains exact API compatibility with existing ObjectivesService.create
    */
-  static async create(objective: Omit<Objective, 'id' | 'created_at' | 'updated_at' | 'owner'>): Promise<Objective> {
+  async create(objectiveData: Omit<InsertObjective, 'id' | 'createdAt' | 'updatedAt'>): Promise<Objective> {
     try {
-      const dbObjective = this.toDbModel(objective);
-      
-      const result = await this.db
+      const results = await this.db
         .insert(objectives)
-        .values(dbObjective)
+        .values({
+          title: objectiveData.title,
+          description: objectiveData.description,
+          department: objectiveData.department,
+          status: objectiveData.status ?? 'draft',
+          priority: objectiveData.priority ?? 'medium',
+          progress: objectiveData.progress ?? 0,
+          startDate: new Date(objectiveData.startDate),
+          endDate: new Date(objectiveData.endDate),
+          ownerId: objectiveData.ownerId,
+          companyId: objectiveData.companyId,
+        })
         .returning();
 
-      if (result.length === 0) {
-        throw new Error('Failed to create objective');
-      }
+      const created = results[0];
 
-      return this.toDomainModel(result[0]);
+      // Transform to maintain API compatibility with legacy interface
+      return {
+        id: created.id,
+        title: created.title,
+        description: created.description,
+        department: created.department,
+        status: created.status,
+        priority: created.priority,
+        progress: created.progress ?? 0,
+        start_date: created.startDate.toISOString(),
+        end_date: created.endDate.toISOString(),
+        owner_id: created.ownerId,
+        company_id: created.companyId,
+        created_at: created.createdAt.toISOString(),
+        updated_at: created.updatedAt.toISOString(),
+      };
+
+
     } catch (error) {
       console.error('Error creating objective:', error);
       throw error;
-    }
   }
 
   /**
    * Update an existing objective
-   * Matches ObjectivesService.update signature
+   * Maintains exact API compatibility with existing ObjectivesService.update
    */
-  static async update(id: string, updates: Partial<Objective>): Promise<Objective> {
+  async update(id: string, updates: UpdateObjective): Promise<Objective> {
     try {
-      // Convert updates to database format
-      const dbUpdates: Partial<InsertObjective> = {};
-      
-      if (updates.title !== undefined) {
-        dbUpdates.title = updates.title;
-      }
-      if (updates.description !== undefined) {
-        dbUpdates.description = updates.description;
-      }
-      if (updates.department !== undefined) {
-        dbUpdates.department = updates.department;
-      }
-      if (updates.status !== undefined) {
-        dbUpdates.status = updates.status;
-      }
-      if (updates.priority !== undefined) {
-        dbUpdates.priority = updates.priority;
-      }
-      if (updates.start_date !== undefined) {
-        dbUpdates.startDate = updates.start_date;
-      }
-      if (updates.end_date !== undefined) {
-        dbUpdates.endDate = updates.end_date;
-      }
-      if (updates.owner_id !== undefined) {
-        dbUpdates.ownerId = updates.owner_id;
-      }
-      if (updates.company_id !== undefined) {
-        dbUpdates.companyId = updates.company_id;
-      }
-      if (updates.progress !== undefined) {
-        dbUpdates.progress = updates.progress;
-      }
+      // Build update object with proper date conversion
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
 
-      // Always update the timestamp
-      dbUpdates.updatedAt = new Date();
+      // Only include fields that are actually being updated
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.department !== undefined) updateData.department = updates.department;
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.priority !== undefined) updateData.priority = updates.priority;
+      if (updates.progress !== undefined) updateData.progress = updates.progress;
+      if (updates.startDate !== undefined) updateData.startDate = new Date(updates.startDate);
+      if (updates.endDate !== undefined) updateData.endDate = new Date(updates.endDate);
+      if (updates.ownerId !== undefined) updateData.ownerId = updates.ownerId;
+      if (updates.companyId !== undefined) updateData.companyId = updates.companyId;
 
-      const result = await this.db
+      const results = await this.db
         .update(objectives)
-        .set(dbUpdates)
+        .set(updateData)
         .where(eq(objectives.id, id))
         .returning();
 
-      if (result.length === 0) {
-        throw new Error(`Objective with id ${id} not found`);
+      if (results.length === 0) {
+        throw new Error(`Objective with ID ${id} not found`);
       }
 
-      return this.toDomainModel(result[0]);
+      const updated = results[0];
+
+      // Transform to maintain API compatibility with legacy interface
+      return {
+        id: updated.id,
+        title: updated.title,
+        description: updated.description,
+        department: updated.department,
+        status: updated.status,
+        priority: updated.priority,
+        progress: updated.progress ?? 0,
+        start_date: updated.startDate.toISOString(),
+        end_date: updated.endDate.toISOString(),
+        owner_id: updated.ownerId,
+        company_id: updated.companyId,
+        created_at: updated.createdAt.toISOString(),
+        updated_at: updated.updatedAt.toISOString(),
+      };
+
     } catch (error) {
       console.error('Error updating objective:', error);
       throw error;
@@ -230,13 +262,15 @@ export class ObjectivesRepository {
 
   /**
    * Delete an objective
-   * Matches ObjectivesService.delete signature
+   * Maintains exact API compatibility with existing ObjectivesService.delete
    */
-  static async delete(id: string): Promise<void> {
+  async delete(id: string): Promise<void> {
+
     try {
       await this.db
         .delete(objectives)
         .where(eq(objectives.id, id));
+
     } catch (error) {
       console.error('Error deleting objective:', error);
       throw error;
@@ -244,96 +278,94 @@ export class ObjectivesRepository {
   }
 
   /**
-   * Check if an objective exists
-   * @param id - Objective ID to check
-   * @returns Boolean indicating if objective exists
+   * Get objective with full relations (initiatives and activities)
+   * New method for enhanced functionality while maintaining backward compatibility
    */
-  static async exists(id: string): Promise<boolean> {
+  async getByIdWithRelations(id: string): Promise<ObjectiveWithRelations | null> {
     try {
-      const result = await this.db
-        .select({ id: objectives.id })
-        .from(objectives)
-        .where(eq(objectives.id, id))
-        .limit(1);
+      const objectiveWithOwner = await this.getById(id, ''); // Pass empty userId since this is a new method
 
-      return result.length > 0;
+      if (!objectiveWithOwner) {
+        return null;
+      }
+
+      // Get related initiatives (could be extracted to InitiativesRepository later)
+      const relatedInitiatives = await this.db
+        .select({
+          id: initiatives.id,
+          objectiveId: initiatives.objectiveId,
+          title: initiatives.title,
+          description: initiatives.description,
+          status: initiatives.status,
+          priority: initiatives.priority,
+          progress: initiatives.progress,
+          startDate: initiatives.startDate,
+          endDate: initiatives.endDate,
+          ownerId: initiatives.ownerId,
+          createdAt: initiatives.createdAt,
+          updatedAt: initiatives.updatedAt,
+        })
+        .from(initiatives)
+        .where(eq(initiatives.objectiveId, id))
+        .orderBy(desc(initiatives.createdAt));
+
+      return {
+        ...objectiveWithOwner,
+        initiatives: relatedInitiatives.map(init => ({
+          id: init.id,
+          objective_id: init.objectiveId,
+          title: init.title,
+          description: init.description,
+          status: init.status,
+          priority: init.priority,
+          progress: init.progress ?? 0,
+          start_date: init.startDate.toISOString(),
+          end_date: init.endDate.toISOString(),
+          owner_id: init.ownerId,
+          created_at: init.createdAt.toISOString(),
+          updated_at: init.updatedAt.toISOString(),
+        }))
+      };
+
     } catch (error) {
-      console.error('Error checking objective existence:', error);
+      console.error('Error fetching objective with relations:', error);
       throw error;
     }
   }
 
   /**
-   * Get objectives by company ID (for company-specific filtering)
-   * @param companyId - Company ID
-   * @returns Array of objectives for the company
+   * Get objectives count by status for analytics
+   * Helper method for dashboard statistics
    */
-  static async getByCompanyId(companyId: string): Promise<Objective[]> {
+  async getCountByStatus(userId: string, userRole: UserRole, userDepartment: string): Promise<Record<string, number>> {
     try {
-      const result = await this.db
+      let query = this.db
         .select({
-          objective: objectives,
-          ownerName: profiles.fullName,
-          ownerRole: profiles.roleType,
+          status: objectives.status,
+          count: sql<number>`count(*)`.as('count')
         })
         .from(objectives)
-        .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
-        .where(eq(objectives.companyId, companyId))
-        .orderBy(desc(objectives.createdAt));
+        .groupBy(objectives.status);
 
-      return result.map(row => this.toDomainModel(row.objective, row.ownerName || undefined, row.ownerRole || undefined));
+      // Apply same role-based filtering as getAll method
+      if (userRole === 'empleado') {
+        query = query.where(eq(objectives.ownerId, userId));
+      } else if (userRole === 'gerente') {
+        query = query.where(eq(objectives.department, userDepartment));
+      }
+
+      const results = await query;
+
+      // Transform to simple object
+      const counts: Record<string, number> = {};
+      results.forEach(row => {
+        counts[row.status] = Number(row.count);
+      });
+
+      return counts;
+
     } catch (error) {
-      console.error('Error fetching objectives by company ID:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get objectives by department (for department-specific filtering)
-   * @param department - Department name
-   * @returns Array of objectives for the department
-   */
-  static async getByDepartment(department: string): Promise<Objective[]> {
-    try {
-      const result = await this.db
-        .select({
-          objective: objectives,
-          ownerName: profiles.fullName,
-          ownerRole: profiles.roleType,
-        })
-        .from(objectives)
-        .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
-        .where(eq(objectives.department, department))
-        .orderBy(desc(objectives.createdAt));
-
-      return result.map(row => this.toDomainModel(row.objective, row.ownerName || undefined, row.ownerRole || undefined));
-    } catch (error) {
-      console.error('Error fetching objectives by department:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get objectives by status (for status-based filtering)
-   * @param status - Objective status
-   * @returns Array of objectives with the specified status
-   */
-  static async getByStatus(status: Objective['status']): Promise<Objective[]> {
-    try {
-      const result = await this.db
-        .select({
-          objective: objectives,
-          ownerName: profiles.fullName,
-          ownerRole: profiles.roleType,
-        })
-        .from(objectives)
-        .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
-        .where(eq(objectives.status, status))
-        .orderBy(desc(objectives.createdAt));
-
-      return result.map(row => this.toDomainModel(row.objective, row.ownerName || undefined, row.ownerRole || undefined));
-    } catch (error) {
-      console.error('Error fetching objectives by status:', error);
+      console.error('Error getting objectives count by status:', error);
       throw error;
     }
   }
