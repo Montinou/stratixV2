@@ -18,7 +18,9 @@
     "rollback:manual": "bash @scripts/deploy/rollback-migration.sh manual",
     "rollback:emergency": "bash @scripts/deploy/rollback-migration.sh emergency",
     "rollback:backup": "bash @scripts/deploy/rollback-migration.sh backup",
-    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state"
+    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state",
+    "neon:cleanup": "node .vercel/cleanup-neon-branches.js",
+    "neon:branch": "node .vercel/neon-branch.js"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
@@ -89,6 +91,7 @@
     "@types/react-dom": "^18",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.3",
+    "neonctl": "^2.15.0",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",

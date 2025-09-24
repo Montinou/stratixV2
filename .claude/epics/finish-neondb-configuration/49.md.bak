@@ -1,0 +1,129 @@
+---
+name: API Layer Updates and Testing
+status: open
+created: 2025-09-24T04:35:03Z
+updated: 2025-09-24T04:35:03Z
+github: [Will be updated when synced to GitHub]
+depends_on: [002, 003]
+parallel: false
+conflicts_with: []
+---
+
+# Task 004: API Layer Updates and Testing
+
+## Overview
+Complete the migration from Supabase to NeonDB by updating all API routes to use Drizzle queries and conducting comprehensive testing of the entire database layer. This task ensures all existing functionality continues to work while leveraging the new database configuration.
+
+## Objectives
+- Update all API routes in `/app/api/` to use Drizzle ORM instead of Supabase queries
+- Ensure backward compatibility with existing frontend components
+- Implement comprehensive testing for all database operations
+- Validate type safety across the entire application stack
+- Performance test the new database layer
+
+## Acceptance Criteria
+
+### 1. API Route Migration
+- [ ] Audit all existing API routes in `/app/api/` directory
+- [ ] Replace Supabase client calls with Drizzle queries
+- [ ] Update response formats to maintain API contract compatibility
+- [ ] Implement proper error handling using NeonDB error patterns
+- [ ] Add request validation using existing or new schemas
+
+### 2. Endpoint Compatibility
+- [ ] Verify all `/api/companies/*` endpoints work with new queries
+- [ ] Update `/api/objectives/*` endpoints to use Drizzle ORM
+- [ ] Migrate `/api/initiatives/*` endpoints
+- [ ] Update `/api/activities/*` endpoints
+- [ ] Ensure `/api/analytics/*` endpoints function properly
+- [ ] Test `/api/team/*` and user management endpoints
+
+### 3. Database Operations Testing
+- [ ] Test all CRUD operations for each entity type
+- [ ] Verify complex queries (joins, aggregations, filtering)
+- [ ] Test transaction handling for multi-table operations
+- [ ] Validate constraint enforcement and error handling
+- [ ] Test concurrent access scenarios
+
+### 4. Type Safety Validation
+- [ ] Ensure TypeScript types are consistent across API and database layers
+- [ ] Validate request/response type definitions
+- [ ] Test type inference from Drizzle queries
+- [ ] Verify no type casting or `any` usage in production code
+- [ ] Update type definitions as needed
+
+### 5. Performance & Integration Testing
+- [ ] Benchmark query performance vs. previous Supabase implementation
+- [ ] Test API response times under load
+- [ ] Validate connection pooling and database connection management
+- [ ] Test error scenarios (connection failures, timeouts)
+- [ ] Integration test complete user workflows
+
+## Implementation Strategy
+
+### Migration Approach
+1. **Identify**: Catalog all API endpoints and their database dependencies
+2. **Replace**: Update each endpoint to use corresponding Drizzle queries from Task 002
+3. **Test**: Validate each endpoint individually before moving to the next
+4. **Integrate**: Test complete workflows that span multiple endpoints
+
+### API Route Categories
+- **User Management**: Profile, authentication, preferences
+- **Company Management**: CRUD operations, team associations
+- **Objectives**: OKR creation, updates, progress tracking
+- **Initiatives**: Strategic initiative management
+- **Activities**: Activity tracking and reporting
+- **Analytics**: Dashboard data, reporting, insights
+
+### Testing Strategy
+- Unit tests for individual query functions
+- Integration tests for API endpoints
+- End-to-end tests for complete user workflows
+- Performance benchmarks for critical queries
+- Error scenario testing
+
+## Dependencies
+- **Depends on Task 002**: All Drizzle queries and schemas must be complete
+- **Depends on Task 003**: Authentication integration must be working
+- Frontend components should remain unchanged during this migration
+
+## Validation Checklist
+
+### Functional Testing
+- [ ] All existing API endpoints return expected data
+- [ ] CRUD operations work correctly for all entities
+- [ ] Complex queries (filtering, sorting, pagination) function properly
+- [ ] Error responses are consistent and informative
+- [ ] Authentication and authorization work correctly
+
+### Performance Testing
+- [ ] API response times are acceptable (< 500ms for standard queries)
+- [ ] Database connection pooling is working efficiently
+- [ ] No memory leaks or connection issues under load
+- [ ] Query performance is optimized with proper indexing
+
+### Integration Testing
+- [ ] Complete user workflows function end-to-end
+- [ ] Frontend components receive expected data formats
+- [ ] Real-time updates work if applicable
+- [ ] Cross-entity operations maintain data consistency
+
+## Files to Update
+- All files in `/app/api/` directory
+- Database query functions (from Task 002)
+- Type definitions and interfaces
+- Error handling utilities
+- API documentation if it exists
+
+## Success Criteria
+1. All existing API endpoints work without frontend changes
+2. Database operations are faster or equivalent to Supabase implementation
+3. Type safety is maintained throughout the stack
+4. No regressions in existing functionality
+5. Comprehensive test coverage for all database operations
+
+## Risk Mitigation
+- Maintain backup of current API implementations
+- Test each endpoint individually before integration
+- Have rollback plan if critical issues are discovered
+- Monitor performance closely during initial deployment

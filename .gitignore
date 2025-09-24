@@ -17,6 +17,7 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.branch
 
 # IDE and editor files
 .vscode/
@@ -85,9 +86,8 @@ temp/
 # TypeScript build cache
 *.tsbuildinfo
 
-# Claude Code PM - epics directory (local workspace)
-.claude/epics/
-
 # Project specific
 CLAUDE.md
 ccpm/
+.env*.local
+.vercel
