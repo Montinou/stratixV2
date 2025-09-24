@@ -1,6 +1,14 @@
-import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { generateText, gateway } from "ai"
 import type { Objective, Initiative, Activity, UserRole } from "@/lib/types/okr"
+
+// Create Vercel AI Gateway provider with budget-focused models
+const ai = gateway({
+  apiKey: process.env.AI_GATEWAY_API_KEY,
+})
+
+// Budget-focused model configuration
+const BUDGET_MODEL_PRIMARY = "openai/gpt-4o-mini"
+const BUDGET_MODEL_FALLBACK = "anthropic/claude-3-haiku-20240307"
 
 interface InsightContext {
   role: UserRole
@@ -57,7 +65,7 @@ export async function generateDailyInsights(context: InsightContext): Promise<st
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: ai(BUDGET_MODEL_PRIMARY),
       prompt,
       maxTokens: 400,
     })
@@ -92,7 +100,7 @@ export async function generateObjectiveRecommendations(objective: Objective): Pr
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: ai(BUDGET_MODEL_PRIMARY),
       prompt,
       maxTokens: 350,
     })
@@ -140,7 +148,7 @@ export async function generateTeamInsights(teamData: {
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: ai(BUDGET_MODEL_PRIMARY),
       prompt,
       maxTokens: 400,
     })
