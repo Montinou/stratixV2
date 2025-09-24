@@ -16,6 +16,9 @@ export type { Activity } from './queries/activities';
 export type { Profile } from './queries/profiles';
 export type { FilterParams } from './queries/objectives';
 
+// Local type aliases for cleaner service method signatures
+type Initiative = InitiativeWithRelations;
+
 // Company interface remains for CompaniesService (no repository yet)
 export interface Company {
   id: string;
