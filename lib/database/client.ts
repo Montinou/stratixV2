@@ -3,7 +3,7 @@ import { Pool, PoolClient, QueryResult } from 'pg';
 // Database configuration
 const dbConfig = {
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: { rejectUnauthorized: false }, // Always use SSL for NeonDB
   max: 20, // maximum number of clients in the pool
   idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
   connectionTimeoutMillis: 2000, // how long to wait when connecting a new client

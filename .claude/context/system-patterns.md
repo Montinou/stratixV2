@@ -1,108 +1,148 @@
 ---
-created: 2025-09-23T20:09:22Z
-last_updated: 2025-09-23T20:09:22Z
+created: 2025-09-24T00:43:39Z
+last_updated: 2025-09-24T00:43:39Z
 version: 1.0
 author: Claude Code PM System
 ---
 
 # System Patterns & Architecture
 
-## Design Patterns (Inferred)
+## Current Design Patterns
 
 ### Component Architecture
-- **Atomic Design**: Radix UI primitives suggest component composition pattern
-- **Headless UI**: Unstyled components with custom styling via Tailwind CSS
-- **Compound Components**: Radix UI's approach to complex component relationships
+- **Atomic Design**: Shadcn/ui components built on Radix UI primitives
+- **Headless UI**: Unstyled Radix components with custom Tailwind styling
+- **Compound Components**: Complex component relationships (Forms, Dialogs, etc.)
+- **Server Components**: Next.js App Router with React Server Components
 
 ### State Management Patterns
-- **Form State**: React Hook Form with controlled components
-- **Server State**: Supabase integration suggests server-first approach
-- **Theme State**: Next-themes for global theme management
+- **Form State**: React Hook Form with uncontrolled components for performance
+- **Server State**: PostgreSQL with server actions for data mutations
+- **Authentication State**: Stack Auth with global context provider
+- **Theme State**: Next-themes for system/light/dark mode management
 
 ### Data Flow Architecture
-Based on dependencies and recent commits:
+Current architecture post-migration:
 
 ```
-User Input → React Hook Form → Zod Validation → Supabase → UI Update
+User Input → React Hook Form → Zod Validation → Server Actions → PostgreSQL
+     ↓                                              ↓
+Optimistic Updates → Component State → UI Update ← Database Response
      ↓
-Theme Provider → Component Tree → Radix UI Primitives → Tailwind CSS
+Theme Provider → AuthProvider → Component Tree → Shadcn Components
 ```
 
-### Authentication Pattern
-Recent commits mention auth hook issues, suggesting:
-- **Hook-based Auth**: Custom authentication hooks
-- **SSR Auth**: Supabase SSR for server-side authentication
-- **Route Protection**: Authentication-based navigation
+### Authentication Pattern (Updated)
+- **Stack Auth Integration**: Modern authentication provider
+- **JWT-based Sessions**: Stateless authentication with secure tokens
+- **Server-side Validation**: Middleware for route protection
+- **Context-based State**: Global auth state via React Context
 
 ## Architectural Decisions
 
+### Database Migration Strategy
+- **Service Layer Pattern**: Abstraction layer in `/lib/database/services.ts`
+- **Direct SQL**: Custom queries using `pg` library for better performance
+- **Connection Pooling**: Efficient database connection management
+- **Type Safety**: Generated TypeScript types from database schema
+
 ### Styling Strategy
-- **Utility-First**: Tailwind CSS approach
-- **Component Variants**: Class Variance Authority for systematic styling
-- **Design System**: Shadcn/UI pattern implementation
-- **Responsive Design**: Mobile-first approach (Tailwind default)
+- **Utility-First**: Tailwind CSS with CSS variables for theming
+- **Component Variants**: CVA (Class Variance Authority) for systematic styling
+- **Design System**: Consistent Shadcn/ui pattern implementation
+- **Responsive Design**: Mobile-first approach with breakpoint consistency
 
 ### Form Handling Philosophy
-- **Schema-First**: Zod schemas define data structure
-- **Controlled Components**: React Hook Form for state management
-- **Type Safety**: TypeScript + Zod for end-to-end type safety
+- **Schema-First**: Zod schemas as single source of truth
+- **Uncontrolled Forms**: React Hook Form for optimal performance
+- **Type Safety**: End-to-end type safety from schema to UI
+- **Server Actions**: Direct server mutations without API routes
 
 ### Data Processing Approach
-- **File Handling**: Support for CSV (Papa Parse) and Excel (XLSX)
-- **Date Management**: Date-fns for consistent date operations
-- **Visualization**: Recharts for data presentation
+- **File Handling**: Robust CSV (Papa Parse) and Excel (XLSX) processing
+- **Date Management**: Date-fns with consistent timezone handling
+- **Visualization**: Recharts with responsive design patterns
+- **Import Pipeline**: Structured data validation and error handling
 
-## Recent Problem Patterns (From Commits)
+## Current Problem Patterns (Resolved)
 
-### Infinite Loop Issues
-Recent commits indicate patterns around:
-- **Auth State Loops**: Authentication state causing render loops
-- **Effect Dependencies**: useEffect dependency issues
-- **State Updates**: Cascading state updates causing loops
+### Migration Challenges
+Successfully resolved:
+- **Database Migration**: Supabase → PostgreSQL transition complete
+- **Authentication Migration**: Supabase Auth → Stack Auth complete
+- **State Management**: Updated to use new auth and database patterns
+- **Component Updates**: Forms and pages updated for new services
 
-### Pages Affected
-- **Objectives Page**: Loop patterns identified and fixed
-- **Activities Page**: Loop patterns identified and fixed
-- **Insights Page**: Auth-related loop issues resolved
+### Legacy Issues (Fixed)
+- **Infinite Loop Prevention**: Proper useEffect dependencies and cleanup
+- **Auth State Loops**: Stable authentication state management
+- **Effect Dependencies**: Correct dependency arrays and memoization
+- **State Updates**: Prevented cascading state update cycles
 
 ## Code Quality Patterns
 
-### Type Safety
-- **Full TypeScript**: Complete type coverage
-- **Runtime Validation**: Zod for API boundaries
-- **Component Props**: Typed component interfaces
+### Type Safety (Enhanced)
+- **Full TypeScript**: Strict mode with comprehensive type coverage
+- **Database Types**: Generated types from PostgreSQL schema
+- **Runtime Validation**: Zod schemas for API boundaries and forms
+- **Component Props**: Strict typing with proper inference
 
 ### Performance Patterns
-- **Next.js Optimization**: Built-in performance features
-- **Component Composition**: Efficient re-render patterns
-- **Server-Side Rendering**: Supabase SSR integration
+- **Server Components**: Leverage React Server Components for performance
+- **Database Optimization**: Connection pooling and query optimization
+- **Component Memoization**: Strategic use of React.memo and useMemo
+- **Bundle Optimization**: Tree shaking and code splitting
 
-### Error Handling
-Based on recent fixes, suggests:
-- **Defensive Programming**: Preventing infinite loops
-- **State Cleanup**: Proper effect cleanup patterns
-- **Error Boundaries**: Component-level error handling
+### Error Handling (Improved)
+- **Defensive Programming**: Null checks and fallback values
+- **Database Error Handling**: Proper error boundaries for DB operations
+- **Form Validation**: Comprehensive client and server-side validation
+- **Migration Safety**: Backup files for all critical changes
 
-## Integration Patterns
+## Integration Patterns (Updated)
 
-### External Services
-- **Supabase Integration**: Database + Auth + Real-time
-- **Vercel Deployment**: Seamless CI/CD pipeline
-- **Analytics Integration**: Performance monitoring
+### Current Services
+- **NeonDB Integration**: PostgreSQL hosting with connection pooling
+- **Stack Auth**: Modern authentication with JWT tokens
+- **Vercel Deployment**: Optimized for Next.js App Router
+- **Analytics Integration**: Performance monitoring and user insights
 
 ### Development Workflow
-- **Git Flow**: Feature branches with PR merges
-- **Issue Tracking**: GitHub Issues integration
-- **Claude Code PM**: AI-assisted project management
+- **Git Worktree**: Branch isolation for parallel development
+- **Issue Tracking**: GitHub Issues with PM system integration
+- **Claude Code PM**: AI-assisted project management and coordination
+- **Migration Scripts**: Automated database schema management
 
 ## Scalability Considerations
 
-### Component Reusability
-- **Radix Primitives**: Composable UI components
-- **Tailwind Utilities**: Consistent styling patterns
-- **TypeScript Interfaces**: Reusable type definitions
+### Component Architecture
+- **Radix Primitives**: Accessible, composable UI foundation
+- **Design Tokens**: CSS variables for consistent theming
+- **Component Library**: Reusable Shadcn/ui components
+- **TypeScript Interfaces**: Shared type definitions across layers
 
-### Data Architecture
-- **Supabase Backend**: Scalable database solution
-- **Real-time Capabilities**: Built-in real-time features
-- **File Processing**: Scalable data import patterns
+### Data Architecture (Enhanced)
+- **PostgreSQL Backend**: Scalable relational database with advanced features
+- **Connection Pooling**: Efficient database resource utilization
+- **Query Optimization**: Indexed queries and efficient data access patterns
+- **Service Layer**: Clean separation of business logic from UI
+
+### Development Patterns
+- **Monorepo Structure**: Organized codebase with clear boundaries
+- **Parallel Development**: Multiple agents working on different features
+- **Context Preservation**: Comprehensive documentation and state tracking
+- **Migration Strategy**: Safe, incremental updates with rollback capability
+
+## Memory System Patterns
+
+### Context Management
+- **Project Context**: Comprehensive documentation in `.claude/context/`
+- **State Preservation**: Persistent context across development sessions
+- **Agent Coordination**: Shared context for parallel development workflows
+- **Progress Tracking**: Real-time updates and status management
+
+### Database Schema Patterns
+- **Memory Tables**: Structured storage for context and state information
+- **Relationship Mapping**: Foreign keys and constraints for data integrity
+- **Audit Trail**: Comprehensive logging of all changes and operations
+- **Performance Optimization**: Indexes and query optimization for fast access

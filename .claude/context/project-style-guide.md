@@ -1,6 +1,6 @@
 ---
-created: 2025-09-23T20:09:22Z
-last_updated: 2025-09-23T20:09:22Z
+created: 2025-09-24T00:43:39Z
+last_updated: 2025-09-24T00:43:39Z
 version: 1.0
 author: Claude Code PM System
 ---
@@ -83,26 +83,39 @@ export function ComponentName({ prop1, prop2 }: ComponentProps) {
 }
 ```
 
-#### Hook Usage Patterns
+#### Hook Usage Patterns (Updated for Stack Auth)
 ```typescript
-// ✅ CORRECT - Safe effect pattern
+// ✅ CORRECT - Modern auth pattern with Stack Auth
+const { user, isLoading } = useUser();
+
 useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        navigate("/home");
-      }
-    }
-  );
-  
-  return () => subscription.unsubscribe(); // Cleanup crucial
+  if (!isLoading && !user) {
+    redirect('/auth/signin');
+  }
+}, [user, isLoading]);
+
+// ✅ CORRECT - Database service pattern
+const [objectives, setObjectives] = useState<Objective[]>([]);
+const [loading, setLoading] = useState(true);
+
+const fetchObjectives = useCallback(async () => {
+  try {
+    setLoading(true);
+    const data = await objectiveService.getAll();
+    setObjectives(data);
+  } catch (error) {
+    console.error('Failed to fetch objectives:', error);
+  } finally {
+    setLoading(false);
+  }
 }, []);
 
-// ✅ CORRECT - Functional state updates
-const [objectives, setObjectives] = useState<Objective[]>([]);
-
-const addObjective = useCallback((newObjective: Objective) => {
-  setObjectives(prev => [...prev, newObjective]);
+// ✅ CORRECT - Server action usage
+const addObjective = useCallback(async (newObjective: CreateObjectiveInput) => {
+  const result = await createObjective(newObjective);
+  if (result.success) {
+    setObjectives(prev => [...prev, result.data]);
+  }
 }, []);
 ```
 
@@ -152,33 +165,60 @@ const buttonVariants = cva(
 
 ## Form Handling Standards
 
-### React Hook Form + Zod Pattern
+### React Hook Form + Zod + Server Actions Pattern
 ```typescript
+// Define schema in shared validation file
 const objectiveSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title too long"),
   description: z.string().optional(),
-  targetDate: z.date(),
+  targetDate: z.string().datetime(),
+  userId: z.string().uuid(),
 });
 
 type ObjectiveForm = z.infer<typeof objectiveSchema>;
 
 export function ObjectiveForm() {
+  const [isPending, startTransition] = useTransition();
   const form = useForm<ObjectiveForm>({
     resolver: zodResolver(objectiveSchema),
     defaultValues: {
       title: "",
       description: "",
+      targetDate: new Date().toISOString(),
     },
   });
 
   const onSubmit = async (data: ObjectiveForm) => {
-    // Handle form submission
+    startTransition(async () => {
+      const result = await createObjectiveAction(data);
+      if (result.success) {
+        form.reset();
+        toast.success('Objective created successfully');
+      } else {
+        toast.error(result.error);
+      }
+    });
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        {/* Form fields */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input {...field} disabled={isPending} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'Creating...' : 'Create Objective'}
+        </Button>
       </form>
     </Form>
   );
@@ -189,19 +229,25 @@ export function ObjectiveForm() {
 
 ### Directory Structure
 ```
-src/
+project/
 ├── app/                 # Next.js app directory
 │   ├── (dashboard)/    # Route groups
-│   ├── api/           # API routes
-│   └── globals.css    # Global styles
+│   ├── api/           # API routes (legacy)
+│   ├── globals.css    # Global styles
+│   └── layout.tsx     # Root layout
 ├── components/         # React components
-├── lib/               # Utility functions
-│   ├── supabase.ts   # Supabase client
-│   ├── validations.ts # Zod schemas
-│   └── utils.ts       # General utilities
-├── hooks/             # Custom React hooks
-├── types/             # TypeScript type definitions
-└── constants/         # Application constants
+│   ├── ui/           # Shadcn/ui components
+│   ├── okr/          # OKR-specific components
+│   └── auth/         # Authentication components
+├── lib/               # Core libraries
+│   ├── database/     # Database client and services
+│   ├── actions/      # Server actions
+│   ├── hooks/        # Custom React hooks
+│   ├── types/        # TypeScript definitions
+│   ├── validations/  # Zod schemas
+│   └── utils/        # Utility functions
+├── scripts/           # Database and deployment scripts
+└── .claude/           # Claude Code PM system
 ```
 
 ### Import Conventions
@@ -212,11 +258,15 @@ import { useForm } from 'react-hook-form';
 
 // 2. Internal utilities and types
 import { cn } from '@/lib/utils';
-import type { Objective } from '@/types/objective';
+import { objectiveService } from '@/lib/database/services';
+import type { Objective } from '@/lib/types/objective';
 
-// 3. Components (in dependency order)
+// 3. Server actions
+import { createObjectiveAction } from '@/lib/actions/objectives';
+
+// 4. Components (in dependency order)
 import { Button } from '@/components/ui/button';
-import { ObjectiveCard } from '@/components/objective/objective-card';
+import { ObjectiveCard } from '@/components/okr/objective-card';
 ```
 
 ## Comment Style
@@ -244,24 +294,44 @@ function calculateObjectiveProgress(objective: Objective): number {
 
 ## Error Handling Patterns
 
-### API Error Handling
+### Database Service Error Handling
 ```typescript
-async function fetchObjectives(): Promise<Objective[]> {
+// Service layer error handling
+export async function fetchObjectives(userId: string): Promise<Objective[]> {
   try {
-    const { data, error } = await supabase
-      .from('objectives')
-      .select('*');
+    const client = await getDbClient();
+    const result = await client.query(
+      'SELECT * FROM objectives WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
     
-    if (error) {
-      console.error('Failed to fetch objectives:', error);
-      throw new Error('Unable to load objectives');
-    }
-    
-    return data || [];
+    return result.rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      targetDate: row.target_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
   } catch (error) {
-    // Log error and provide user-friendly message
-    console.error('Objective fetch error:', error);
-    throw error;
+    console.error('Database error fetching objectives:', error);
+    throw new Error('Failed to load objectives. Please try again.');
+  }
+}
+
+// Server action error handling
+export async function createObjectiveAction(data: ObjectiveForm): Promise<ActionResult<Objective>> {
+  try {
+    const validatedData = objectiveSchema.parse(data);
+    const objective = await objectiveService.create(validatedData);
+    revalidatePath('/objectives');
+    return { success: true, data: objective };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { success: false, error: 'Invalid data provided' };
+    }
+    console.error('Server action error:', error);
+    return { success: false, error: 'Failed to create objective' };
   }
 }
 ```

@@ -50,11 +50,13 @@ export interface Activity {
 }
 
 export interface Profile {
-  user_id: string;
+  id: string;
+  email: string;
   full_name: string;
-  role_type: 'corporativo' | 'gerente' | 'empleado';
-  department: string;
-  company_id: string;
+  role: 'corporativo' | 'gerente' | 'empleado';
+  department: string | null;
+  manager_id: string | null;
+  company_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,9 +64,9 @@ export interface Profile {
 export interface Company {
   id: string;
   name: string;
-  description?: string;
-  industry?: string;
-  size?: string;
+  slug: string;
+  logo_url: string | null;
+  settings: any;
   created_at: string;
   updated_at: string;
 }
@@ -327,7 +329,7 @@ export class ActivitiesService {
 export class ProfilesService {
   static async getByUserId(userId: string): Promise<Profile | null> {
     const result = await query<Profile>(
-      'SELECT * FROM profiles WHERE user_id = $1',
+      'SELECT * FROM profiles WHERE id = $1',
       [userId]
     );
     return result.rows[0] || null;
@@ -351,14 +353,16 @@ export class ProfilesService {
   static async create(profile: Omit<Profile, 'created_at' | 'updated_at'>): Promise<Profile> {
     const result = await query<Profile>(
       `INSERT INTO profiles (
-        user_id, full_name, role_type, department, company_id
-      ) VALUES ($1, $2, $3, $4, $5)
+        id, email, full_name, role, department, manager_id, company_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
       [
-        profile.user_id,
+        profile.id,
+        profile.email,
         profile.full_name,
-        profile.role_type,
+        profile.role,
         profile.department,
+        profile.manager_id,
         profile.company_id
       ]
     );
@@ -373,7 +377,7 @@ export class ProfilesService {
     const values = [userId, ...Object.values(updates), new Date().toISOString()];
 
     const result = await query<Profile>(
-      `UPDATE profiles SET ${setClause}, updated_at = $${values.length} WHERE user_id = $1 RETURNING *`,
+      `UPDATE profiles SET ${setClause}, updated_at = $${values.length} WHERE id = $1 RETURNING *`,
       values
     );
     return result.rows[0];
@@ -399,10 +403,10 @@ export class CompaniesService {
 
   static async create(company: Omit<Company, 'id' | 'created_at' | 'updated_at'>): Promise<Company> {
     const result = await query<Company>(
-      `INSERT INTO companies (name, description, industry, size)
+      `INSERT INTO companies (name, slug, logo_url, settings)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [company.name, company.description, company.industry, company.size]
+      [company.name, company.slug, company.logo_url, company.settings]
     );
     return result.rows[0];
   }

@@ -1,3 +1,7 @@
+// TODO: Replace Supabase queries with API calls
+// This file needs manual migration to use API endpoints
+
+
 "use client"
 
 import type React from "react"
@@ -8,7 +12,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
 
@@ -25,7 +28,6 @@ export default function ProfilePage() {
     if (!profile) return
 
     setIsLoading(true)
-    const supabase = createClient()
 
     try {
       const { error } = await supabase

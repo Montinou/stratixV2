@@ -5,81 +5,39 @@ import type { ImportTemplate, ImportResult, ImportError } from "@/lib/types/impo
 // TODO: Import functionality will be updated to use server actions
 // in a future task after core CRUD operations are complete
 export class FileImporter {
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
   async importXLSX(file: File, periodStart?: Date, periodEnd?: Date): Promise<ImportResult> {
     try {
       const arrayBuffer = await file.arrayBuffer()
       const workbook = XLSX.read(arrayBuffer, { type: "array" })
 
-      const allData: ImportTemplate[] = []
-      const errors: ImportError[] = []
-
-      // Process each sheet (each sheet represents a department/area)
-      workbook.SheetNames.forEach((sheetName, sheetIndex) => {
-        const worksheet = workbook.Sheets[sheetName]
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
-
-        if (jsonData.length < 2) return // Skip empty sheets
-
-        const headers = jsonData[0] as string[]
-        const rows = jsonData.slice(1) as any[][]
-
-        rows.forEach((row, rowIndex) => {
-          try {
-            const rowData = this.parseRowData(headers, row, sheetName)
-            if (rowData) {
-              // Apply period filter if specified
-              if (periodStart && periodEnd) {
-                const startDate = new Date(rowData.start_date)
-                const endDate = new Date(rowData.end_date)
-
-                if (startDate >= periodStart && endDate <= periodEnd) {
-                  allData.push(rowData)
-                }
-              } else {
-                allData.push(rowData)
-              }
-            }
-          } catch (error) {
-            errors.push({
-              row: rowIndex + 2, // +2 because of header and 0-based index
-              field: "general",
-              message: error instanceof Error ? error.message : "Error parsing row",
-              data: row,
-            })
-          }
-        })
-      })
-
-      return await this.processImportData(allData, errors, file.name, "xlsx")
+      // TODO: Implement XLSX import functionality with API calls
+      return {
+        success: false,
+        totalRecords: 0,
+        successfulRecords: 0,
+        failedRecords: 0,
+        errors: [{ row: 1, message: "XLSX import not implemented yet", data: {} as any }],
+      }
     } catch (error) {
       return {
         success: false,
         totalRecords: 0,
         successfulRecords: 0,
         failedRecords: 0,
-        errors: [
-          {
-            row: 0,
-            field: "file",
-            message: error instanceof Error ? error.message : "Error reading file",
-            data: null,
-          },
-        ],
+        errors: [{ row: 1, message: `Import error: ${error}`, data: {} as any }],
       }
     }
   }
 
-  async importCSV(file: File, departmentMapping?: Record<string, string>): Promise<ImportResult> {
-    return new Promise((resolve) => {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          try {
-            const allData: ImportTemplate[] = []
-            const errors: ImportError[] = []
+  async importCSV(file: File, periodStart?: Date, periodEnd?: Date): Promise<ImportResult> {
+    try {
+      const text = await file.text()
 
+<<<<<<< Updated upstream
             results.data.forEach((row: any, index) => {
               try {
                 const rowData = this.parseCSVRow(row, departmentMapping)
@@ -228,6 +186,25 @@ export class FileImporter {
     // - InitiativesService.create() for initiatives  
     // - ActivitiesService.create() for activities
     throw new Error("Import functionality temporarily disabled during database migration")
+=======
+      // TODO: Implement CSV import functionality with API calls
+      return {
+        success: false,
+        totalRecords: 0,
+        successfulRecords: 0,
+        failedRecords: 0,
+        errors: [{ row: 1, message: "CSV import not implemented yet", data: {} as any }],
+      }
+    } catch (error) {
+      return {
+        success: false,
+        totalRecords: 0,
+        successfulRecords: 0,
+        failedRecords: 0,
+        errors: [{ row: 1, message: `Import error: ${error}`, data: {} as any }],
+      }
+    }
+>>>>>>> Stashed changes
   }
 
   // Generate template files
@@ -235,75 +212,108 @@ export class FileImporter {
     const wb = XLSX.utils.book_new()
 
     // Sample data for each sheet
+    const objectivesData = [
+      {
+        type: "objective",
+        title: "Aumentar ventas en 20%",
+        description: "Incrementar las ventas del producto principal",
+        owner_email: "gerente@empresa.com",
+        department: "Ventas",
+        status: "en_progreso",
+        progress: 45,
+        start_date: "2024-01-01",
+        end_date: "2024-12-31",
+        parent_title: "",
+      },
+    ]
+
+    const initiativesData = [
+      {
+        type: "initiative",
+        title: "Campaña de marketing digital",
+        description: "Implementar estrategia de redes sociales",
+        owner_email: "marketing@empresa.com",
+        department: "Marketing",
+        status: "en_progreso",
+        progress: 60,
+        start_date: "2024-02-01",
+        end_date: "2024-06-30",
+        parent_title: "Aumentar ventas en 20%",
+      },
+    ]
+
+    const activitiesData = [
+      {
+        type: "activity",
+        title: "Crear contenido para Instagram",
+        description: "Diseñar 20 posts para Instagram",
+        owner_email: "diseñador@empresa.com",
+        department: "Marketing",
+        status: "no_iniciado",
+        progress: 0,
+        start_date: "2024-02-15",
+        end_date: "2024-03-15",
+        parent_title: "Campaña de marketing digital",
+      },
+    ]
+
+    // Create worksheets
+    const objectivesWS = XLSX.utils.json_to_sheet(objectivesData)
+    const initiativesWS = XLSX.utils.json_to_sheet(initiativesData)
+    const activitiesWS = XLSX.utils.json_to_sheet(activitiesData)
+
+    XLSX.utils.book_append_sheet(wb, objectivesWS, "Objetivos")
+    XLSX.utils.book_append_sheet(wb, initiativesWS, "Iniciativas")
+    XLSX.utils.book_append_sheet(wb, activitiesWS, "Actividades")
+
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" })
+    return new Blob([wbout], { type: "application/octet-stream" })
+  }
+
+  static generateCSVTemplate(): Blob {
+    const headers = [
+      "type",
+      "title",
+      "description",
+      "owner_email",
+      "department",
+      "status",
+      "progress",
+      "start_date",
+      "end_date",
+      "parent_title",
+    ]
+
     const sampleData = [
       [
-        "type",
-        "title",
-        "description",
-        "owner_email",
-        "department",
-        "status",
-        "progress",
-        "start_date",
-        "end_date",
-        "parent_title",
-      ],
-      [
         "objective",
-        "Increase Sales Revenue",
-        "Boost quarterly sales by 20%",
-        "manager@company.com",
-        "Sales",
+        "Aumentar ventas en 20%",
+        "Incrementar las ventas del producto principal",
+        "gerente@empresa.com",
+        "Ventas",
         "en_progreso",
-        50,
+        "45",
         "2024-01-01",
-        "2024-03-31",
+        "2024-12-31",
         "",
       ],
       [
         "initiative",
-        "Launch Marketing Campaign",
-        "Digital marketing initiative",
-        "marketing@company.com",
+        "Campaña de marketing digital",
+        "Implementar estrategia de redes sociales",
+        "marketing@empresa.com",
         "Marketing",
-        "no_iniciado",
-        0,
-        "2024-01-15",
-        "2024-02-28",
-        "Increase Sales Revenue",
-      ],
-      [
-        "activity",
-        "Create Social Media Content",
-        "Develop content calendar",
-        "social@company.com",
-        "Marketing",
-        "no_iniciado",
-        0,
-        "2024-01-15",
-        "2024-01-31",
-        "Launch Marketing Campaign",
+        "en_progreso",
+        "60",
+        "2024-02-01",
+        "2024-06-30",
+        "Aumentar ventas en 20%",
       ],
     ]
 
-    // Create sheets for different departments
-    const departments = ["Sales", "Marketing", "Engineering", "HR"]
-
-    departments.forEach((dept) => {
-      const ws = XLSX.utils.aoa_to_sheet(sampleData)
-      XLSX.utils.book_append_sheet(wb, ws, dept)
-    })
-
-    return new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    })
-  }
-
-  static generateCSVTemplate(): Blob {
-    const csvContent = `type,title,description,owner_email,department,status,progress,start_date,end_date,parent_title
-objective,"Increase Sales Revenue","Boost quarterly sales by 20%",manager@company.com,Sales,en_progreso,50,2024-01-01,2024-03-31,
-initiative,"Launch Marketing Campaign","Digital marketing initiative",marketing@company.com,Marketing,no_iniciado,0,2024-01-15,2024-02-28,"Increase Sales Revenue"
-activity,"Create Social Media Content","Develop content calendar",social@company.com,Marketing,no_iniciado,0,2024-01-15,2024-01-31,"Launch Marketing Campaign"`
+    const csvContent = [headers, ...sampleData]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n")
 
     return new Blob([csvContent], { type: "text/csv" })
   }

@@ -1,7 +1,12 @@
+// TODO: Replace Supabase queries with API calls
+// This file needs manual migration to use API endpoints
+
+
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
+<<<<<<< Updated upstream
 import { useState, useEffect, useCallback } from "react"
 import { Target } from "lucide-react"
 import Link from "next/link"
@@ -9,11 +14,39 @@ import type { Objective, Initiative, Activity as ActivityType, Profile } from "@
 import { getObjectives } from "@/lib/actions/objectives"
 import { getInitiatives } from "@/lib/actions/initiatives"
 import { getActivities } from "@/lib/actions/activities"
+=======
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { Target } from "lucide-react"
+import Link from "next/link"
+import type { Objective, Initiative, Activity as ActivityType } from "@/lib/types/okr"
+
+interface Profile {
+  id: string
+  email: string
+  full_name: string
+  role: "corporativo" | "gerente" | "empleado"
+  department: string | null
+  manager_id: string | null
+  company_id: string | null
+  created_at: string
+  updated_at: string
+  companies?: {
+    id: string
+    name: string
+    slug: string
+    logo_url: string | null
+    settings: any
+    created_at: string
+    updated_at: string
+  }
+}
+>>>>>>> Stashed changes
 
 interface DashboardContentProps {
   profile: Profile
 }
 
+<<<<<<< Updated upstream
 export function DashboardContent({ profile }: DashboardContentProps) {
   
   const [loading, setLoading] = useState(true)
@@ -76,6 +109,12 @@ export function DashboardContent({ profile }: DashboardContentProps) {
       setLoading(false)
     }
   }, [])
+=======
+export function DashboardContent({ user, profile }: DashboardContentProps) {
+  // Create supabase client once to prevent recreating on every function call
+  
+  // const [...] = await Promise.all([/* TODO: Replace with API call */])
+>>>>>>> Stashed changes
 
   useEffect(() => {
     fetchDashboardData()

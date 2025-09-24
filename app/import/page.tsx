@@ -1,3 +1,7 @@
+// TODO: Replace Supabase queries with API calls
+// This file needs manual migration to use API endpoints
+
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -7,7 +11,6 @@ import { Badge } from "@/components/ui/badge"
 import { FileImportDialog } from "@/components/import/file-import-dialog"
 import { Upload, FileSpreadsheet, Clock, CheckCircle, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
 import type { ImportLog } from "@/lib/types/import"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -16,7 +19,6 @@ export default function ImportPage() {
   const { profile } = useAuth()
   const [importLogs, setImportLogs] = useState<ImportLog[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const canImport = profile?.role === "corporativo" || profile?.role === "gerente"
 
