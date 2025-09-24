@@ -2,6 +2,8 @@
 
 import type { User } from "@stackframe/stack"
 import { ProfilesRepository, type Profile } from "@/lib/database/queries/profiles"
+import { ProfileSyncService } from "@/lib/database/services/profile-sync"
+import type { ProfileSyncResult } from "@/lib/types/auth-integration"
 
 /**
  * Bridge between Stack authentication and database profile management
@@ -26,13 +28,26 @@ export class StackProfileBridge {
 
   /**
    * Get or create user profile based on Stack authentication
+   * Enhanced with ProfileSyncService for better transaction handling and audit logging
    * @param stackUser - Authenticated Stack user
    * @param defaultCompanyId - Company ID to use for new profiles
    * @returns User profile from database or newly created profile
    */
   static async getOrCreateProfile(stackUser: User, defaultCompanyId: string): Promise<Profile | null> {
     try {
-      // First try to get existing profile
+      // Use ProfileSyncService for enhanced sync capabilities
+      const syncResult: ProfileSyncResult = await ProfileSyncService.syncUserProfile(
+        stackUser, 
+        defaultCompanyId
+      )
+      
+      if (syncResult.success && syncResult.profile) {
+        return syncResult.profile
+      }
+      
+      // Fallback to direct repository access if sync service fails
+      console.warn('ProfileSyncService failed, falling back to direct repository access:', syncResult.error)
+      
       const existingProfile = await ProfilesRepository.getByUserId(stackUser.id)
       
       if (existingProfile) {
@@ -47,7 +62,7 @@ export class StackProfileBridge {
         return existingProfile
       }
 
-      // Profile doesn't exist, create new one
+      // Profile doesn't exist, create new one using fallback method
       const newProfileData = this.stackUserToProfile(stackUser, defaultCompanyId)
       return await ProfilesRepository.create(newProfileData)
       
@@ -110,14 +125,33 @@ export class StackProfileBridge {
   }
 
   /**
-   * Handle user profile cleanup on logout
+   * Handle Stack user sign-in event with enhanced ProfileSyncService
+   * @param stackUser - Stack user who signed in
+   * @param defaultCompanyId - Company ID for profile association
+   * @returns Profile sync result
+   */
+  static async handleStackSignIn(stackUser: User, defaultCompanyId: string): Promise<ProfileSyncResult> {
+    try {
+      return await ProfileSyncService.handleStackSignIn(stackUser, defaultCompanyId)
+    } catch (error) {
+      console.error('Error in handleStackSignIn:', error)
+      return {
+        success: false,
+        profile: null,
+        created: false,
+        error: error instanceof Error ? error.message : 'Sign-in handling failed',
+      }
+    }
+  }
+
+  /**
+   * Handle user profile cleanup on logout with enhanced ProfileSyncService
    * @param userId - User ID to cleanup
    */
   static async handleLogout(userId: string): Promise<void> {
     try {
-      // For now, we don't delete profiles on logout
-      // This could be extended to handle session cleanup in the future
-      console.log(`User ${userId} logged out - session cleaned up`)
+      // Use ProfileSyncService for enhanced logout handling
+      await ProfileSyncService.handleStackSignOut(userId)
     } catch (error) {
       console.error('Error in logout cleanup:', error)
     }
