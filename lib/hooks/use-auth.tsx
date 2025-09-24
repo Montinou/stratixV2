@@ -5,18 +5,9 @@ import type React from "react"
 import { createNeonClient } from "@/lib/neon-auth/client"
 import type { User } from "@stackframe/stack"
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
-
-interface Profile {
-  id: string
-  email: string
-  full_name: string
-  role: "corporativo" | "gerente" | "empleado"
-  department: string | null
-  manager_id: string | null
-  company_id: string | null
-  created_at: string
-  updated_at: string
-}
+import { StackProfileBridge } from "@/lib/auth/stack-profile-bridge"
+import { SessionManager } from "@/lib/auth/session-management"
+import type { Profile } from "@/lib/database/queries/profiles"
 
 interface Company {
   id: string
@@ -51,30 +42,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const neonClient = useMemo(() => createNeonClient(), [])
 
   const fetchProfile = useCallback(
-    async (userId: string) => {
+    async (stackUser: User) => {
       try {
-        // TODO: Replace with actual database query once database migration is complete
-        // For now, return mock data based on user info
-        const userData = await neonClient.getUser()
-        if (!userData) {
-          return { profile: null, company: null }
+        // First check if we have cached profile data
+        const cachedProfile = SessionManager.getCachedProfile()
+        if (cachedProfile && cachedProfile.user_id === stackUser.id) {
+          return { 
+            profile: cachedProfile, 
+            company: null // TODO: Add company caching in future
+          }
         }
 
-        // Create mock profile from NeonAuth user data
-        const mockProfile: Profile = {
-          id: userData.id,
-          email: userData.primaryEmail || '',
-          full_name: userData.displayName || userData.primaryEmail || '',
-          role: "empleado" as const, // Default role
-          department: null,
-          manager_id: null,
-          company_id: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+        // Get default company ID for new profiles
+        const defaultCompanyId = SessionManager.getDefaultCompanyId()
+        
+        // Use the bridge to get or create profile
+        const profile = await StackProfileBridge.getOrCreateProfile(stackUser, defaultCompanyId)
+        
+        if (!profile) {
+          console.warn("Could not get or create profile, using fallback")
+          const fallbackProfile = StackProfileBridge.createFallbackProfile(stackUser)
+          return { profile: fallbackProfile, company: null }
         }
 
+        // Cache the profile for better performance
+        SessionManager.cacheProfile(profile)
+
+        // TODO: Fetch company data based on profile.company_id
+        // For now, return mock company data
         const mockCompany: Company = {
-          id: "default-company",
+          id: profile.company_id,
           name: "Default Company",
           slug: "default",
           logo_url: null,
@@ -84,12 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         return {
-          profile: mockProfile,
+          profile,
           company: mockCompany,
         }
       } catch (error) {
         console.error("Error fetching profile:", error)
-        return { profile: null, company: null }
+        
+        // On error, create fallback profile from Stack user data
+        const fallbackProfile = StackProfileBridge.createFallbackProfile(stackUser)
+        return { profile: fallbackProfile, company: null }
       }
     },
     [neonClient], // neonClient is stable due to useMemo
@@ -97,18 +97,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (user) {
-      const { profile: profileData, company: companyData } = await fetchProfile(user.id)
+      // Clear cached profile to force fresh fetch
+      SessionManager.clearProfileCache()
+      const { profile: profileData, company: companyData } = await fetchProfile(user)
       setProfile(profileData)
       setCompany(companyData)
     }
   }, [user, fetchProfile])
 
   const signOut = useCallback(async () => {
-    await neonClient.signOut()
-    setUser(null)
-    setProfile(null)
-    setCompany(null)
-  }, [neonClient])
+    try {
+      // Handle logout cleanup through bridge
+      if (user) {
+        await StackProfileBridge.handleLogout(user.id)
+      }
+      
+      // Clear all session data
+      SessionManager.clearSession()
+      
+      // Sign out from Stack
+      await neonClient.signOut()
+      
+      // Clear local state
+      setUser(null)
+      setProfile(null)
+      setCompany(null)
+    } catch (error) {
+      console.error("Error during sign out:", error)
+      // Even if there's an error, clear local state
+      setUser(null)
+      setProfile(null)
+      setCompany(null)
+    }
+  }, [neonClient, user])
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
