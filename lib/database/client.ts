@@ -1,4 +1,6 @@
 import { Pool, PoolClient, QueryResult } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from './schema';
 
 // Database configuration
 const dbConfig = {
@@ -12,6 +14,7 @@ const dbConfig = {
 
 // Create a global connection pool
 let pool: Pool | null = null;
+let drizzleDb: ReturnType<typeof drizzle> | null = null;
 
 export function getPool(): Pool {
   if (!pool) {
@@ -26,6 +29,15 @@ export function getPool(): Pool {
     });
   }
   return pool;
+}
+
+// Get Drizzle database instance
+export function getDrizzleDb() {
+  if (!drizzleDb) {
+    const pool = getPool();
+    drizzleDb = drizzle(pool, { schema });
+  }
+  return drizzleDb;
 }
 
 // Database query wrapper with proper error handling
@@ -88,6 +100,7 @@ export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();
     pool = null;
+    drizzleDb = null;
   }
 }
 
