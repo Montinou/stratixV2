@@ -45,7 +45,9 @@ WHERE typname = 'okr_status' AND typtype = 'e';
 WITH required_tables AS (
     SELECT unnest(ARRAY[
         'profiles', 'objectives', 'initiatives', 'activities', 
-        'companies', 'import_logs', 'ai_suggestions'
+        'companies', 'import_logs', 'ai_suggestions',
+        'memories', 'memory_tags', 'memory_relationships', 
+        'memory_analytics', 'memory_search_history'
     ]) AS table_name
 ),
 existing_tables AS (
@@ -256,6 +258,89 @@ SELECT
     'Required for performance'
 FROM required_indexes ri
 LEFT JOIN existing_indexes ei ON ri.index_name = ei.index_name AND ri.table_name = ei.table_name;
+
+-- =============================================================================
+-- MEMORY SYSTEM VALIDATION
+-- =============================================================================
+
+-- Check memory system enums
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memory_type_enum',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'memory_type enum exists' ELSE 'memory_type enum missing' END,
+    'Expected values: insight, lesson, pattern, outcome, decision, blocker'
+FROM pg_type 
+WHERE typname = 'memory_type' AND typtype = 'e';
+
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memory_relationship_type_enum',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'memory_relationship_type enum exists' ELSE 'memory_relationship_type enum missing' END,
+    'Expected values: related, builds_on, contradicts, similar, caused_by, led_to'
+FROM pg_type 
+WHERE typname = 'memory_relationship_type' AND typtype = 'e';
+
+-- Check memory system critical columns
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memories_search_vector_column',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'memories.search_vector column exists' ELSE 'memories.search_vector column missing' END,
+    'Required for full-text search functionality'
+FROM information_schema.columns 
+WHERE table_schema = 'public' AND table_name = 'memories' AND column_name = 'search_vector';
+
+-- Check memory system indexes
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memory_search_vector_index',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'Search vector GIN index exists' ELSE 'Search vector GIN index missing' END,
+    'Required for fast full-text search'
+FROM pg_indexes 
+WHERE schemaname = 'public' AND tablename = 'memories' AND indexname = 'idx_memories_search_vector';
+
+-- Check memory system functions
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'update_memories_search_vector_function',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'Search vector update function exists' ELSE 'Search vector update function missing' END,
+    'Required for automatic search vector updates'
+FROM information_schema.routines 
+WHERE routine_schema = 'public' AND routine_name = 'update_memories_search_vector';
+
+-- Check memory system triggers
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memories_search_vector_trigger',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'Search vector trigger exists' ELSE 'Search vector trigger missing' END,
+    'Required for automatic search vector updates on insert/update'
+FROM information_schema.triggers 
+WHERE event_object_schema = 'public' AND event_object_table = 'memories' AND trigger_name = 'update_memories_search_vector_trigger';
+
+-- Check memory system RLS policies
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memories_rls_enabled',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'RLS enabled on memories table' ELSE 'RLS not enabled on memories table' END,
+    'Required for data security and multi-tenancy'
+FROM pg_tables 
+WHERE schemaname = 'public' AND tablename = 'memories' AND rowsecurity = true;
+
+-- Check memory system views
+INSERT INTO validation_results (check_name, status, message, details)
+SELECT 
+    'memories_with_tags_view',
+    CASE WHEN COUNT(*) > 0 THEN 'PASS' ELSE 'FAIL' END,
+    CASE WHEN COUNT(*) > 0 THEN 'memories_with_tags view exists' ELSE 'memories_with_tags view missing' END,
+    'Required for efficient memory retrieval with tags'
+FROM information_schema.views 
+WHERE table_schema = 'public' AND table_name = 'memories_with_tags';
 
 -- =============================================================================
 -- RESULTS SUMMARY

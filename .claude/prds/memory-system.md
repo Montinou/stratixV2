@@ -156,9 +156,9 @@ Organizations using OKR management face critical knowledge retention challenges:
 ## Constraints & Assumptions
 
 ### Technical Constraints
-- **Data Storage**: Must integrate with existing Supabase architecture
+- **Data Storage**: Must integrate with existing NeonDB PostgreSQL architecture
 - **Performance Impact**: Memory features cannot degrade core OKR functionality
-- **API Limitations**: Work within Supabase real-time subscription limits
+- **API Limitations**: Work within NeonDB connection pooling and PostgreSQL query limits
 - **Browser Compatibility**: Support for all browsers supported by current application
 
 ### Business Constraints
@@ -192,8 +192,9 @@ Organizations using OKR management face critical knowledge retention challenges:
 ## Dependencies
 
 ### External Dependencies
-- **Supabase Platform**: Database storage, real-time subscriptions, and user authentication
-- **Search Service**: Either Supabase full-text search or external search service
+- **NeonDB Platform**: PostgreSQL database storage with connection pooling and SSL security
+- **Stack Auth (NeonAuth)**: Modern authentication system with database-backed sessions
+- **Search Service**: PostgreSQL native full-text search with GIN indexes
 - **AI/ML Services**: Third-party services for pattern recognition and recommendations
 - **Current Application**: Integration with existing OKR management workflows
 

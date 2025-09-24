@@ -1,6 +1,6 @@
 ---
-created: 2025-09-23T20:09:22Z
-last_updated: 2025-09-23T20:09:22Z
+created: 2025-09-24T05:32:18Z
+last_updated: 2025-09-24T05:32:18Z
 version: 1.0
 author: Claude Code PM System
 ---
@@ -16,23 +16,27 @@ author: Claude Code PM System
 
 ### State Management Patterns
 - **Form State**: React Hook Form with controlled components
-- **Server State**: Supabase integration suggests server-first approach
+- **Server State**: NeonDB with custom database service layer
+- **Authentication State**: Stack Auth (NeonAuth) with database-backed sessions
 - **Theme State**: Next-themes for global theme management
 
 ### Data Flow Architecture
-Based on dependencies and recent commits:
+Updated architecture with NeonDB and Stack Auth:
 
 ```
-User Input → React Hook Form → Zod Validation → Supabase → UI Update
+User Input → React Hook Form → Zod Validation → NeonDB Service Layer → PostgreSQL → UI Update
      ↓
-Theme Provider → Component Tree → Radix UI Primitives → Tailwind CSS
+Stack Auth → AuthProvider → Protected Routes → Component Tree → Radix UI Primitives → Tailwind CSS
+     ↓
+Migration Scripts → Health Checks → Database Operations → CI/CD Pipeline
 ```
 
 ### Authentication Pattern
-Recent commits mention auth hook issues, suggesting:
-- **Hook-based Auth**: Custom authentication hooks
-- **SSR Auth**: Supabase SSR for server-side authentication
-- **Route Protection**: Authentication-based navigation
+Migrated to Stack Auth (NeonAuth) system:
+- **Stack Auth Integration**: Modern authentication with database-backed sessions
+- **AuthProvider Pattern**: Centralized authentication state management
+- **Route Protection**: Middleware-based authentication validation
+- **Database Sessions**: User profiles and sessions stored in NeonDB
 
 ## Architectural Decisions
 
@@ -73,9 +77,10 @@ Recent commits indicate patterns around:
 - **Component Props**: Typed component interfaces
 
 ### Performance Patterns
-- **Next.js Optimization**: Built-in performance features
+- **Next.js Optimization**: Built-in performance features with App Router
 - **Component Composition**: Efficient re-render patterns
-- **Server-Side Rendering**: Supabase SSR integration
+- **Database Connection Pooling**: Optimized PostgreSQL connections
+- **Migration Performance**: Automated health checks and validation
 
 ### Error Handling
 Based on recent fixes, suggests:
@@ -86,8 +91,9 @@ Based on recent fixes, suggests:
 ## Integration Patterns
 
 ### External Services
-- **Supabase Integration**: Database + Auth + Real-time
-- **Vercel Deployment**: Seamless CI/CD pipeline
+- **NeonDB Integration**: PostgreSQL 17.5 with SSL connections
+- **Stack Auth (NeonAuth)**: Modern authentication system
+- **Vercel Deployment**: CI/CD pipeline with automated pre-build migration
 - **Analytics Integration**: Performance monitoring
 
 ### Development Workflow
@@ -103,6 +109,34 @@ Based on recent fixes, suggests:
 - **TypeScript Interfaces**: Reusable type definitions
 
 ### Data Architecture
-- **Supabase Backend**: Scalable database solution
-- **Real-time Capabilities**: Built-in real-time features
+- **NeonDB Backend**: Serverless PostgreSQL 17.5 solution
+- **Custom Service Layer**: Database abstraction with TypeScript
+- **Migration System**: Automated schema management and validation
 - **File Processing**: Scalable data import patterns
+- **Connection Pooling**: Optimized database performance
+
+## New Infrastructure Patterns (2025-09-24)
+
+### Database Service Layer Pattern
+- **Custom PostgreSQL Client**: Direct `pg` package integration
+- **Server Actions**: Next.js server actions for database operations
+- **Type Safety**: End-to-end TypeScript with database schemas
+- **Connection Management**: SSL connections with pooling
+
+### Migration Management Pattern
+- **Pre-build Migration**: Automated migration before deployment
+- **Health Validation**: Comprehensive database health checks
+- **Rollback Capabilities**: Multi-level rollback system (auto, manual, emergency)
+- **Environment Validation**: Production-ready environment checking
+
+### CI/CD Integration Pattern
+- **Automated Deployment**: Vercel integration with migration hooks
+- **Health Monitoring**: Continuous health validation during deployment
+- **Error Recovery**: Automated rollback on migration failures
+- **Script Automation**: @scripts/ directory with deployment toolkit
+
+---
+
+**Last Updated**: 2025-09-24T05:32:18Z  
+**Version**: 1.0 - Complete system patterns documentation post-NeonDB migration  
+**Key Insight**: Modern architecture patterns with NeonDB, automated deployment, and comprehensive migration management

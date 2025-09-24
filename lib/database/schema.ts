@@ -142,6 +142,7 @@ export const profilesRelations = relations(profiles, ({ one }) => ({
     fields: [profiles.userId],
     references: [users.id],
   }),
+
   company: one(companies, {
     fields: [profiles.companyId],
     references: [companies.id],
@@ -157,6 +158,7 @@ export const objectivesRelations = relations(objectives, ({ one, many }) => ({
     fields: [objectives.companyId],
     references: [companies.id],
   }),
+
   initiatives: many(initiatives),
 }));
 
@@ -168,6 +170,7 @@ export const initiativesRelations = relations(initiatives, ({ one, many }) => ({
   owner: one(users, {
     fields: [initiatives.ownerId],
     references: [users.id],
+
   }),
   activities: many(activities),
 }));
