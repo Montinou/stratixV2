@@ -8,10 +8,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-<<<<<<< Updated upstream
-=======
-import { neonClient } from "@/lib/neon-auth/client"
->>>>>>> Stashed changes
 import { useAuth } from "@/lib/hooks/use-auth"
 import type { Objective } from "@/lib/database/services"
 import { createObjective, updateObjective } from "@/lib/actions/objectives"
@@ -57,7 +53,6 @@ export function ObjectiveForm({ objective, onSuccess, onCancel }: ObjectiveFormP
         company_id: profile.company_id,
       }
 
-<<<<<<< Updated upstream
       let result;
       if (objective) {
         // Update existing objective
@@ -68,35 +63,6 @@ export function ObjectiveForm({ objective, onSuccess, onCancel }: ObjectiveFormP
         // Create new objective
         result = await createObjective(objectiveData)
         if (result.error) throw new Error(result.error)
-=======
-      const token = await neonClient.getAccessToken()
-
-      if (objective) {
-        // Update existing objective
-        const response = await fetch(`/api/objectives/${objective.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify(objectiveData),
-        })
-
-        if (!response.ok) throw new Error('Failed to update objective')
-        toast({ title: "Objetivo actualizado", description: "El objetivo ha sido actualizado correctamente." })
-      } else {
-        // Create new objective
-        const response = await fetch('/api/objectives', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify(objectiveData),
-        })
-
-        if (!response.ok) throw new Error('Failed to create objective')
->>>>>>> Stashed changes
         toast({ title: "Objetivo creado", description: "El objetivo ha sido creado correctamente." })
       }
 

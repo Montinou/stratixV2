@@ -5,10 +5,6 @@ import type { ImportTemplate, ImportResult, ImportError } from "@/lib/types/impo
 // TODO: Import functionality will be updated to use server actions
 // in a future task after core CRUD operations are complete
 export class FileImporter {
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
   async importXLSX(file: File, periodStart?: Date, periodEnd?: Date): Promise<ImportResult> {
     try {
       const arrayBuffer = await file.arrayBuffer()
@@ -37,156 +33,6 @@ export class FileImporter {
     try {
       const text = await file.text()
 
-<<<<<<< Updated upstream
-            results.data.forEach((row: any, index) => {
-              try {
-                const rowData = this.parseCSVRow(row, departmentMapping)
-                if (rowData) {
-                  allData.push(rowData)
-                }
-              } catch (error) {
-                errors.push({
-                  row: index + 2,
-                  field: "general",
-                  message: error instanceof Error ? error.message : "Error parsing row",
-                  data: row,
-                })
-              }
-            })
-
-            const result = await this.processImportData(allData, errors, file.name, "csv")
-            resolve(result)
-          } catch (error) {
-            resolve({
-              success: false,
-              totalRecords: 0,
-              successfulRecords: 0,
-              failedRecords: 0,
-              errors: [
-                {
-                  row: 0,
-                  field: "file",
-                  message: error instanceof Error ? error.message : "Error processing CSV",
-                  data: null,
-                },
-              ],
-            })
-          }
-        },
-        error: (error) => {
-          resolve({
-            success: false,
-            totalRecords: 0,
-            successfulRecords: 0,
-            failedRecords: 0,
-            errors: [
-              {
-                row: 0,
-                field: "file",
-                message: error.message,
-                data: null,
-              },
-            ],
-          })
-        },
-      })
-    })
-  }
-
-  private parseRowData(headers: string[], row: any[], department?: string): ImportTemplate | null {
-    if (!row || row.length === 0) return null
-
-    const data: any = {}
-    headers.forEach((header, index) => {
-      data[header.toLowerCase().replace(/\s+/g, "_")] = row[index]
-    })
-
-    // Validate required fields
-    if (!data.title || !data.owner_email || !data.start_date || !data.end_date) {
-      throw new Error("Missing required fields: title, owner_email, start_date, end_date")
-    }
-
-    return {
-      type: data.type || "objective",
-      title: data.title,
-      description: data.description || "",
-      owner_email: data.owner_email,
-      department: data.department || department || "",
-      status: data.status || "no_iniciado",
-      progress: Number.parseInt(data.progress) || 0,
-      start_date: data.start_date,
-      end_date: data.end_date,
-      parent_title: data.parent_title,
-    }
-  }
-
-  private parseCSVRow(row: any, departmentMapping?: Record<string, string>): ImportTemplate | null {
-    if (!row.title || !row.owner_email) return null
-
-    const department = departmentMapping?.[row.department] || row.department || ""
-
-    return {
-      type: row.type || "objective",
-      title: row.title,
-      description: row.description || "",
-      owner_email: row.owner_email,
-      department,
-      status: row.status || "no_iniciado",
-      progress: Number.parseInt(row.progress) || 0,
-      start_date: row.start_date,
-      end_date: row.end_date,
-      parent_title: row.parent_title,
-    }
-  }
-
-  private async processImportData(
-    data: ImportTemplate[],
-    errors: ImportError[],
-    fileName: string,
-    fileType: "xlsx" | "csv",
-  ): Promise<ImportResult> {
-    let successfulRecords = 0
-    const totalRecords = data.length
-
-    // TODO: Create import log using server actions
-    const importLog = null
-
-    // Process each record
-    for (const record of data) {
-      try {
-        // TODO: Implement createOKRRecord using server actions
-        successfulRecords++
-      } catch (error) {
-        errors.push({
-          row: data.indexOf(record) + 1,
-          field: "database",
-          message: error instanceof Error ? error.message : "Database error",
-          data: record,
-        })
-      }
-    }
-
-    // TODO: Update import log using server actions
-    // Update logic will be implemented when import functionality is migrated
-
-    return {
-      success: errors.length === 0,
-      totalRecords,
-      successfulRecords,
-      failedRecords: totalRecords - successfulRecords,
-      errors,
-    }
-  }
-
-  private async createOKRRecord(record: ImportTemplate): Promise<void> {
-    // TODO: Implement using server actions from @/lib/actions
-    // This method will be rewritten to use:
-    // - ProfilesService.getByEmail() to find owner
-    // - ObjectivesService.create() for objectives
-    // - InitiativesService.create() for initiatives  
-    // - ActivitiesService.create() for activities
-    throw new Error("Import functionality temporarily disabled during database migration")
-=======
       // TODO: Implement CSV import functionality with API calls
       return {
         success: false,
@@ -204,7 +50,6 @@ export class FileImporter {
         errors: [{ row: 1, message: `Import error: ${error}`, data: {} as any }],
       }
     }
->>>>>>> Stashed changes
   }
 
   // Generate template files
