@@ -84,7 +84,6 @@ export class ProfilesRepository {
           updatedAt: row.company_updated_at!,
         } : undefined
       };
-
     } catch (error) {
       console.error('Error fetching profile by user ID:', error);
       throw error;
@@ -176,7 +175,6 @@ export class ProfilesRepository {
           updatedAt: row.company_updated_at!,
         } : undefined
       }));
-
     } catch (error) {
       console.error('Error fetching all profiles:', error);
       throw error;
@@ -211,7 +209,6 @@ export class ProfilesRepository {
         createdAt: created.createdAt,
         updatedAt: created.updatedAt,
       };
-
     } catch (error) {
       console.error('Error creating profile:', error);
       throw error;
@@ -257,6 +254,7 @@ export class ProfilesRepository {
         updatedAt: updated.updatedAt,
       };
 
+
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
@@ -275,6 +273,7 @@ export class ProfilesRepository {
 
     } catch (error) {
       console.error('Error deleting profile:', error);
+
       throw error;
     }
   }
@@ -387,6 +386,7 @@ export class ProfilesRepository {
 
     } catch (error) {
       console.error('Error creating or updating profile:', error);
+
       throw error;
     }
   }

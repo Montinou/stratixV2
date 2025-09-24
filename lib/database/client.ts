@@ -9,6 +9,7 @@ import { getPoolConfig, healthCheckConfig } from './pool-config';
 import { performanceMonitoring } from '../performance/query-optimization';
 import { poolMetricsCollector, performanceScheduler } from '../performance/connection-metrics';
 
+
 // Get production-optimized database configuration
 const dbConfig = getPoolConfig();
 
@@ -334,5 +335,20 @@ export async function closePool(): Promise<void> {
   }
 }
 
+// Drizzle client setup
+let drizzleClient: ReturnType<typeof drizzle> | null = null;
+
+export function getDrizzleClient() {
+  if (!drizzleClient) {
+    const pool = getPool();
+    drizzleClient = drizzle(pool, { schema });
+  }
+  
+  return drizzleClient;
+}
+
 // Export the pool for direct access if needed
 export { pool };
+
+// Export typed database client for direct use
+export const db = getDrizzleClient();

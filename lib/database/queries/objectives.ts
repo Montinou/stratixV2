@@ -108,11 +108,13 @@ export class ObjectivesRepository {
           // Owner profile information
           owner_name: profiles.fullName,
           owner_role: profiles.roleType,
+
         })
         .from(objectives)
         .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
         .where(eq(objectives.id, id))
         .limit(1);
+
 
       if (results.length === 0) {
         return null;
@@ -145,6 +147,7 @@ export class ObjectivesRepository {
           updated_at: row.updatedAt.toISOString(),
         } : undefined
       };
+
 
     } catch (error) {
       console.error('Error fetching objective by ID:', error);
@@ -193,10 +196,10 @@ export class ObjectivesRepository {
         updated_at: created.updatedAt.toISOString(),
       };
 
+
     } catch (error) {
       console.error('Error creating objective:', error);
       throw error;
-    }
   }
 
   /**
@@ -262,6 +265,7 @@ export class ObjectivesRepository {
    * Maintains exact API compatibility with existing ObjectivesService.delete
    */
   async delete(id: string): Promise<void> {
+
     try {
       await this.db
         .delete(objectives)

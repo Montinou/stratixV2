@@ -153,4 +153,5 @@ export const DEFAULT_AUTH_CONFIG: AuthIntegrationConfig = {
   enableSessionPersistence: true,
   retryAttempts: 3,
   retryDelayMs: 1000,
+
 }

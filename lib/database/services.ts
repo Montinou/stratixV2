@@ -1,64 +1,25 @@
+// Import all repositories for clean service layer integration
+import { ProfilesRepository, type Profile } from './queries/profiles';
+import { ObjectivesRepository, type Objective } from './queries/objectives';
+import { InitiativesRepository, type InitiativeWithRelations } from './queries/initiatives';
+import { ActivitiesRepository, type Activity } from './queries/activities';
+import type { FilterParams } from './queries/objectives';
+
+// Legacy imports for backward compatibility during transition
 import { query, transaction } from './client';
 import type { QueryResult } from 'pg';
 
-// Types for database entities
-export interface Objective {
-  id: string;
-  title: string;
-  description?: string;
-  department: string;
-  status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high';
-  start_date: string;
-  end_date: string;
-  owner_id: string;
-  company_id: string;
-  created_at: string;
-  updated_at: string;
-  progress?: number;
-  owner?: Profile;
-}
+// Re-export types from repositories for API compatibility
+export type { Objective } from './queries/objectives';
+export type { InitiativeWithRelations as Initiative } from './queries/initiatives';
+export type { Activity } from './queries/activities';
+export type { Profile } from './queries/profiles';
+export type { FilterParams } from './queries/objectives';
 
-export interface Initiative {
-  id: string;
-  objective_id: string;
-  title: string;
-  description?: string;
-  status: 'planning' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high';
-  start_date: string;
-  end_date: string;
-  owner_id: string;
-  created_at: string;
-  updated_at: string;
-  progress?: number;
-  owner?: Profile;
-}
+// Local type aliases for cleaner service method signatures
+type Initiative = InitiativeWithRelations;
 
-export interface Activity {
-  id: string;
-  initiative_id: string;
-  title: string;
-  description?: string;
-  status: 'todo' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'low' | 'medium' | 'high';
-  due_date: string;
-  assigned_to: string;
-  created_at: string;
-  updated_at: string;
-  assignee?: Profile;
-}
-
-export interface Profile {
-  user_id: string;
-  full_name: string;
-  role_type: 'corporativo' | 'gerente' | 'empleado';
-  department: string;
-  company_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
+// Company interface remains for CompaniesService (no repository yet)
 export interface Company {
   id: string;
   name: string;
@@ -69,314 +30,165 @@ export interface Company {
   updated_at: string;
 }
 
-// Objectives Service
+// Objectives Service - Now uses ObjectivesRepository with maintained API compatibility
 export class ObjectivesService {
+  /**
+   * Get all objectives with role-based filtering - delegates to repository
+   */
   static async getAll(userId: string, userRole: string, userDepartment: string): Promise<Objective[]> {
-    let queryText = `
-      SELECT 
-        o.*,
-        p.full_name as owner_name,
-        p.role_type as owner_role
-      FROM objectives o
-      LEFT JOIN profiles p ON o.owner_id = p.user_id
-    `;
-    let params: string[] = [];
-
-    // Apply role-based filtering
-    if (userRole === 'empleado') {
-      queryText += ' WHERE o.owner_id = $1';
-      params = [userId];
-    } else if (userRole === 'gerente') {
-      queryText += ' WHERE o.department = $1';
-      params = [userDepartment];
-    }
-
-    queryText += ' ORDER BY o.created_at DESC';
-
-    const result = await query<Objective>(queryText, params);
-    return result.rows;
+    const filterParams: FilterParams = {
+      userId,
+      userRole,
+      userDepartment,
+    };
+    return ObjectivesRepository.getAll(filterParams);
   }
 
+  /**
+   * Get objective by ID - delegates to repository
+   */
   static async getById(id: string, userId: string): Promise<Objective | null> {
-    const result = await query<Objective>(
-      `SELECT 
-        o.*,
-        p.full_name as owner_name,
-        p.role_type as owner_role
-       FROM objectives o
-       LEFT JOIN profiles p ON o.owner_id = p.user_id
-       WHERE o.id = $1`,
-      [id]
-    );
-    return result.rows[0] || null;
+    return ObjectivesRepository.getById(id, userId);
   }
 
-  static async create(objective: Omit<Objective, 'id' | 'created_at' | 'updated_at'>): Promise<Objective> {
-    const result = await query<Objective>(
-      `INSERT INTO objectives (
-        title, description, department, status, priority, 
-        start_date, end_date, owner_id, company_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *`,
-      [
-        objective.title,
-        objective.description,
-        objective.department,
-        objective.status,
-        objective.priority,
-        objective.start_date,
-        objective.end_date,
-        objective.owner_id,
-        objective.company_id
-      ]
-    );
-    return result.rows[0];
+  /**
+   * Create a new objective - delegates to repository
+   */
+  static async create(objective: Omit<Objective, 'id' | 'created_at' | 'updated_at' | 'owner'>): Promise<Objective> {
+    return ObjectivesRepository.create(objective);
   }
 
+  /**
+   * Update an existing objective - delegates to repository
+   */
   static async update(id: string, updates: Partial<Objective>): Promise<Objective> {
-    const setClause = Object.keys(updates)
-      .map((key, index) => `${key} = $${index + 2}`)
-      .join(', ');
-    
-    const values = [id, ...Object.values(updates), new Date().toISOString()];
-
-    const result = await query<Objective>(
-      `UPDATE objectives SET ${setClause}, updated_at = $${values.length} WHERE id = $1 RETURNING *`,
-      values
-    );
-    return result.rows[0];
+    return ObjectivesRepository.update(id, updates);
   }
 
+  /**
+   * Delete an objective - delegates to repository
+   */
   static async delete(id: string): Promise<void> {
-    await query('DELETE FROM objectives WHERE id = $1', [id]);
+    return ObjectivesRepository.delete(id);
   }
 }
 
-// Initiatives Service
+// Initiatives Service - Now uses InitiativesRepository with maintained API compatibility
 export class InitiativesService {
+  private static repository = new InitiativesRepository();
+
+  /**
+   * Get initiatives by objective ID - delegates to repository
+   */
   static async getByObjectiveId(objectiveId: string): Promise<Initiative[]> {
-    const result = await query<Initiative>(
-      `SELECT 
-        i.*,
-        p.full_name as owner_name,
-        p.role_type as owner_role
-       FROM initiatives i
-       LEFT JOIN profiles p ON i.owner_id = p.user_id
-       WHERE i.objective_id = $1
-       ORDER BY i.created_at DESC`,
-      [objectiveId]
-    );
-    return result.rows;
+    return this.repository.getByObjectiveId(objectiveId);
   }
 
+  /**
+   * Get all initiatives with role-based filtering - delegates to repository
+   */
   static async getAll(userId: string, userRole: string, userDepartment: string): Promise<Initiative[]> {
-    let queryText = `
-      SELECT 
-        i.*,
-        p.full_name as owner_name,
-        p.role_type as owner_role,
-        o.title as objective_title
-      FROM initiatives i
-      LEFT JOIN profiles p ON i.owner_id = p.user_id
-      LEFT JOIN objectives o ON i.objective_id = o.id
-    `;
-    let params: string[] = [];
-
-    // Apply role-based filtering through objectives
-    if (userRole === 'empleado') {
-      queryText += ' WHERE o.owner_id = $1';
-      params = [userId];
-    } else if (userRole === 'gerente') {
-      queryText += ' WHERE o.department = $1';
-      params = [userDepartment];
-    }
-
-    queryText += ' ORDER BY i.created_at DESC';
-
-    const result = await query<Initiative>(queryText, params);
-    return result.rows;
+    const filterParams: FilterParams = {
+      userId,
+      userRole,
+      userDepartment,
+    };
+    return this.repository.getAll(filterParams);
   }
 
-  static async create(initiative: Omit<Initiative, 'id' | 'created_at' | 'updated_at'>): Promise<Initiative> {
-    const result = await query<Initiative>(
-      `INSERT INTO initiatives (
-        objective_id, title, description, status, priority,
-        start_date, end_date, owner_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *`,
-      [
-        initiative.objective_id,
-        initiative.title,
-        initiative.description,
-        initiative.status,
-        initiative.priority,
-        initiative.start_date,
-        initiative.end_date,
-        initiative.owner_id
-      ]
-    );
-    return result.rows[0];
+  /**
+   * Create a new initiative - delegates to repository
+   */
+  static async create(initiative: Omit<Initiative, 'id' | 'created_at' | 'updated_at' | 'owner' | 'objective_title' | 'activities'>): Promise<Initiative> {
+    return this.repository.create(initiative);
   }
 
+  /**
+   * Update an existing initiative - delegates to repository
+   */
   static async update(id: string, updates: Partial<Initiative>): Promise<Initiative> {
-    const setClause = Object.keys(updates)
-      .map((key, index) => `${key} = $${index + 2}`)
-      .join(', ');
-    
-    const values = [id, ...Object.values(updates), new Date().toISOString()];
-
-    const result = await query<Initiative>(
-      `UPDATE initiatives SET ${setClause}, updated_at = $${values.length} WHERE id = $1 RETURNING *`,
-      values
-    );
-    return result.rows[0];
+    return this.repository.update(id, updates);
   }
 
+  /**
+   * Delete an initiative - delegates to repository
+   */
   static async delete(id: string): Promise<void> {
-    await query('DELETE FROM initiatives WHERE id = $1', [id]);
+    return this.repository.delete(id);
   }
 }
 
-// Activities Service
+// Activities Service - Now uses ActivitiesRepository with maintained API compatibility
 export class ActivitiesService {
+  /**
+   * Get activities by initiative ID - delegates to repository
+   */
   static async getByInitiativeId(initiativeId: string): Promise<Activity[]> {
-    const result = await query<Activity>(
-      `SELECT 
-        a.*,
-        p.full_name as assignee_name,
-        p.role_type as assignee_role
-       FROM activities a
-       LEFT JOIN profiles p ON a.assigned_to = p.user_id
-       WHERE a.initiative_id = $1
-       ORDER BY a.due_date ASC`,
-      [initiativeId]
-    );
-    return result.rows;
+    return ActivitiesRepository.getByInitiativeId(initiativeId);
   }
 
+  /**
+   * Get all activities with role-based filtering - delegates to repository
+   */
   static async getAll(userId: string, userRole: string, userDepartment: string): Promise<Activity[]> {
-    let queryText = `
-      SELECT 
-        a.*,
-        p.full_name as assignee_name,
-        p.role_type as assignee_role,
-        i.title as initiative_title,
-        o.title as objective_title
-      FROM activities a
-      LEFT JOIN profiles p ON a.assigned_to = p.user_id
-      LEFT JOIN initiatives i ON a.initiative_id = i.id
-      LEFT JOIN objectives o ON i.objective_id = o.id
-    `;
-    let params: string[] = [];
-
-    // Apply role-based filtering
-    if (userRole === 'empleado') {
-      queryText += ' WHERE (a.assigned_to = $1 OR o.owner_id = $1)';
-      params = [userId];
-    } else if (userRole === 'gerente') {
-      queryText += ' WHERE o.department = $1';
-      params = [userDepartment];
-    }
-
-    queryText += ' ORDER BY a.due_date ASC';
-
-    const result = await query<Activity>(queryText, params);
-    return result.rows;
+    const filterParams: FilterParams = {
+      userId,
+      userRole,
+      userDepartment,
+    };
+    return ActivitiesRepository.getAll(filterParams);
   }
 
-  static async create(activity: Omit<Activity, 'id' | 'created_at' | 'updated_at'>): Promise<Activity> {
-    const result = await query<Activity>(
-      `INSERT INTO activities (
-        initiative_id, title, description, status, priority,
-        due_date, assigned_to
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *`,
-      [
-        activity.initiative_id,
-        activity.title,
-        activity.description,
-        activity.status,
-        activity.priority,
-        activity.due_date,
-        activity.assigned_to
-      ]
-    );
-    return result.rows[0];
+  /**
+   * Create a new activity - delegates to repository
+   */
+  static async create(activity: Omit<Activity, 'id' | 'created_at' | 'updated_at' | 'assignee' | 'initiative_title' | 'objective_title'>): Promise<Activity> {
+    return ActivitiesRepository.create(activity);
   }
 
+  /**
+   * Update an existing activity - delegates to repository
+   */
   static async update(id: string, updates: Partial<Activity>): Promise<Activity> {
-    const setClause = Object.keys(updates)
-      .map((key, index) => `${key} = $${index + 2}`)
-      .join(', ');
-    
-    const values = [id, ...Object.values(updates), new Date().toISOString()];
-
-    const result = await query<Activity>(
-      `UPDATE activities SET ${setClause}, updated_at = $${values.length} WHERE id = $1 RETURNING *`,
-      values
-    );
-    return result.rows[0];
+    return ActivitiesRepository.update(id, updates);
   }
 
+  /**
+   * Delete an activity - delegates to repository
+   */
   static async delete(id: string): Promise<void> {
-    await query('DELETE FROM activities WHERE id = $1', [id]);
+    return ActivitiesRepository.delete(id);
   }
 }
 
-// Profiles Service
+// Profiles Service - Now uses ProfilesRepository with maintained API compatibility
 export class ProfilesService {
+  /**
+   * Get profile by user ID - delegates to repository
+   */
   static async getByUserId(userId: string): Promise<Profile | null> {
-    const result = await query<Profile>(
-      'SELECT * FROM profiles WHERE user_id = $1',
-      [userId]
-    );
-    return result.rows[0] || null;
+    return ProfilesRepository.getByUserId(userId);
   }
 
+  /**
+   * Get all profiles, optionally filtered by company - delegates to repository
+   */
   static async getAll(companyId?: string): Promise<Profile[]> {
-    let queryText = 'SELECT * FROM profiles';
-    let params: string[] = [];
-
-    if (companyId) {
-      queryText += ' WHERE company_id = $1';
-      params = [companyId];
-    }
-
-    queryText += ' ORDER BY full_name ASC';
-
-    const result = await query<Profile>(queryText, params);
-    return result.rows;
+    return ProfilesRepository.getAll(companyId);
   }
 
+  /**
+   * Create a new profile - delegates to repository
+   */
   static async create(profile: Omit<Profile, 'created_at' | 'updated_at'>): Promise<Profile> {
-    const result = await query<Profile>(
-      `INSERT INTO profiles (
-        user_id, full_name, role_type, department, company_id
-      ) VALUES ($1, $2, $3, $4, $5)
-      RETURNING *`,
-      [
-        profile.user_id,
-        profile.full_name,
-        profile.role_type,
-        profile.department,
-        profile.company_id
-      ]
-    );
-    return result.rows[0];
+    return ProfilesRepository.create(profile);
   }
 
+  /**
+   * Update an existing profile - delegates to repository
+   */
   static async update(userId: string, updates: Partial<Profile>): Promise<Profile> {
-    const setClause = Object.keys(updates)
-      .map((key, index) => `${key} = $${index + 2}`)
-      .join(', ');
-    
-    const values = [userId, ...Object.values(updates), new Date().toISOString()];
-
-    const result = await query<Profile>(
-      `UPDATE profiles SET ${setClause}, updated_at = $${values.length} WHERE user_id = $1 RETURNING *`,
-      values
-    );
-    return result.rows[0];
+    return ProfilesRepository.update(userId, updates);
   }
 }
 
