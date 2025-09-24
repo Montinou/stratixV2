@@ -380,5 +380,4 @@ export function withErrorHandling<T extends any[], R>(
   };
 }
 
-// Export commonly used error types
-export { DatabaseErrorHandler, DatabaseErrorMapper };
+// All exports are already declared above with export keyword
