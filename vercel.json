@@ -23,12 +23,5 @@
     "deploymentEnabled": {
       "main": true
     }
-  },
-  "integrations": {
-    "neon": [
-      {
-        "projectId": "$NEON_PROJECT_ID"
-      }
-    ]
   }
 }
