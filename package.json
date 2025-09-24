@@ -18,7 +18,10 @@
     "rollback:manual": "bash @scripts/deploy/rollback-migration.sh manual",
     "rollback:emergency": "bash @scripts/deploy/rollback-migration.sh emergency",
     "rollback:backup": "bash @scripts/deploy/rollback-migration.sh backup",
-    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state"
+    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state",
+    "db:init": "tsx scripts/init-database.ts",
+    "db:migrate": "tsx scripts/migrate-database.ts",
+    "remove-supabase": "tsx scripts/remove-supabase-imports.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
@@ -80,17 +83,19 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
     "xlsx": "latest",
-    "zod": "3.25.67"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv": "^17.2.2",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.3",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
+    "tsx": "^4.20.5",
     "tw-animate-css": "1.3.3",
     "typescript": "^5"
   }

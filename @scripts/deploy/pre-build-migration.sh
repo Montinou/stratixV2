@@ -216,22 +216,36 @@ main() {
     log_info "Branch: ${VERCEL_GIT_COMMIT_REF:-local}"
     echo "=========================================="
     
-    # Step 1: Environment validation
-    if ! validate_deployment_environment; then
-        log_error "Environment validation failed"
-        exit 1
+    # Step 1: Environment validation (skip for local builds)
+    if [[ "${VERCEL_ENV:-}" == "" && "${CI:-}" == "" ]]; then
+        log_warning "Local build detected - skipping environment validation"
+    else
+        if ! validate_deployment_environment; then
+            log_error "Environment validation failed"
+            exit 1
+        fi
     fi
     
-    # Step 2: Database health check
-    if ! health_check; then
-        log_error "Database health check failed"
-        exit 1
+    # Step 2: Database health check (skip for local builds)
+    if [[ "${VERCEL_ENV:-}" == "" && "${CI:-}" == "" ]]; then
+        log_warning "Local build detected - skipping database health check"
+    else
+        if ! health_check; then
+            log_error "Database health check failed"
+            exit 1
+        fi
     fi
     
-    # Step 3: Check if migration is needed
-    if ! is_migration_needed; then
-        log_success "No migration needed, database is up to date"
+    # Step 3: Check if migration is needed (skip for local builds)
+    if [[ "${VERCEL_ENV:-}" == "" && "${CI:-}" == "" ]]; then
+        log_warning "Local build detected - skipping migration check"
+        log_success "Local build completed successfully (no migration required)"
         exit 0
+    else
+        if ! is_migration_needed; then
+            log_success "No migration needed, database is up to date"
+            exit 0
+        fi
     fi
     
     # Step 4: Acquire migration lock

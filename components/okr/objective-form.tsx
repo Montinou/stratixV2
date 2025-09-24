@@ -50,6 +50,7 @@ export function ObjectiveForm({ objective, onSuccess, onCancel }: ObjectiveFormP
         priority: 'medium' as const, // Default priority
         start_date: formData.start_date,
         end_date: formData.end_date,
+        company_id: profile.company_id,
       }
 
       let result;

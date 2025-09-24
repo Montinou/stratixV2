@@ -79,8 +79,6 @@ temp/
 # Vercel deployment files
 .vercel/
 
-# Supabase
-.supabase/
 
 # TypeScript build cache
 *.tsbuildinfo
@@ -90,4 +88,4 @@ temp/
 
 # Project specific
 CLAUDE.md
-ccpm/
+.env*.local

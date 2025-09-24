@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { FileImportDialog } from "@/components/import/file-import-dialog"
 import { Upload, FileSpreadsheet, Clock, CheckCircle, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
 import type { ImportLog } from "@/lib/types/import"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -16,7 +15,6 @@ export default function ImportPage() {
   const { profile } = useAuth()
   const [importLogs, setImportLogs] = useState<ImportLog[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const canImport = profile?.role === "corporativo" || profile?.role === "gerente"
 
@@ -28,14 +26,13 @@ export default function ImportPage() {
 
   const fetchImportLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("import_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-      setImportLogs(data || [])
+      // TODO: Implement import logs API endpoint
+      // const response = await fetch('/api/import/logs')
+      // const data = await response.json()
+      // setImportLogs(data || [])
+      
+      // For now, return empty array until import API is implemented
+      setImportLogs([])
     } catch (error) {
       console.error("Error fetching import logs:", error)
     } finally {

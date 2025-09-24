@@ -8,9 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
+import { updateProfile } from "@/lib/actions/profiles"
 
 export default function ProfilePage() {
   const { profile, refreshProfile } = useAuth()
@@ -25,18 +25,14 @@ export default function ProfilePage() {
     if (!profile) return
 
     setIsLoading(true)
-    const supabase = createClient()
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: formData.full_name,
-          department: formData.department,
-        })
-        .eq("id", profile.id)
+      const { data, error } = await updateProfile({
+        full_name: formData.full_name,
+        department: formData.department,
+      })
 
-      if (error) throw error
+      if (error) throw new Error(error)
 
       await refreshProfile()
       toast({

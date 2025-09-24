@@ -53,46 +53,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = useCallback(
     async (userId: string) => {
       try {
-        // TODO: Replace with actual database query once database migration is complete
-        // For now, return mock data based on user info
         const userData = await neonClient.getUser()
         if (!userData) {
           return { profile: null, company: null }
         }
 
-        // Create mock profile from NeonAuth user data
-        const mockProfile: Profile = {
-          id: userData.id,
-          email: userData.primaryEmail || '',
-          full_name: userData.displayName || userData.primaryEmail || '',
-          role: "empleado" as const, // Default role
-          department: null,
-          manager_id: null,
-          company_id: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+        // Fetch profile from database
+        const response = await fetch('/api/profiles/me', {
+          headers: {
+            'Authorization': `Bearer ${await neonClient.getAccessToken()}`,
+          },
+        })
+
+        if (response.ok) {
+          const { profile: profileData, company: companyData } = await response.json()
+          return { profile: profileData, company: companyData }
+        } else {
+          // If profile doesn't exist, create a default one
+          const createResponse = await fetch('/api/profiles', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await neonClient.getAccessToken()}`,
+            },
+            body: JSON.stringify({
+              user_id: userData.id,
+              full_name: userData.displayName || userData.primaryEmail || '',
+              role_type: "empleado",
+              department: null,
+              company_id: null,
+            }),
+          })
+
+          if (createResponse.ok) {
+            const { profile: newProfile, company: newCompany } = await createResponse.json()
+            return { profile: newProfile, company: newCompany }
+          }
         }
 
-        const mockCompany: Company = {
-          id: "default-company",
-          name: "Default Company",
-          slug: "default",
-          logo_url: null,
-          settings: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-
-        return {
-          profile: mockProfile,
-          company: mockCompany,
-        }
+        return { profile: null, company: null }
       } catch (error) {
         console.error("Error fetching profile:", error)
         return { profile: null, company: null }
       }
     },
-    [neonClient], // neonClient is stable due to useMemo
+    [neonClient],
   )
 
   const refreshProfile = useCallback(async () => {
