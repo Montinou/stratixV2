@@ -157,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true
+    const loadingManager = SessionManager.createLoadingManager()
 
     const getInitialSession = async () => {
       try {
@@ -166,57 +167,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (user) {
           setUser(user)
-          const { profile: profileData, company: companyData } = await fetchProfile(user.id)
+          
+          // Set loading state with manager
+          loadingManager.setLoading(setLoading, 50)
+          
+          const { profile: profileData, company: companyData } = await fetchProfile(user)
           if (mounted) {
             setProfile(profileData)
             setCompany(companyData)
+            
+            // Store session state for persistence
+            SessionManager.storeSessionState(user, profileData, false)
           }
         }
+        
         if (mounted) {
-          setLoading(false)
+          loadingManager.clearLoading(setLoading)
         }
       } catch (error) {
         console.error("Error getting initial session:", error)
         if (mounted) {
-          setLoading(false)
+          loadingManager.clearLoading(setLoading)
         }
       }
     }
 
     getInitialSession()
 
-    // Set up auth state change listener
+    // Set up auth state change listener with session management
     const unsubscribe = neonClient.onUserChange(async (user) => {
       if (!mounted) return
 
       try {
+        // Handle auth state change through session manager
+        await SessionManager.handleAuthStateChange(user, (currentUser, currentProfile, loading) => {
+          if (mounted) {
+            setUser(currentUser)
+            setProfile(currentProfile)
+            setLoading(loading)
+          }
+        })
+
         if (user) {
-          setUser(user)
-          const { profile: profileData, company: companyData } = await fetchProfile(user.id)
+          // User signed in - fetch profile data
+          if (mounted) {
+            setUser(user)
+            loadingManager.setLoading(setLoading, 50)
+          }
+          
+          const { profile: profileData, company: companyData } = await fetchProfile(user)
+          
           if (mounted) {
             setProfile(profileData)
             setCompany(companyData)
+            
+            // Store session state for persistence
+            SessionManager.storeSessionState(user, profileData, false)
+            loadingManager.clearLoading(setLoading)
           }
         } else {
+          // User signed out - clear everything
           if (mounted) {
             setUser(null)
             setProfile(null)
             setCompany(null)
+            loadingManager.clearLoading(setLoading)
           }
-        }
-        if (mounted) {
-          setLoading(false)
         }
       } catch (error) {
         console.error("Error in auth state change:", error)
         if (mounted) {
-          setLoading(false)
+          loadingManager.clearLoading(setLoading)
         }
       }
     })
 
     return () => {
       mounted = false
+      loadingManager.cleanup()
       unsubscribe()
     }
   }, [neonClient, fetchProfile])
