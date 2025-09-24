@@ -18,7 +18,16 @@
     "rollback:manual": "bash @scripts/deploy/rollback-migration.sh manual",
     "rollback:emergency": "bash @scripts/deploy/rollback-migration.sh emergency",
     "rollback:backup": "bash @scripts/deploy/rollback-migration.sh backup",
-    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state"
+    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:pull": "drizzle-kit pull",
+    "db:introspect": "drizzle-kit introspect",
+    "db:up": "drizzle-kit up",
+    "db:check": "drizzle-kit check",
+    "db:drop": "drizzle-kit drop",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
@@ -60,6 +69,8 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "latest",
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.5",
     "embla-carousel-react": "8.5.1",
     "geist": "^1.3.1",
     "input-otp": "1.4.1",
