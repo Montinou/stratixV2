@@ -1,4 +1,6 @@
 import { Pool, PoolClient, QueryResult } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from './schema';
 
 // Database configuration
 const dbConfig = {
@@ -91,5 +93,20 @@ export async function closePool(): Promise<void> {
   }
 }
 
+// Drizzle client setup
+let drizzleClient: ReturnType<typeof drizzle> | null = null;
+
+export function getDrizzleClient() {
+  if (!drizzleClient) {
+    const pool = getPool();
+    drizzleClient = drizzle(pool, { schema });
+  }
+  
+  return drizzleClient;
+}
+
 // Export the pool for direct access if needed
 export { pool };
+
+// Export typed database client for direct use
+export const db = getDrizzleClient();
