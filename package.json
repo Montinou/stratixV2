@@ -8,7 +8,6 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-<<<<<<< Updated upstream
     "migrate": "bash @scripts/run_migration_neondb.sh migrate",
     "migrate:with-seed": "bash @scripts/run_migration_neondb.sh migrate --with-seed",
     "migrate:validate": "bash @scripts/run_migration_neondb.sh validate",
@@ -19,12 +18,10 @@
     "rollback:manual": "bash @scripts/deploy/rollback-migration.sh manual",
     "rollback:emergency": "bash @scripts/deploy/rollback-migration.sh emergency",
     "rollback:backup": "bash @scripts/deploy/rollback-migration.sh backup",
-    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state"
-=======
+    "rollback:state": "bash @scripts/deploy/rollback-migration.sh state",
     "db:init": "tsx scripts/init-database.ts",
     "db:migrate": "tsx scripts/migrate-database.ts",
     "remove-supabase": "tsx scripts/remove-supabase-imports.ts"
->>>>>>> Stashed changes
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
