@@ -88,3 +88,4 @@ temp/
 
 # Project specific
 CLAUDE.md
+.env*.local
