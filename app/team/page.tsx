@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import type { Profile, Objective } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
 import { Users, Target, TrendingUp, Award, Mail, Building2 } from "lucide-react"

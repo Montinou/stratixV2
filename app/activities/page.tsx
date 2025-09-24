@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
+// Removed Supabase client import - using API endpoints instead
 import type { Activity } from "@/lib/types/okr"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { Plus, Search, Filter } from "lucide-react"
@@ -29,8 +29,6 @@ import { toast } from "@/hooks/use-toast"
 
 export default function ActivitiesPage() {
   const { profile } = useAuth()
-  // Create supabase client once to prevent recreating on every function call
-  const supabase = useMemo(() => createClient(), [])
   
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,29 +45,30 @@ export default function ActivitiesPage() {
     setLoading(true)
 
     try {
-      let query = supabase.from("activities").select(`
-        *,
-        owner:profiles(*),
-        initiative:initiatives(*)
-      `)
+      const params = new URLSearchParams({
+        userId: profile.id,
+        userRole: profile.role,
+        userDepartment: profile.department
+      })
 
-      // Apply role-based filtering
-      if (profile.role === "empleado") {
-        query = query.eq("owner_id", profile.id)
+      const response = await fetch(`/api/activities?${params}`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch activities: ${response.statusText}`)
       }
-      // Gerentes y Corporativo pueden ver más actividades según las políticas RLS
 
-      const { data, error } = await query.order("created_at", { ascending: false })
-
-      if (error) throw error
-
+      const data = await response.json()
       setActivities(data || [])
     } catch (error) {
       console.error("Error fetching activities:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las actividades",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
-  }, [profile, supabase])
+  }, [profile])
 
   useEffect(() => {
     fetchActivities()
@@ -77,8 +76,13 @@ export default function ActivitiesPage() {
 
   const handleDelete = async (activity: Activity) => {
     try {
-      const { error } = await supabase.from("activities").delete().eq("id", activity.id)
-      if (error) throw error
+      const response = await fetch(`/api/activities/${activity.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete activity: ${response.statusText}`)
+      }
 
       toast({ title: "Actividad eliminada", description: "La actividad ha sido eliminada correctamente." })
       fetchActivities()

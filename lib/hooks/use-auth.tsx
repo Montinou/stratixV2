@@ -5,8 +5,9 @@ import type React from "react"
 import { createNeonClient } from "@/lib/neon-auth/client"
 import type { User } from "@stackframe/stack"
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
-import { StackProfileBridge } from "@/lib/auth/stack-profile-bridge"
-import { SessionManager } from "@/lib/auth/session-management"
+// Temporarily commented out during build fix - these import server-side database code
+// import { StackProfileBridge } from "@/lib/auth/stack-profile-bridge"
+// import { SessionManager } from "@/lib/auth/session-management"
 import type { Profile } from "@/lib/database/queries/profiles"
 
 interface Company {

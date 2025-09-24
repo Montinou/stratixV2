@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { FileImportDialog } from "@/components/import/file-import-dialog"
 import { Upload, FileSpreadsheet, Clock, CheckCircle, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import type { ImportLog } from "@/lib/types/import"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"

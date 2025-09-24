@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import { generateDailyInsights, generateTeamInsights } from "@/lib/ai/insights"
 import type { Objective, Initiative, Activity } from "@/lib/types/okr"
 import { useState, useEffect, useCallback, useMemo } from "react"

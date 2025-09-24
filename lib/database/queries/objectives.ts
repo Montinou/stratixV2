@@ -196,10 +196,10 @@ export class ObjectivesRepository {
         updated_at: created.updatedAt.toISOString(),
       };
 
-
     } catch (error) {
       console.error('Error creating objective:', error);
       throw error;
+    }
   }
 
   /**

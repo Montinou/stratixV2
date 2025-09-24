@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import type { Initiative } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
 import { Plus, Search, Filter } from "lucide-react"
