@@ -8,35 +8,71 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
-  const { profile, refreshProfile } = useAuth()
+  const { profile, company, loading, refreshProfile } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    full_name: profile?.full_name || "",
+    fullName: profile?.fullName || "",
     department: profile?.department || "",
   })
+
+  // Sync form data with profile changes from auth system
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        fullName: profile.fullName || "",
+        department: profile.department || "",
+      })
+    }
+  }, [profile])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!profile) return
 
     setIsLoading(true)
-    const supabase = createClient()
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: formData.full_name,
+      const response = await fetch('/api/profiles', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          fullName: formData.full_name,
           department: formData.department,
-        })
-        .eq("id", profile.id)
+        }),
+      })
 
-      if (error) throw error
+      const result = await response.json()
+
+      if (!response.ok) {
+        // Handle different HTTP status codes
+        if (response.status === 401) {
+          throw new Error('No autorizado. Por favor, inicia sesión de nuevo.')
+        } else if (response.status === 400) {
+          // Handle validation errors
+          if (result.details && Array.isArray(result.details)) {
+            const validationMessages = result.details.map((detail: any) => detail.message).join(', ')
+            throw new Error(`Datos inválidos: ${validationMessages}`)
+          }
+          throw new Error(result.error || 'Datos inválidos')
+        } else if (response.status === 404) {
+          throw new Error('Perfil no encontrado')
+        } else if (response.status === 500) {
+          throw new Error('Error del servidor. Por favor, inténtalo más tarde.')
+        } else {
+          throw new Error(result.error || `Error ${response.status}: No se pudo actualizar el perfil`)
+        }
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error desconocido al actualizar el perfil')
+      }
 
       await refreshProfile()
       toast({
@@ -44,9 +80,21 @@ export default function ProfilePage() {
         description: "Tu información ha sido actualizada correctamente.",
       })
     } catch (error) {
+      console.error('Error updating profile:', error)
+      
+      let errorMessage = "No se pudo actualizar el perfil. Inténtalo de nuevo."
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      } else if (!navigator.onLine) {
+        errorMessage = "Sin conexión a internet. Verifica tu conexión y vuelve a intentarlo."
+      }
+      
       toast({
         title: "Error",
-        description: "No se pudo actualizar el perfil. Inténtalo de nuevo.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -163,6 +211,40 @@ export default function ProfilePage() {
                       <p className="text-sm text-muted-foreground">• Seguimiento de progreso individual</p>
                       <p className="text-sm text-muted-foreground">• Acceso a insights personalizados</p>
                     </>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Información de la Empresa</Label>
+                <div className="mt-2 space-y-1">
+                  {loading ? (
+                    <p className="text-sm text-muted-foreground">Cargando información de la empresa...</p>
+                  ) : company ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        {company.logo_url && (
+                          <img 
+                            src={company.logo_url} 
+                            alt={`Logo de ${company.name}`}
+                            className="w-4 h-4 object-contain"
+                            onError={(e) => {
+                              // Hide image if it fails to load
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        )}
+                        <p className="text-sm font-medium">{company.name}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">ID: {company.slug || company.id}</p>
+                      {company.created_at && (
+                        <p className="text-sm text-muted-foreground">
+                          Empresa registrada: {new Date(company.created_at).toLocaleDateString("es-ES")}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No hay información de empresa disponible</p>
                   )}
                 </div>
               </div>
