@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
+import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration (still needed for handleSubmit)
 import { useAuth } from "@/lib/hooks/use-auth"
 import type { Activity, Initiative, OKRStatus } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
@@ -38,17 +38,29 @@ export function ActivityForm({ activity, onSuccess, onCancel }: ActivityFormProp
     const fetchInitiatives = async () => {
       if (!profile) return
 
-      const supabase = createClient()
-      let query = supabase.from("initiatives").select("*")
+      try {
+        const params = new URLSearchParams({
+          userId: profile.id,
+          userRole: profile.role,
+          userDepartment: profile.department || 'general'
+        })
 
-      // Apply role-based filtering
-      if (profile.role === "empleado") {
-        query = query.eq("owner_id", profile.id)
-      }
+        const response = await fetch(`/api/initiatives?${params}`)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch initiatives: ${response.statusText}`)
+        }
 
-      const { data, error } = await query.order("title")
-      if (!error && data) {
-        setInitiatives(data)
+        const result = await response.json()
+        if (result.data) {
+          setInitiatives(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching initiatives:', error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las iniciativas. Inténtalo de nuevo.",
+          variant: "destructive",
+        })
       }
     }
 
