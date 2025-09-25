@@ -1,7 +1,7 @@
 ---
 created: 2025-09-24T05:32:18Z
-last_updated: 2025-09-24T05:32:18Z
-version: 1.0
+last_updated: 2025-09-25T04:13:08Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -93,10 +93,33 @@ stratixV2/
 ```
 app/
 ├── activities/              # Activity tracking and management
+├── analytics/               # Analytics and reporting pages
+├── api/                     # API Routes (21 endpoints)
+│   ├── admin/               # 🆕 Admin management endpoints
+│   │   ├── audit/           # Audit logging and compliance
+│   │   ├── dashboard/       # Real-time admin dashboard  
+│   │   ├── invitations/     # User invitation system
+│   │   ├── logs/            # System logging management
+│   │   ├── migrations/      # User/company migrations
+│   │   ├── sessions/        # Session monitoring & control
+│   │   ├── sync/            # Manual sync triggers
+│   │   └── users/           # Advanced user management
+│   ├── companies/           
+│   │   └── assign/          # 🆕 Company assignment workflows
+│   ├── profiles/            
+│   │   ├── conflicts/       # 🆕 Profile conflict resolution
+│   │   ├── roles/           # 🆕 Role management
+│   │   └── sync/            # 🆕 Profile synchronization
+│   └── [other endpoints]/   # Existing API routes
+├── auth/                    # Authentication pages
+├── companies/               # Company management pages
+├── dashboard/               # Main dashboard
 ├── initiatives/             # Strategic initiative pages  
 ├── objectives/              # OKR objectives management
+├── profile/                 # User profile pages
+├── team/                    # Team management
 ├── globals.css              # Global Tailwind styles
-├── layout.tsx               # Root layout with providers
+├── layout.tsx               # Root layout with AuthProvider
 └── page.tsx                 # Homepage/dashboard
 ```
 
@@ -143,6 +166,22 @@ components/
 └── validation/             # Health & validation checks
     ├── validate_data.sql
     └── validate_schema.sql
+```
+
+### `/lib/` - Utility Libraries & Services
+```
+lib/
+├── auth/                    # Authentication utilities
+├── database/               # Database layer
+│   ├── client.ts          # PostgreSQL client
+│   ├── queries/           # Query repositories  
+│   └── services/          # Business logic services
+├── services/              # 🆕 Enterprise services
+│   ├── session-management.ts    # Advanced session management
+│   └── sync-logging.ts          # Comprehensive logging system
+├── hooks/                 # Custom React hooks
+├── types/                 # TypeScript definitions
+└── utils.ts              # Utility functions
 ```
 
 ### `/.claude/` - Project Management System
@@ -246,7 +285,10 @@ lib/
 - **Images**: Next.js Image component for optimization
 - **Bundle**: Code splitting and tree shaking
 
+## Update History
+- 2025-09-25T04:13:08Z: Added new API endpoints structure for authentication integration
+
 ---
 
-**Last Updated**: 2025-09-24T05:32:18Z  
-**Key Insight**: Modern OKR application with comprehensive migration from Supabase to NeonDB, featuring automated deployment and specialized AI development agents
+**Last Updated**: 2025-09-25T04:13:08Z  
+**Key Insight**: Modern OKR application with complete authentication integration featuring enterprise-grade user management, 21 API endpoints, and advanced session monitoring
