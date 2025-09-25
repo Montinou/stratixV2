@@ -1,4 +1,4 @@
-import { updateSession } from "@/lib/neon-auth/middleware"
+import { stackServerApp } from "@/stack"
 import type { NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {

@@ -1,7 +1,7 @@
 'use server'
 
 import { ProfilesService, type Profile } from '@/lib/database/services';
-import { neonServerClient } from '@/lib/neon-auth/server';
+import { stackServerApp } from '@/stack';
 
 export async function getProfiles(): Promise<{ data: Profile[] | null; error?: string }> {
   try {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neonServerClient } from '@/lib/neon-auth/server'
+import { stackServerApp } from '@/stack'
 import { ObjectivesRepository } from '@/lib/database/queries/objectives'
 import { ObjectivesService, InitiativesService, ActivitiesService } from '@/lib/database/services'
 import { getCurrentProfile } from '@/lib/actions/profiles'

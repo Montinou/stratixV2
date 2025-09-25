@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { CompaniesService, type Company } from '@/lib/database/services';
-import { neonServerClient } from '@/lib/neon-auth/server';
+import { stackServerApp } from '@/stack';
 
 export async function getCompanies(): Promise<{ data: Company[] | null; error?: string }> {
   try {

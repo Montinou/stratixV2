@@ -1,4 +1,4 @@
-import { neonServerClient } from "@/lib/neon-auth/server"
+import { stackServerApp } from "@/stack"
 import { redirect } from "next/navigation"
 import { DashboardContent } from "@/components/dashboard/dashboard-content"
 import { getCurrentProfile } from "@/lib/actions/profiles"

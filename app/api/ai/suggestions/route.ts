@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateOKRSuggestions } from "@/lib/ai/suggestions"
-import { verifyAuthentication, verifyUserRole, storeAISuggestion } from "@/lib/database/auth"
+import { stackServerApp } from "@/stack"
 
 export async function POST(request: NextRequest) {
   try {
