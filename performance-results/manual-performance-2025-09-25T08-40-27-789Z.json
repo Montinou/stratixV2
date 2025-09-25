@@ -1,0 +1,296 @@
+{
+  "timestamp": "2025-09-25T08:39:54.284Z",
+  "pages": {
+    "/": {
+      "url": "http://localhost:3007/",
+      "status": 200,
+      "metrics": {
+        "loadTime": 2941,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 114,
+        "totalSize": 1852698,
+        "slowestResource": {
+          "name": "https://va.vercel-scripts.com/v1/script.debug.js",
+          "duration": 1562.4000000059605,
+          "size": 0,
+          "type": "script"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "other": 1,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/dashboard": {
+      "error": "Execution context was destroyed, most likely because of a navigation."
+    },
+    "/objectives": {
+      "url": "http://localhost:3007/objectives",
+      "status": 200,
+      "metrics": {
+        "loadTime": 3010,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 2986309,
+        "slowestResource": {
+          "name": "http://localhost:3007/_next/static/chunks/main-app.js?v=1758789603474",
+          "duration": 226.40000000596046,
+          "size": 1343356,
+          "type": "script"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/initiatives": {
+      "url": "http://localhost:3007/initiatives",
+      "status": 200,
+      "metrics": {
+        "loadTime": 2536,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 2951937,
+        "slowestResource": {
+          "name": "http://localhost:3007/api/profiles",
+          "duration": 236.39999997615814,
+          "size": 340,
+          "type": "fetch"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/activities": {
+      "url": "http://localhost:3007/activities",
+      "status": 200,
+      "metrics": {
+        "loadTime": 2451,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 2953056,
+        "slowestResource": {
+          "name": "http://localhost:3007/api/profiles",
+          "duration": 222.90000000596046,
+          "size": 340,
+          "type": "fetch"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/analytics": {
+      "url": "http://localhost:3007/analytics",
+      "status": 200,
+      "metrics": {
+        "loadTime": 4135,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 3740717,
+        "slowestResource": {
+          "name": "http://localhost:3007/api/profiles/undefined",
+          "duration": 648.8000000119209,
+          "size": 340,
+          "type": "fetch"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/companies": {
+      "url": "http://localhost:3007/companies",
+      "status": 200,
+      "metrics": {
+        "loadTime": 2962,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 2280183,
+        "slowestResource": {
+          "name": "http://localhost:3007/_next/static/chunks/main-app.js?v=1758789615803",
+          "duration": 209.69999998807907,
+          "size": 1343356,
+          "type": "script"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/team": {
+      "url": "http://localhost:3007/team",
+      "status": 200,
+      "metrics": {
+        "loadTime": 1997,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 2485289,
+        "slowestResource": {
+          "name": "http://localhost:3007/api/profiles",
+          "duration": 259.19999998807907,
+          "size": 340,
+          "type": "fetch"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/profile": {
+      "url": "http://localhost:3007/profile",
+      "status": 200,
+      "metrics": {
+        "loadTime": 1532,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 2476441,
+        "slowestResource": {
+          "name": "http://localhost:3007/_next/static/chunks/app/profile/page.js",
+          "duration": 317.40000000596046,
+          "size": 675256,
+          "type": "script"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/import": {
+      "url": "http://localhost:3007/import",
+      "status": 200,
+      "metrics": {
+        "loadTime": 2900,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 113,
+        "totalSize": 2753217,
+        "slowestResource": {
+          "name": "https://va.vercel-scripts.com/v1/script.debug.js",
+          "duration": 278.09999999403954,
+          "size": 0,
+          "type": "script"
+        },
+        "byType": {
+          "link": 4,
+          "script": 5,
+          "fetch": 104
+        }
+      },
+      "success": true
+    },
+    "/insights": {
+      "url": "http://localhost:3007/insights",
+      "status": 500,
+      "metrics": {
+        "loadTime": 3482,
+        "domContentLoaded": null,
+        "firstPaint": 0,
+        "firstContentfulPaint": 0,
+        "ttfb": null,
+        "domInteractive": null
+      },
+      "resources": {
+        "total": 6,
+        "totalSize": 1173640,
+        "slowestResource": {
+          "name": "http://localhost:3007/_next/static/chunks/fallback/main.js",
+          "duration": 114.19999998807907,
+          "size": 1135245,
+          "type": "script"
+        },
+        "byType": {
+          "script": 5,
+          "fetch": 1
+        }
+      },
+      "success": false
+    }
+  },
+  "summary": {
+    "averageLoadTime": 2794.6,
+    "averageTTFB": null,
+    "averageFCP": 0,
+    "totalPages": 10,
+    "successfulPages": 9,
+    "failedPages": 1
+  }
+}

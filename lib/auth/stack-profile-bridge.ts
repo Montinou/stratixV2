@@ -1,5 +1,3 @@
-"use client"
-
 import type { User } from "@stackframe/stack"
 import { ProfilesRepository, type Profile } from "@/lib/database/queries/profiles"
 import { ProfileSyncService } from "@/lib/database/services/profile-sync"

@@ -172,25 +172,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
     const loadingManager = SessionManager.createLoadingManager()
 
-    const getInitialSession = async () => {
+    const initializeAuth = async () => {
       try {
-        const user = neonClient.getUser()
+        // Get initial user state
+        const initialUser = neonClient.getUser()
 
         if (!mounted) return
 
-        if (user) {
-          setUser(user)
+        if (initialUser) {
+          setUser(initialUser)
           
           // Set loading state with manager
           loadingManager.setLoading(setLoading, 50)
           
-          const { profile: profileData, company: companyData } = await fetchProfile(user)
+          const { profile: profileData, company: companyData } = await fetchProfile(initialUser)
           if (mounted) {
             setProfile(profileData)
             setCompany(companyData)
             
             // Store session state for persistence
-            SessionManager.storeSessionState(user, profileData, false)
+            SessionManager.storeSessionState(initialUser, profileData, false)
           }
         }
         
@@ -198,53 +199,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           loadingManager.clearLoading(setLoading)
         }
       } catch (error) {
-        console.error("Error getting initial session:", error)
+        console.error("Error initializing auth:", error)
         if (mounted) {
           loadingManager.clearLoading(setLoading)
         }
       }
     }
 
-    getInitialSession()
+    initializeAuth()
 
-    // Set up auth state change listener with session management
-    const unsubscribe = neonClient.onUserChange(async (user) => {
+    // Set up periodic user state check (Stack Auth doesn't have onUserChange)
+    const checkUserState = async () => {
       if (!mounted) return
 
       try {
-        // Handle auth state change through session manager
-        await SessionManager.handleAuthStateChange(user, (currentUser, currentProfile, loading) => {
-          if (mounted) {
+        const currentUser = neonClient.getUser()
+        
+        // Only update if user state actually changed
+        if (currentUser?.id !== user?.id) {
+          if (currentUser) {
+            // User signed in or changed
             setUser(currentUser)
-            setProfile(currentProfile)
-            setLoading(loading)
-          }
-        })
-
-        if (user) {
-          // User signed in - fetch profile data
-          if (mounted) {
-            setUser(user)
             loadingManager.setLoading(setLoading, 50)
-          }
-          
-          const { profile: profileData, company: companyData } = await fetchProfile(user)
-          
-          if (mounted) {
-            setProfile(profileData)
-            setCompany(companyData)
             
-            // Store session state for persistence
-            SessionManager.storeSessionState(user, profileData, false)
-            loadingManager.clearLoading(setLoading)
-          }
-        } else {
-          // User signed out - clear everything
-          if (mounted) {
-            setUser(null)
-            setProfile(null)
-            setCompany(null)
-            loadingManager.clearLoading(setLoading)
+            const { profile: profileData, company: companyData } = await fetchProfile(currentUser)
+            
+            if (mounted) {
+              setProfile(profileData)
+              setCompany(companyData)
+              SessionManager.storeSessionState(currentUser, profileData, false)
+              loadingManager.clearLoading(setLoading)
+            }
+          } else {
+            // User signed out
+            if (mounted) {
+              setUser(null)
+              setProfile(null)
+              setCompany(null)
+              SessionManager.clearSession()
+              loadingManager.clearLoading(setLoading)
+            }
           }
         }
       } catch (error) {
@@ -253,12 +247,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           loadingManager.clearLoading(setLoading)
         }
       }
-    })
+    }
+
+    // Set up interval for periodic user state checking
+    const checkInterval = setInterval(checkUserState, 5000) // Check every 5 seconds
 
     return () => {
       mounted = false
       loadingManager.cleanup()
-      unsubscribe()
+      if (checkInterval) {
+        clearInterval(checkInterval)
+      }
     }
   }, [neonClient, fetchProfile])
 
