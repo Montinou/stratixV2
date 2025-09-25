@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/hooks/use-auth"
-import type { Profile, Objective } from "@/lib/types/okr"
+import type { Profile as DatabaseProfile, Objective as DatabaseObjective } from "@/lib/database/types"
 import { useState, useEffect } from "react"
-import { Users, Target, TrendingUp, Award, Mail, Building2 } from "lucide-react"
+import { Users, Target, TrendingUp, Award, Building2 } from "lucide-react"
 
-interface TeamMember extends Profile {
-  objectives?: Objective[]
+interface TeamMember extends DatabaseProfile {
+  objectives?: DatabaseObjective[]
   averageProgress?: number
 }
 
@@ -139,7 +139,7 @@ export default function TeamPage() {
 
       // Filter out self for corporativo role (client-side as backup)
       const filteredMembers = profile.role === "corporativo" 
-        ? members.filter((member: any) => member.id !== profile.id)
+        ? members.filter((member: any) => member.userId !== profile.id)
         : members
 
       // Fetch objectives for each team member using objectives API
@@ -150,7 +150,7 @@ export default function TeamPage() {
             objectivesUrl.searchParams.set('userId', profile.id) // Current user context
             objectivesUrl.searchParams.set('userRole', profile.role)
             objectivesUrl.searchParams.set('userDepartment', profile.department || '')
-            objectivesUrl.searchParams.set('ownerId', member.id) // Filter objectives by owner
+            objectivesUrl.searchParams.set('ownerId', member.userId) // Filter objectives by owner
 
             const objectivesResponse = await fetch(objectivesUrl.toString())
             const objectivesResult = await objectivesResponse.json()
@@ -158,7 +158,7 @@ export default function TeamPage() {
             let objectives = []
             if (objectivesResponse.ok && objectivesResult.data) {
               // Filter objectives by this specific member
-              objectives = objectivesResult.data.filter((obj: any) => obj.owner_id === member.id)
+              objectives = objectivesResult.data.filter((obj: any) => obj.ownerId === member.userId)
             }
 
             const averageProgress = objectives.length
@@ -171,7 +171,7 @@ export default function TeamPage() {
               averageProgress,
             }
           } catch (error) {
-            console.error(`Error fetching objectives for member ${member.id}:`, error)
+            console.error(`Error fetching objectives for member ${member.userId}:`, error)
             return {
               ...member,
               objectives: [],
@@ -326,7 +326,7 @@ export default function TeamPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{teamStats.topPerformer?.averageProgress || 0}%</div>
-              <p className="text-xs text-muted-foreground truncate">{teamStats.topPerformer?.full_name || "N/A"}</p>
+              <p className="text-xs text-muted-foreground truncate">{teamStats.topPerformer?.fullName || "N/A"}</p>
             </CardContent>
           </Card>
         </div>
@@ -352,25 +352,21 @@ export default function TeamPage() {
               <div className="space-y-4">
                 {teamMembers.map((member) => (
                   <div
-                    key={member.id}
+                    key={member.userId}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
                       <Avatar className="h-12 w-12">
-                        <AvatarFallback className="text-lg">{member.full_name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="text-lg">{member.fullName.charAt(0)}</AvatarFallback>
                       </Avatar>
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{member.full_name}</h4>
-                          <Badge className={getRoleBadgeColor(member.role)}>{getRoleLabel(member.role)}</Badge>
+                          <h4 className="font-medium">{member.fullName}</h4>
+                          <Badge className={getRoleBadgeColor(member.roleType)}>{getRoleLabel(member.roleType)}</Badge>
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {member.email}
-                          </div>
                           {member.department && (
                             <div className="flex items-center gap-1">
                               <Building2 className="h-3 w-3" />
