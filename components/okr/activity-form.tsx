@@ -81,6 +81,34 @@ export function ActivityForm({ activity, onSuccess, onCancel }: ActivityFormProp
     e.preventDefault()
     if (!profile) return
 
+    // Validate required fields
+    if (!formData.title.trim()) {
+      toast({
+        title: "Error",
+        description: "El título es requerido.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.initiative_id) {
+      toast({
+        title: "Error",
+        description: "Debe seleccionar una iniciativa.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.end_date) {
+      toast({
+        title: "Error",
+        description: "La fecha de fin es requerida.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -172,16 +200,27 @@ export function ActivityForm({ activity, onSuccess, onCancel }: ActivityFormProp
         <Select
           value={formData.initiative_id}
           onValueChange={(value) => setFormData({ ...formData, initiative_id: value })}
+          disabled={initiatives.length === 0}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Selecciona una iniciativa" />
+            <SelectValue placeholder={
+              initiatives.length === 0 
+                ? "Cargando iniciativas..." 
+                : "Selecciona una iniciativa"
+            } />
           </SelectTrigger>
           <SelectContent>
-            {initiatives.map((initiative) => (
-              <SelectItem key={initiative.id} value={initiative.id}>
-                {initiative.title}
+            {initiatives.length === 0 ? (
+              <SelectItem value="" disabled>
+                {!profile ? "Usuario no autenticado" : "No hay iniciativas disponibles"}
               </SelectItem>
-            ))}
+            ) : (
+              initiatives.map((initiative) => (
+                <SelectItem key={initiative.id} value={initiative.id}>
+                  {initiative.title}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
       </div>
