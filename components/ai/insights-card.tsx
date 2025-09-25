@@ -12,9 +12,15 @@ interface InsightsCardProps {
   type: "daily" | "objective" | "team"
   onRefresh?: () => void
   loading?: boolean
+  analyticsData?: {
+    totalObjectives?: number
+    averageProgress?: number
+    completionRate?: number
+    onTrackPercentage?: number
+  }
 }
 
-export function InsightsCard({ title, insights, type, onRefresh, loading }: InsightsCardProps) {
+export function InsightsCard({ title, insights, type, onRefresh, loading, analyticsData }: InsightsCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const getIcon = () => {
@@ -110,7 +116,25 @@ export function InsightsCard({ title, insights, type, onRefresh, loading }: Insi
             <span className="ml-2 text-sm text-muted-foreground">Generando insights...</span>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-4">
+            {/* Analytics Summary */}
+            {analyticsData && (
+              <div className="grid grid-cols-2 gap-3 p-3 bg-accent/30 rounded-lg border">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-primary">
+                    {analyticsData.averageProgress || 0}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">Progreso Promedio</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-primary">
+                    {analyticsData.onTrackPercentage || 0}%
+                  </div>
+                  <p className="text-xs text-muted-foreground">En Progreso</p>
+                </div>
+              </div>
+            )}
+
             <div className="text-sm text-foreground">{formatInsights(displayInsights)}</div>
 
             {insights.length > 200 && (

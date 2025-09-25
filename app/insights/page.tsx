@@ -6,29 +6,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
+import { useAnalytics } from "@/lib/hooks/use-analytics"
 import { generateDailyInsights, generateTeamInsights } from "@/lib/ai/insights"
 import type { Objective, Initiative, Activity } from "@/lib/types/okr"
-import { useState, useEffect, useCallback, useMemo } from "react"
-import { Lightbulb, Sparkles, TrendingUp, Users, RefreshCw, Calendar } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Lightbulb, Sparkles, TrendingUp, Users, RefreshCw, Calendar, AlertCircle } from "lucide-react"
+import AnalyticsErrorBoundary from "@/components/ui/analytics-error-boundary"
+import InsightsLoadingSkeleton from "@/components/ui/insights-loading-skeleton"
+import AnalyticsFallback from "@/components/ui/analytics-fallback"
 
 export default function InsightsPage() {
   const { profile } = useAuth()
-  const [loading, setLoading] = useState(true)
   const [generatingInsights, setGeneratingInsights] = useState(false)
   const [timeRange, setTimeRange] = useState("week")
+  const [apiError, setApiError] = useState<Error | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
-  // Create supabase client once to prevent recreating on every function call
-  const supabase = useMemo(() => createClient(), [])
-
-  const [data, setData] = useState<{
-    objectives: Objective[]
-    initiatives: Initiative[]
-    activities: Activity[]
-  }>({
-    objectives: [],
-    initiatives: [],
-    activities: [],
+  // Use the analytics hook with comprehensive error handling
+  const {
+    data: analyticsData,
+    loading: analyticsLoading,
+    error: analyticsError,
+    refetch: refetchAnalytics,
+    retry: retryAnalytics,
+    retryCount
+  } = useAnalytics({
+    autoFetch: true,
+    retryAttempts: 3,
+    retryDelay: 1000,
+    onError: (error) => {
+      console.error('Analytics error:', error)
+      setApiError(error)
+    },
+    onSuccess: () => {
+      setApiError(null)
+    }
   })
 
   const [insights, setInsights] = useState({
@@ -37,42 +49,25 @@ export default function InsightsPage() {
     lastGenerated: null as Date | null,
   })
 
-  const fetchData = useCallback(async () => {
-    if (!profile) return
-
-    setLoading(true)
-
-    try {
-      const [objectivesResult, initiativesResult, activitiesResult] = await Promise.all([
-        supabase.from("objectives").select("*"),
-        supabase.from("initiatives").select("*"),
-        supabase.from("activities").select("*"),
-      ])
-
-      setData({
-        objectives: objectivesResult.data || [],
-        initiatives: initiativesResult.data || [],
-        activities: activitiesResult.data || [],
-      })
-    } catch (error) {
-      console.error("Error fetching data:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [profile, supabase])
+  // Handle retry with key increment to trigger re-fetch
+  const handleRetryAnalytics = useCallback(async () => {
+    setRetryKey(prev => prev + 1)
+    setApiError(null)
+    await retryAnalytics()
+  }, [retryAnalytics])
 
   const generateInsights = useCallback(async () => {
-    if (!profile) return
+    if (!profile || !analyticsData) return
 
     setGeneratingInsights(true)
 
     try {
-      // Generate daily insights
+      // Generate daily insights based on analytics data
       const dailyInsights = await generateDailyInsights({
         role: profile.role,
-        objectives: data.objectives,
-        initiatives: data.initiatives,
-        activities: data.activities,
+        objectives: analyticsData.objectives,
+        initiatives: analyticsData.initiatives,
+        activities: analyticsData.activities,
         department: profile.department || undefined,
       })
 
@@ -80,7 +75,7 @@ export default function InsightsPage() {
       if (profile.role !== "empleado") {
         // Generate team insights for managers and corporate users
         teamInsights = await generateTeamInsights({
-          objectives: data.objectives,
+          objectives: analyticsData.objectives,
           department: profile.department || "Organización",
           teamSize: 5, // This would come from actual team data
         })
@@ -93,20 +88,22 @@ export default function InsightsPage() {
       })
     } catch (error) {
       console.error("Error generating insights:", error)
+      // Show user-friendly error message
+      setInsights({
+        daily: "Error al generar insights. Por favor, intenta nuevamente.",
+        team: "Error al generar análisis de equipo. Por favor, intenta nuevamente.",
+        lastGenerated: new Date(),
+      })
     } finally {
       setGeneratingInsights(false)
     }
-  }, [profile, data])
+  }, [profile, analyticsData])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
-  useEffect(() => {
-    if (data.objectives.length > 0 && !insights.daily) {
+    if (analyticsData && analyticsData.objectives && analyticsData.objectives.length > 0 && !insights.daily) {
       generateInsights()
     }
-  }, [data, insights.daily, generateInsights])
+  }, [analyticsData, insights.daily, generateInsights])
 
   const formatLastGenerated = (date: Date | null) => {
     if (!date) return "Nunca"
@@ -118,19 +115,68 @@ export default function InsightsPage() {
     })
   }
 
-  if (loading) {
+  // Show loading skeleton while analytics data is loading
+  if (analyticsLoading && !analyticsData) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
+        <InsightsLoadingSkeleton />
+      </DashboardLayout>
+    )
+  }
+
+  // Show fallback UI if there's an error or no data
+  if ((analyticsError && !analyticsData) || apiError) {
+    const errorType = analyticsError?.message.includes('fetch') ? 'network' :
+                     analyticsError?.message.includes('500') ? 'server' :
+                     analyticsError?.message.includes('404') ? 'data' : 'generic'
+    
+    return (
+      <DashboardLayout>
+        <AnalyticsFallback 
+          onRetry={handleRetryAnalytics}
+          loading={analyticsLoading}
+          error={analyticsError || apiError}
+          type={errorType}
+        />
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
+      <AnalyticsErrorBoundary onRetry={handleRetryAnalytics}>
+        <div className="p-6 space-y-6">
+          {/* Loading indicator for ongoing operations */}
+          {analyticsLoading && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Actualizando datos analíticos...
+                {retryCount > 0 && (
+                  <span className="text-xs">(Intento {retryCount + 1})</span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Error indicator for ongoing operations */}
+          {apiError && analyticsData && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+                <AlertCircle className="h-4 w-4" />
+                <span>Error al actualizar datos: {apiError.message}</span>
+                <Button 
+                  onClick={handleRetryAnalytics}
+                  variant="outline" 
+                  size="sm"
+                  disabled={analyticsLoading}
+                >
+                  <RefreshCw className={`mr-1 h-3 w-3 ${analyticsLoading ? "animate-spin" : ""}`} />
+                  Reintentar
+                </Button>
+              </div>
+            </div>
+          )}
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -151,7 +197,10 @@ export default function InsightsPage() {
                 <SelectItem value="quarter">Este trimestre</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={generateInsights} disabled={generatingInsights}>
+            <Button 
+              onClick={generateInsights} 
+              disabled={generatingInsights || analyticsLoading || !analyticsData}
+            >
               <RefreshCw className={`mr-2 h-4 w-4 ${generatingInsights ? "animate-spin" : ""}`} />
               Actualizar Insights
             </Button>
@@ -170,7 +219,9 @@ export default function InsightsPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{data.objectives.length}</div>
+                <div className="text-2xl font-bold text-primary">
+                  {analyticsData?.analytics?.totalObjectives ?? '--'}
+                </div>
                 <p className="text-sm text-muted-foreground">Objetivos analizados</p>
               </div>
               <div className="text-center">
@@ -195,6 +246,7 @@ export default function InsightsPage() {
             type="daily"
             onRefresh={generateInsights}
             loading={generatingInsights && !insights.daily}
+            analyticsData={analyticsData?.analytics}
           />
 
           {profile?.role !== "empleado" && (
@@ -204,6 +256,7 @@ export default function InsightsPage() {
               type="team"
               onRefresh={generateInsights}
               loading={generatingInsights && !insights.team}
+              analyticsData={analyticsData?.analytics}
             />
           )}
 
@@ -250,30 +303,71 @@ export default function InsightsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Dynamic action based on completion rate */}
+              {analyticsData?.analytics?.completionRate && analyticsData.analytics.completionRate < 70 && (
+                <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                      <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <h4 className="font-medium">Acelerar Progreso</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Tu tasa de finalización es del {analyticsData.analytics.completionRate}%. Prioriza objetivos críticos.
+                  </p>
+                </div>
+              )}
+
+              {/* Dynamic action based on on-track percentage */}
+              {analyticsData?.analytics?.onTrackPercentage && analyticsData.analytics.onTrackPercentage < 60 && (
+                <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                      <RefreshCw className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    </div>
+                    <h4 className="font-medium">Revisar Objetivos</h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Solo {analyticsData.analytics.onTrackPercentage}% de tus objetivos van bien. Evalúa y ajusta.
+                  </p>
+                </div>
+              )}
+
+              {/* Default action for progress updates */}
               <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
                     <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
-                  <h4 className="font-medium">Revisar Progreso</h4>
+                  <h4 className="font-medium">Actualizar Progreso</h4>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Actualiza el progreso de tus objetivos para obtener insights más precisos.
+                  {analyticsData?.analytics?.averageProgress ? 
+                    `Tu progreso promedio es ${analyticsData.analytics.averageProgress}%. Mantén los datos actualizados.` :
+                    "Actualiza el progreso de tus objetivos para obtener insights más precisos."
+                  }
                 </p>
               </div>
 
-              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                    <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              {/* Team collaboration for non-employee roles */}
+              {profile?.role !== "empleado" && (
+                <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                      <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h4 className="font-medium">Gestionar Equipo</h4>
                   </div>
-                  <h4 className="font-medium">Colaborar</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {analyticsData?.analytics?.totalObjectives ? 
+                      `Supervisando ${analyticsData.analytics.totalObjectives} objetivos. Coordina con tu equipo.` :
+                      "Conecta con tu equipo para alinear objetivos y compartir mejores prácticas."
+                    }
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Conecta con tu equipo para alinear objetivos y compartir mejores prácticas.
-                </p>
-              </div>
+              )}
 
+              {/* Optimization action */}
               <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
@@ -282,13 +376,17 @@ export default function InsightsPage() {
                   <h4 className="font-medium">Optimizar</h4>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Identifica actividades de bajo impacto y reenfoca tus esfuerzos.
+                  {analyticsData?.analytics?.statusDistribution ? 
+                    "Analiza los objetivos en pausa o retrasados para reenfocar esfuerzos." :
+                    "Identifica actividades de bajo impacto y reenfoca tus esfuerzos."
+                  }
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </AnalyticsErrorBoundary>
     </DashboardLayout>
   )
 }
