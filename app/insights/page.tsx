@@ -57,27 +57,31 @@ export default function InsightsPage() {
   }, [retryAnalytics])
 
   const generateInsights = useCallback(async () => {
-    if (!profile || !analyticsData) return
+    if (!profile || !analyticsData || !analyticsData.analytics) return
 
     setGeneratingInsights(true)
 
     try {
-      // Generate daily insights based on analytics data
+      // Generate daily insights based on analytics data from API
       const dailyInsights = await generateDailyInsights({
         role: profile.role,
-        objectives: analyticsData.objectives,
-        initiatives: analyticsData.initiatives,
-        activities: analyticsData.activities,
+        analytics: analyticsData.analytics,
         department: profile.department || undefined,
       })
 
       let teamInsights = ""
       if (profile.role !== "empleado") {
         // Generate team insights for managers and corporate users
+        // TODO: Get actual team size from API or profile data
+        const estimatedTeamSize = Math.max(
+          Math.ceil(analyticsData.analytics.totalObjectives / 3), // Rough estimate: 3 objectives per person
+          5 // Minimum team size assumption
+        )
+        
         teamInsights = await generateTeamInsights({
-          objectives: analyticsData.objectives,
+          analytics: analyticsData.analytics,
           department: profile.department || "Organización",
-          teamSize: 5, // This would come from actual team data
+          teamSize: estimatedTeamSize,
         })
       }
 
@@ -100,7 +104,7 @@ export default function InsightsPage() {
   }, [profile, analyticsData])
 
   useEffect(() => {
-    if (analyticsData && analyticsData.objectives && analyticsData.objectives.length > 0 && !insights.daily) {
+    if (analyticsData && analyticsData.analytics && analyticsData.analytics.totalObjectives > 0 && !insights.daily) {
       generateInsights()
     }
   }, [analyticsData, insights.daily, generateInsights])
