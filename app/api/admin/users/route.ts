@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuthentication } from '@/lib/database/auth';
+import { stackServerApp } from '@/stack';
 import { ProfilesRepository } from '@/lib/database/queries/profiles';
 import { CompaniesRepository } from '@/lib/database/queries/companies';
 import { SyncLoggingService } from '@/lib/services/sync-logging';
@@ -118,7 +118,7 @@ async function notifyUser(userId: string, action: string, details: any): Promise
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -327,7 +327,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -578,7 +578,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },

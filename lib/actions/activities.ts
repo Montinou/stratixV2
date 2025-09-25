@@ -2,20 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 import { ActivitiesService, type Activity } from '@/lib/database/services';
-import { getUserProfile } from '@/lib/database/auth';
-import { neonServerClient } from '@/lib/neon-auth/server';
+import { stackServerApp } from '@/stack';
 
 export async function getActivities(): Promise<{ data: Activity[] | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
 
-    const profile = await getUserProfile(user.id);
-    if (!profile) {
-      return { data: null, error: 'User profile not found' };
-    }
+    // Note: Profile fetching should be handled by the activities service
+    // or through direct database queries with the Stack Auth user ID
 
     const activities = await ActivitiesService.getAll(
       user.id,
@@ -32,7 +29,7 @@ export async function getActivities(): Promise<{ data: Activity[] | null; error?
 
 export async function getActivitiesByInitiative(initiativeId: string): Promise<{ data: Activity[] | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -49,7 +46,7 @@ export async function createActivity(
   activityData: Omit<Activity, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ data: Activity | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -69,7 +66,7 @@ export async function updateActivity(
   updates: Partial<Activity>
 ): Promise<{ data: Activity | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -86,7 +83,7 @@ export async function updateActivity(
 
 export async function deleteActivity(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { success: false, error: 'Unauthorized' };
     }

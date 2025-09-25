@@ -2,9 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { StackProvider } from "@stackframe/stack"
-import { stackClientApp } from "@/stack"
-import { AuthErrorBoundaryWrapper, StackAuthErrorFallback } from "@/components/auth/auth-error-boundary"
+import { StackProvider, StackTheme } from '@stackframe/stack'
+import { AuthProvider } from "@/lib/hooks/use-auth"
 import { Suspense } from "react"
 import "./globals.css"
 
@@ -34,11 +33,11 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased">
-        <AuthErrorBoundaryWrapper fallback={StackAuthErrorFallback}>
+        <StackProvider>
           <Suspense fallback={<div>Loading...</div>}>
-            <StackProvider app={stackClientApp}>{children}</StackProvider>
+            <AuthProvider>{children}</AuthProvider>
           </Suspense>
-        </AuthErrorBoundaryWrapper>
+        </StackProvider>
         <Analytics />
       </body>
     </html>

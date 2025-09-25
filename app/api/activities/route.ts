@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { stackServerApp } from '@/stack';
 import { ActivitiesRepository, type FilterParams } from '@/lib/database/queries/activities';
 
 /**
@@ -16,6 +17,15 @@ import { ActivitiesRepository, type FilterParams } from '@/lib/database/queries/
  */
 export async function GET(request: NextRequest) {
   try {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
     const userRole = searchParams.get('userRole');
@@ -105,6 +115,15 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate required fields

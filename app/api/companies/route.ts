@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuthentication } from '@/lib/database/auth';
+import { stackServerApp } from '@/stack';
 import { CompaniesRepository } from '@/lib/database/queries/companies';
 import type { CreateCompanyForm } from '@/lib/database/types';
 import { z } from 'zod';
@@ -29,9 +29,9 @@ const updateCompanySchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
-    if (error || !user) {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -86,9 +86,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
-    if (error || !user) {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }

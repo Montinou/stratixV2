@@ -21,13 +21,22 @@ export const priorityEnum = pgEnum('priority', ['low', 'medium', 'high']);
 // Users table - handles authentication and basic user info
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
+  // Stack Auth integration
+  stackUserId: varchar('stack_user_id', { length: 255 }).unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
+  name: varchar('name', { length: 255 }),
+  avatarUrl: varchar('avatar_url', { length: 500 }),
+  // Legacy fields (to be removed after migration)
   passwordHash: varchar('password_hash', { length: 255 }),
   emailConfirmed: timestamp('email_confirmed'),
+  // Multi-tenancy support
+  tenantId: uuid('tenant_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   emailIdx: index('users_email_idx').on(table.email),
+  stackUserIdx: index('users_stack_user_idx').on(table.stackUserId),
+  tenantIdx: index('users_tenant_idx').on(table.tenantId),
 }));
 
 // Companies table - organization information
@@ -50,12 +59,15 @@ export const profiles = pgTable('profiles', {
   roleType: userRoleEnum('role_type').notNull(),
   department: varchar('department', { length: 100 }).notNull(),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
+  // Multi-tenancy support
+  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   companyIdx: index('profiles_company_idx').on(table.companyId),
   roleIdx: index('profiles_role_idx').on(table.roleType),
   departmentIdx: index('profiles_department_idx').on(table.department),
+  tenantIdx: index('profiles_tenant_idx').on(table.tenantId),
 }));
 
 // Objectives table - high-level OKR objectives
@@ -71,6 +83,10 @@ export const objectives = pgTable('objectives', {
   endDate: timestamp('end_date').notNull(),
   ownerId: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
+  // Multi-tenancy support
+  tenantId: uuid('tenant_id').notNull(),
+  // Soft delete support
+  deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -78,6 +94,7 @@ export const objectives = pgTable('objectives', {
   companyIdx: index('objectives_company_idx').on(table.companyId),
   departmentIdx: index('objectives_department_idx').on(table.department),
   statusIdx: index('objectives_status_idx').on(table.status),
+  tenantIdx: index('objectives_tenant_idx').on(table.tenantId),
   dateRangeIdx: index('objectives_date_range_idx').on(table.startDate, table.endDate),
 }));
 
@@ -93,12 +110,17 @@ export const initiatives = pgTable('initiatives', {
   startDate: timestamp('start_date').notNull(),
   endDate: timestamp('end_date').notNull(),
   ownerId: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // Multi-tenancy support
+  tenantId: uuid('tenant_id').notNull(),
+  // Soft delete support
+  deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   objectiveIdx: index('initiatives_objective_idx').on(table.objectiveId),
   ownerIdx: index('initiatives_owner_idx').on(table.ownerId),
   statusIdx: index('initiatives_status_idx').on(table.status),
+  tenantIdx: index('initiatives_tenant_idx').on(table.tenantId),
   dateRangeIdx: index('initiatives_date_range_idx').on(table.startDate, table.endDate),
 }));
 
@@ -112,12 +134,17 @@ export const activities = pgTable('activities', {
   priority: priorityEnum('priority').notNull().default('medium'),
   dueDate: timestamp('due_date').notNull(),
   assignedTo: uuid('assigned_to').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // Multi-tenancy support
+  tenantId: uuid('tenant_id').notNull(),
+  // Soft delete support
+  deletedAt: timestamp('deleted_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   initiativeIdx: index('activities_initiative_idx').on(table.initiativeId),
   assigneeIdx: index('activities_assignee_idx').on(table.assignedTo),
   statusIdx: index('activities_status_idx').on(table.status),
+  tenantIdx: index('activities_tenant_idx').on(table.tenantId),
   dueDateIdx: index('activities_due_date_idx').on(table.dueDate),
 }));
 

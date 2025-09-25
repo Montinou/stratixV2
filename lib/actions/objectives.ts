@@ -2,22 +2,19 @@
 
 import { revalidatePath } from 'next/cache';
 import { ObjectivesService, type Objective } from '@/lib/database/services';
-import { verifyAuthentication, getUserProfile } from '@/lib/database/auth';
-import { neonServerClient } from '@/lib/neon-auth/server';
+import { stackServerApp } from '@/stack';
 
 export async function getObjectives(): Promise<{ data: Objective[] | null; error?: string }> {
   try {
     // Get current user from NeonAuth
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
 
     // Get user profile to apply role-based filtering
-    const profile = await getUserProfile(user.id);
-    if (!profile) {
-      return { data: null, error: 'User profile not found' };
-    }
+    // Note: Profile fetching should be handled by the objectives service
+    // or through direct database queries with the Stack Auth user ID
 
     const objectives = await ObjectivesService.getAll(
       user.id,
@@ -34,7 +31,7 @@ export async function getObjectives(): Promise<{ data: Objective[] | null; error
 
 export async function getObjective(id: string): Promise<{ data: Objective | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -51,15 +48,13 @@ export async function createObjective(
   objectiveData: Omit<Objective, 'id' | 'created_at' | 'updated_at' | 'owner_id' | 'company_id'>
 ): Promise<{ data: Objective | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
 
-    const profile = await getUserProfile(user.id);
-    if (!profile) {
-      return { data: null, error: 'User profile not found' };
-    }
+    // Note: Profile fetching should be handled by the objectives service
+    // or through direct database queries with the Stack Auth user ID
 
     const objective = await ObjectivesService.create({
       ...objectiveData,
@@ -80,7 +75,7 @@ export async function updateObjective(
   updates: Partial<Objective>
 ): Promise<{ data: Objective | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -97,7 +92,7 @@ export async function updateObjective(
 
 export async function deleteObjective(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { success: false, error: 'Unauthorized' };
     }
