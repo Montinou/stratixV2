@@ -5,9 +5,9 @@ import type React from "react"
 import { createNeonClient } from "@/lib/neon-auth/client"
 import type { User } from "@stackframe/stack"
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
-// Temporarily using stubs during build fix - these import server-side database code
-import { StackProfileBridge } from "@/lib/auth/stack-profile-bridge-stub"
-import { SessionManager } from "@/lib/auth/session-management-stub"
+// Using real authentication implementations with API integration (client-side)
+import { StackProfileBridge } from "@/lib/auth/stack-profile-bridge-client"
+import { SessionManager } from "@/lib/auth/session-management"
 import type { Profile } from "@/lib/database/queries/profiles"
 
 interface Company {
@@ -69,21 +69,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cache the profile for better performance
         SessionManager.cacheProfile(profile)
 
-        // TODO: Fetch company data based on profile.company_id
-        // For now, return mock company data
-        const mockCompany: Company = {
-          id: profile.company_id,
-          name: "Default Company",
-          slug: "default",
-          logo_url: null,
-          settings: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+        // Fetch company data based on profile.companyId
+        let company: Company | null = null
+        
+        try {
+          const companyResponse = await fetch(`/api/companies/${profile.companyId}`)
+          if (companyResponse.ok) {
+            const companyResult = await companyResponse.json()
+            if (companyResult.success && companyResult.data) {
+              company = {
+                id: companyResult.data.id,
+                name: companyResult.data.name,
+                slug: companyResult.data.slug || companyResult.data.name.toLowerCase().replace(/\s+/g, '-'),
+                logo_url: companyResult.data.logoUrl || null,
+                settings: companyResult.data.settings || {},
+                created_at: companyResult.data.createdAt,
+                updated_at: companyResult.data.updatedAt,
+              }
+            }
+          }
+        } catch (error) {
+          console.warn("Error fetching company data:", error)
+          // Continue without company data
         }
 
         return {
           profile,
-          company: mockCompany,
+          company,
         }
       } catch (error) {
         console.error("Error fetching profile:", error)
