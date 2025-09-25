@@ -32,8 +32,8 @@ export async function verifyAuthentication(
   request: NextRequest
 ): Promise<{ user: AuthenticatedUser | null; error?: string }> {
   try {
-    // Get user from NeonAuth
-    const user = await neonServerClient.getUser();
+    // Get user from NeonAuth with request context
+    const user = await neonServerClient.getUser({ request });
     
     if (!user) {
       return { user: null, error: 'Unauthorized' };
