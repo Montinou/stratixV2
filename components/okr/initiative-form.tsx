@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
+// MIGRATION: Replaced direct Supabase client with API endpoints
 import { useAuth } from "@/lib/hooks/use-auth"
 import type { Initiative, Objective, OKRStatus } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
 import { toast } from "@/hooks/use-toast"
+import { mapStatusToAPI, mapStatusFromAPI } from "@/lib/utils"
 
 interface InitiativeFormProps {
   initiative?: Initiative
@@ -38,19 +39,38 @@ export function InitiativeForm({ initiative, onSuccess, onCancel }: InitiativeFo
     const fetchObjectives = async () => {
       if (!profile) return
 
-      const supabase = createClient()
-      let query = supabase.from("objectives").select("*")
+      try {
+        // Build query parameters for API call
+        const queryParams = new URLSearchParams({
+          userId: profile.id,
+          userRole: profile.role,
+          userDepartment: profile.department || ''
+        })
 
-      // Apply role-based filtering
-      if (profile.role === "empleado") {
-        query = query.eq("owner_id", profile.id)
-      } else if (profile.role === "gerente") {
-        query = query.eq("department", profile.department)
-      }
+        const response = await fetch(`/api/objectives?${queryParams}`)
+        
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status} - ${response.statusText}`)
+        }
 
-      const { data, error } = await query.order("title")
-      if (!error && data) {
-        setObjectives(data)
+        const result = await response.json()
+        
+        if (result.data) {
+          // Map API statuses back to UI format
+          const objectivesWithMappedStatus = result.data.map((objective: any) => ({
+            ...objective,
+            status: mapStatusFromAPI(objective.status)
+          }))
+          
+          setObjectives(objectivesWithMappedStatus)
+        }
+      } catch (error) {
+        console.error("Error fetching objectives:", error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los objetivos.",
+          variant: "destructive",
+        })
       }
     }
 
@@ -62,7 +82,6 @@ export function InitiativeForm({ initiative, onSuccess, onCancel }: InitiativeFo
     if (!profile) return
 
     setLoading(true)
-    const supabase = createClient()
 
     try {
       const initiativeData = {
@@ -70,21 +89,44 @@ export function InitiativeForm({ initiative, onSuccess, onCancel }: InitiativeFo
         description: formData.description || null,
         objective_id: formData.objective_id,
         owner_id: profile.id,
-        status: formData.status,
+        status: mapStatusToAPI(formData.status), // Map UI status to API status
+        priority: 'medium', // Default priority required by API
         progress: formData.progress,
         start_date: formData.start_date,
         end_date: formData.end_date,
       }
 
+      let response: Response
+
       if (initiative) {
         // Update existing initiative
-        const { error } = await supabase.from("initiatives").update(initiativeData).eq("id", initiative.id)
-        if (error) throw error
+        response = await fetch(`/api/initiatives/${initiative.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(initiativeData)
+        })
+        
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status} - ${response.statusText}`)
+        }
+        
         toast({ title: "Iniciativa actualizada", description: "La iniciativa ha sido actualizada correctamente." })
       } else {
         // Create new initiative
-        const { error } = await supabase.from("initiatives").insert(initiativeData)
-        if (error) throw error
+        response = await fetch('/api/initiatives', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(initiativeData)
+        })
+        
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status} - ${response.statusText}`)
+        }
+        
         toast({ title: "Iniciativa creada", description: "La iniciativa ha sido creada correctamente." })
       }
 

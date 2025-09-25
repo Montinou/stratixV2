@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
+// MIGRATION: Replaced direct Supabase client with API endpoints
 import type { Initiative } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
 import { Plus, Search, Filter } from "lucide-react"
@@ -26,6 +26,7 @@ import {
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import type { DateRange } from "react-day-picker"
 import { toast } from "@/hooks/use-toast"
+import { mapStatusFromAPI } from "@/lib/utils"
 
 export default function InitiativesPage() {
   const { profile } = useAuth()
@@ -41,29 +42,42 @@ export default function InitiativesPage() {
   const fetchInitiatives = async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
-      let query = supabase.from("initiatives").select(`
-        *,
-        owner:profiles(*),
-        objective:objectives(*)
-      `)
+      // Build query parameters for API call
+      const queryParams = new URLSearchParams({
+        userId: profile.id,
+        userRole: profile.role,
+        userDepartment: profile.department || ''
+      })
 
-      // Apply role-based filtering
-      if (profile.role === "empleado") {
-        query = query.eq("owner_id", profile.id)
+      const response = await fetch(`/api/initiatives?${queryParams}`)
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} - ${response.statusText}`)
       }
-      // Gerentes y Corporativo pueden ver más iniciativas según las políticas RLS
 
-      const { data, error } = await query.order("created_at", { ascending: false })
+      const result = await response.json()
+      
+      if (!result.data) {
+        throw new Error('No data received from API')
+      }
 
-      if (error) throw error
+      // Map API statuses back to UI format
+      const initiativesWithMappedStatus = result.data.map((initiative: any) => ({
+        ...initiative,
+        status: mapStatusFromAPI(initiative.status)
+      }))
 
-      setInitiatives(data || [])
+      setInitiatives(initiativesWithMappedStatus)
     } catch (error) {
       console.error("Error fetching initiatives:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las iniciativas. Inténtalo de nuevo.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -74,11 +88,14 @@ export default function InitiativesPage() {
   }, [profile])
 
   const handleDelete = async (initiative: Initiative) => {
-    const supabase = createClient()
-
     try {
-      const { error } = await supabase.from("initiatives").delete().eq("id", initiative.id)
-      if (error) throw error
+      const response = await fetch(`/api/initiatives/${initiative.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} - ${response.statusText}`)
+      }
 
       toast({ title: "Iniciativa eliminada", description: "La iniciativa ha sido eliminada correctamente." })
       fetchInitiatives()
