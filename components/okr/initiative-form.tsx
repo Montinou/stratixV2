@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
+// Removed Supabase client stub - now using API endpoints
 import { useAuth } from "@/lib/hooks/use-auth"
 import type { Initiative, Objective, OKRStatus } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
@@ -38,19 +38,28 @@ export function InitiativeForm({ initiative, onSuccess, onCancel }: InitiativeFo
     const fetchObjectives = async () => {
       if (!profile) return
 
-      const supabase = createClient()
-      let query = supabase.from("objectives").select("*")
+      try {
+        // Use API endpoint with role-based filtering
+        const params = new URLSearchParams({
+          userId: profile.user_id,
+          userRole: profile.role,
+          userDepartment: profile.department || ''
+        })
 
-      // Apply role-based filtering
-      if (profile.role === "empleado") {
-        query = query.eq("owner_id", profile.id)
-      } else if (profile.role === "gerente") {
-        query = query.eq("department", profile.department)
-      }
-
-      const { data, error } = await query.order("title")
-      if (!error && data) {
-        setObjectives(data)
+        const response = await fetch(`/api/objectives?${params}`)
+        if (!response.ok) throw new Error('Failed to fetch objectives')
+        
+        const result = await response.json()
+        if (result.success && result.data) {
+          setObjectives(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching objectives:', error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los objetivos.",
+          variant: "destructive",
+        })
       }
     }
 
@@ -62,29 +71,51 @@ export function InitiativeForm({ initiative, onSuccess, onCancel }: InitiativeFo
     if (!profile) return
 
     setLoading(true)
-    const supabase = createClient()
 
     try {
       const initiativeData = {
         title: formData.title,
         description: formData.description || null,
         objective_id: formData.objective_id,
-        owner_id: profile.id,
+        owner_id: profile.user_id,
         status: formData.status,
         progress: formData.progress,
         start_date: formData.start_date,
         end_date: formData.end_date,
+        priority: 'medium' // Default priority as required by API
       }
 
       if (initiative) {
         // Update existing initiative
-        const { error } = await supabase.from("initiatives").update(initiativeData).eq("id", initiative.id)
-        if (error) throw error
+        const response = await fetch(`/api/initiatives/${initiative.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(initiativeData),
+        })
+
+        if (!response.ok) throw new Error('Failed to update initiative')
+        
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || 'Failed to update initiative')
+        
         toast({ title: "Iniciativa actualizada", description: "La iniciativa ha sido actualizada correctamente." })
       } else {
         // Create new initiative
-        const { error } = await supabase.from("initiatives").insert(initiativeData)
-        if (error) throw error
+        const response = await fetch('/api/initiatives', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(initiativeData),
+        })
+
+        if (!response.ok) throw new Error('Failed to create initiative')
+        
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || 'Failed to create initiative')
+        
         toast({ title: "Iniciativa creada", description: "La iniciativa ha sido creada correctamente." })
       }
 
