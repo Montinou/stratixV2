@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration (still needed for handleSubmit)
+// Removed Supabase client dependency - now using API endpoints (still needed for handleSubmit)
 import { useAuth } from "@/lib/hooks/use-auth"
 import type { Activity, Initiative, OKRStatus } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
@@ -67,43 +67,75 @@ export function ActivityForm({ activity, onSuccess, onCancel }: ActivityFormProp
     fetchInitiatives()
   }, [profile])
 
+  const mapOKRStatusToAPIStatus = (status: OKRStatus): string => {
+    switch (status) {
+      case "no_iniciado": return "todo"
+      case "en_progreso": return "in_progress"
+      case "completado": return "completed"
+      case "pausado": return "cancelled"
+      default: return "todo"
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!profile) return
 
     setLoading(true)
-    const supabase = createClient()
 
     try {
-      const activityData = {
+      const apiData = {
+        initiative_id: formData.initiative_id,
         title: formData.title,
         description: formData.description || null,
-        initiative_id: formData.initiative_id,
-        owner_id: profile.id,
-        status: formData.status,
-        progress: formData.progress,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
+        status: mapOKRStatusToAPIStatus(formData.status),
+        priority: "medium" as const, // Default priority - can be enhanced later
+        due_date: formData.end_date,
+        assigned_to: profile.id,
       }
+
+      let response: Response
 
       if (activity) {
         // Update existing activity
-        const { error } = await supabase.from("activities").update(activityData).eq("id", activity.id)
-        if (error) throw error
-        toast({ title: "Actividad actualizada", description: "La actividad ha sido actualizada correctamente." })
+        response = await fetch(`/api/activities/${activity.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(apiData),
+        })
       } else {
         // Create new activity
-        const { error } = await supabase.from("activities").insert(activityData)
-        if (error) throw error
+        response = await fetch('/api/activities', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(apiData),
+        })
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Request failed')
+      }
+
+      const result = await response.json()
+      
+      if (activity) {
+        toast({ title: "Actividad actualizada", description: "La actividad ha sido actualizada correctamente." })
+      } else {
         toast({ title: "Actividad creada", description: "La actividad ha sido creada correctamente." })
       }
 
       onSuccess()
     } catch (error) {
       console.error("Error saving activity:", error)
+      const errorMessage = error instanceof Error ? error.message : "No se pudo guardar la actividad. Inténtalo de nuevo."
       toast({
         title: "Error",
-        description: "No se pudo guardar la actividad. Inténtalo de nuevo.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
