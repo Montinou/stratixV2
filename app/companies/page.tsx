@@ -64,7 +64,7 @@ export default function CompaniesPage() {
   const fetchCompanies = async () => {
     try {
       setLoading(true)
-      setErrors(prev => ({ ...prev, fetch: '' }))
+      // Fetch errors handled by toast notifications
       
       const response = await fetch("/api/companies?withStats=true", {
         method: "GET",
@@ -87,7 +87,7 @@ export default function CompaniesPage() {
     } catch (error) {
       console.error("Error fetching companies:", error)
       const errorMessage = error instanceof Error ? error.message : "Error al cargar las empresas"
-      setErrors(prev => ({ ...prev, fetch: errorMessage }))
+      // Error already handled by toast
       toast.error(errorMessage)
     } finally {
       setLoading(false)
@@ -172,7 +172,7 @@ export default function CompaniesPage() {
 
   const openEditDialog = (company?: CompanyWithStats) => {
     // Clear any previous errors
-    setErrors(prev => ({ ...prev, save: '' }))
+    // Form errors handled by validation checks and toast notifications
     
     if (company) {
       setEditingCompany(company)
@@ -333,7 +333,7 @@ export default function CompaniesPage() {
                   variant="outline" 
                   onClick={() => {
                     setEditingCompany(null)
-                    setErrors(prev => ({ ...prev, save: '' }))
+                    // Form errors handled by validation checks and toast notifications
                   }}
                   disabled={operationLoading[editingCompany ? `update-${editingCompany.id}` : 'create']}
                 >
