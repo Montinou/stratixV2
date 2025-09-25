@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import type { Profile, Objective } from "@/lib/types/okr"
 import { useState, useEffect } from "react"
 import { Users, Target, TrendingUp, Award, Mail, Building2 } from "lucide-react"
@@ -16,83 +15,188 @@ interface TeamMember extends Profile {
   averageProgress?: number
 }
 
+interface TeamStats {
+  totalMembers: number
+  totalObjectives: number
+  averageProgress: number
+  topPerformer: TeamMember | null
+}
+
+/**
+ * Calculate team statistics from team member data
+ * @param teamMembers Array of team members with objectives and progress data
+ * @returns Calculated team statistics
+ */
+function calculateTeamStats(teamMembers: TeamMember[]): TeamStats {
+  // Input validation
+  if (!Array.isArray(teamMembers)) {
+    throw new Error('Team members must be an array')
+  }
+
+  if (teamMembers.length === 0) {
+    return {
+      totalMembers: 0,
+      totalObjectives: 0,
+      averageProgress: 0,
+      topPerformer: null,
+    }
+  }
+
+  try {
+    // Calculate total members
+    const totalMembers = teamMembers.length
+
+    // Calculate total objectives across all team members with validation
+    const totalObjectives = teamMembers.reduce((sum, member) => {
+      if (!member || typeof member !== 'object') {
+        return sum // Skip invalid members
+      }
+      const objectivesCount = Array.isArray(member.objectives) ? member.objectives.length : 0
+      return sum + Math.max(0, objectivesCount) // Ensure non-negative
+    }, 0)
+
+    // Calculate average progress across all team members with validation
+    const validMembers = teamMembers.filter(member => 
+      member && 
+      typeof member === 'object' && 
+      typeof member.averageProgress === 'number' && 
+      !isNaN(member.averageProgress)
+    )
+
+    const averageProgress = validMembers.length > 0
+      ? Math.round(
+          validMembers.reduce((sum, member) => {
+            const memberProgress = Math.max(0, Math.min(100, member.averageProgress || 0)) // Clamp between 0-100
+            return sum + memberProgress
+          }, 0) / validMembers.length,
+        )
+      : 0
+
+    // Find top performer (member with highest average progress)
+    const topPerformer = validMembers.reduce<TeamMember | null>((top, member) => {
+      const memberProgress = typeof member.averageProgress === 'number' ? member.averageProgress : 0
+      const topProgress = top && typeof top.averageProgress === 'number' ? top.averageProgress : 0
+      
+      return memberProgress > topProgress ? member : top
+    }, null)
+
+    return {
+      totalMembers,
+      totalObjectives,
+      averageProgress,
+      topPerformer,
+    }
+  } catch (error) {
+    throw new Error(`Failed to calculate team statistics: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
 export default function TeamPage() {
   const { profile } = useAuth()
   const [loading, setLoading] = useState(true)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [teamStats, setTeamStats] = useState({
+  const [teamStats, setTeamStats] = useState<TeamStats>({
     totalMembers: 0,
     totalObjectives: 0,
     averageProgress: 0,
-    topPerformer: null as TeamMember | null,
+    topPerformer: null,
   })
 
   const fetchTeamData = async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
-      let membersQuery = supabase.from("profiles").select("*")
-
-      // Apply role-based filtering
-      if (profile.role === "gerente") {
-        // Gerentes ven su equipo (subordinados directos)
-        membersQuery = membersQuery.eq("manager_id", profile.id)
-      } else if (profile.role === "corporativo") {
-        // Corporativo ve todos los usuarios
-        membersQuery = membersQuery.neq("id", profile.id) // Exclude self
-      } else {
-        // Empleados no tienen acceso a esta página
+      // Check role access first
+      if (profile.role === "empleado") {
         setLoading(false)
         return
       }
 
-      const { data: members, error: membersError } = await membersQuery
+      // Build query parameters for profiles API based on role
+      const profilesUrl = new URL('/api/profiles', window.location.origin)
+      
+      if (profile.role === "gerente") {
+        // Gerentes ven su equipo (subordinados directos)
+        // Note: API needs to be updated to support manager_id filter
+        profilesUrl.searchParams.set('department', profile.department || '')
+        profilesUrl.searchParams.set('roleType', 'empleado') // Gerentes manage empleados
+      } else if (profile.role === "corporativo") {
+        // Corporativo ve todos los usuarios (except themselves)
+        // No additional filters needed - will exclude self server-side
+      }
 
-      if (membersError) throw membersError
+      // Fetch team members via profiles API
+      const profilesResponse = await fetch(profilesUrl.toString())
+      const profilesResult = await profilesResponse.json()
 
-      // Fetch objectives for each team member
+      if (!profilesResponse.ok || !profilesResult.success) {
+        throw new Error(profilesResult.error || 'Failed to fetch team members')
+      }
+
+      const members = profilesResult.data || []
+
+      // Filter out self for corporativo role (client-side as backup)
+      const filteredMembers = profile.role === "corporativo" 
+        ? members.filter((member: any) => member.id !== profile.id)
+        : members
+
+      // Fetch objectives for each team member using objectives API
       const membersWithObjectives = await Promise.all(
-        (members || []).map(async (member) => {
-          const { data: objectives } = await supabase.from("objectives").select("*").eq("owner_id", member.id)
+        filteredMembers.map(async (member: any) => {
+          try {
+            const objectivesUrl = new URL('/api/objectives', window.location.origin)
+            objectivesUrl.searchParams.set('userId', profile.id) // Current user context
+            objectivesUrl.searchParams.set('userRole', profile.role)
+            objectivesUrl.searchParams.set('userDepartment', profile.department || '')
+            objectivesUrl.searchParams.set('ownerId', member.id) // Filter objectives by owner
 
-          const averageProgress = objectives?.length
-            ? Math.round(objectives.reduce((sum, obj) => sum + obj.progress, 0) / objectives.length)
-            : 0
+            const objectivesResponse = await fetch(objectivesUrl.toString())
+            const objectivesResult = await objectivesResponse.json()
 
-          return {
-            ...member,
-            objectives: objectives || [],
-            averageProgress,
+            let objectives = []
+            if (objectivesResponse.ok && objectivesResult.data) {
+              // Filter objectives by this specific member
+              objectives = objectivesResult.data.filter((obj: any) => obj.owner_id === member.id)
+            }
+
+            const averageProgress = objectives.length
+              ? Math.round(objectives.reduce((sum: number, obj: any) => sum + (obj.progress || 0), 0) / objectives.length)
+              : 0
+
+            return {
+              ...member,
+              objectives,
+              averageProgress,
+            }
+          } catch (error) {
+            console.error(`Error fetching objectives for member ${member.id}:`, error)
+            return {
+              ...member,
+              objectives: [],
+              averageProgress: 0,
+            }
           }
         }),
       )
 
       setTeamMembers(membersWithObjectives)
 
-      // Calculate team stats
-      const totalMembers = membersWithObjectives.length
-      const totalObjectives = membersWithObjectives.reduce((sum, member) => sum + (member.objectives?.length || 0), 0)
-      const averageProgress = membersWithObjectives.length
-        ? Math.round(
-            membersWithObjectives.reduce((sum, member) => sum + (member.averageProgress || 0), 0) /
-              membersWithObjectives.length,
-          )
-        : 0
-
-      const topPerformer = membersWithObjectives.reduce(
-        (top, member) => ((member.averageProgress || 0) > (top?.averageProgress || 0) ? member : top),
-        null as TeamMember | null,
-      )
-
-      setTeamStats({
-        totalMembers,
-        totalObjectives,
-        averageProgress,
-        topPerformer,
-      })
+      // Calculate team stats using the extracted function with error handling
+      try {
+        const calculatedStats = calculateTeamStats(membersWithObjectives)
+        setTeamStats(calculatedStats)
+      } catch (statsError) {
+        console.error("Error calculating team statistics:", statsError)
+        // Set default stats on calculation error
+        setTeamStats({
+          totalMembers: membersWithObjectives.length,
+          totalObjectives: 0,
+          averageProgress: 0,
+          topPerformer: null,
+        })
+      }
     } catch (error) {
       console.error("Error fetching team data:", error)
     } finally {
