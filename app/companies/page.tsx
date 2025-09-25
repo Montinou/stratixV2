@@ -10,30 +10,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Building2, Users, Settings, Plus } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { toast } from "sonner"
+import type { Company as DatabaseCompany } from "@/lib/database/types"
 
-interface Company {
-  id: string
-  name: string
-  description?: string | null
-  industry?: string | null
-  size?: string | null
-  createdAt: string
-  updatedAt: string
+interface CompanyWithStats extends DatabaseCompany {
   profilesCount?: number
 }
 
 export default function CompaniesPage() {
   const { profile, company } = useAuth()
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [companies, setCompanies] = useState<CompanyWithStats[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null)
+  const [editingCompany, setEditingCompany] = useState<CompanyWithStats | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     industry: "",
     size: ""
   })
-  const supabase = createClient()
 
   // Enhanced role validation with error handling
   const [roleValidationError, setRoleValidationError] = useState<string | null>(null)
@@ -70,6 +63,9 @@ export default function CompaniesPage() {
 
   const fetchCompanies = async () => {
     try {
+      setLoading(true)
+      setErrors(prev => ({ ...prev, fetch: '' }))
+      
       const response = await fetch("/api/companies?withStats=true", {
         method: "GET",
         headers: {
@@ -78,97 +74,123 @@ export default function CompaniesPage() {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`Error del servidor: ${response.status}`)
       }
 
       const result = await response.json()
       
       if (!result.success) {
-        throw new Error(result.error || "Error fetching companies")
+        throw new Error(result.error || "Error al obtener las empresas")
       }
 
       setCompanies(result.data || [])
     } catch (error) {
       console.error("Error fetching companies:", error)
-      toast.error("Error al cargar las empresas")
+      const errorMessage = error instanceof Error ? error.message : "Error al cargar las empresas"
+      setErrors(prev => ({ ...prev, fetch: errorMessage }))
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
   }
 
   const handleSave = async () => {
-    if (!formData.name || !formData.slug) {
-      toast.error("Por favor completa todos los campos")
+    // Clear previous errors
+    setErrors(prev => ({ ...prev, save: '' }))
+    
+    // Validate required fields
+    if (!formData.name?.trim()) {
+      toast.error("El nombre de la empresa es requerido")
+      return
+    }
+    
+    // Validate field lengths according to API schema
+    if (formData.name.length > 255) {
+      toast.error("El nombre de la empresa no puede exceder 255 caracteres")
+      return
+    }
+    
+    if (formData.description && formData.description.length > 1000) {
+      toast.error("La descripción no puede exceder 1000 caracteres")
+      return
+    }
+    
+    if (formData.industry && formData.industry.length > 100) {
+      toast.error("La industria no puede exceder 100 caracteres")
+      return
+    }
+    
+    if (formData.size && formData.size.length > 50) {
+      toast.error("El tamaño no puede exceder 50 caracteres")
       return
     }
 
+    const operationKey = editingCompany ? `update-${editingCompany.id}` : 'create'
+    
     try {
+      setOperationLoading(prev => ({ ...prev, [operationKey]: true }))
+      
+      let response: Response
+      const payload = {
+        name: formData.name,
+        description: formData.description || undefined,
+        industry: formData.industry || undefined,
+        size: formData.size || undefined
+      }
+      
       if (editingCompany) {
         // Update existing company
-        const response = await fetch(`/api/companies/${editingCompany.id}`, {
-          method: "PUT",
+        response = await fetch(`/api/companies/${editingCompany.id}`, {
+          method: 'PUT',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            name: formData.name,
-            description: formData.slug, // Using slug as description for now
-          }),
+          body: JSON.stringify(payload)
         })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-        
-        if (!result.success) {
-          throw new Error(result.error || "Error updating company")
-        }
-
-        toast.success("Empresa actualizada correctamente")
       } else {
-        // Create new company
-        const response = await fetch("/api/companies", {
-          method: "POST",
+        // Create new company  
+        response = await fetch('/api/companies', {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            name: formData.name,
-            description: formData.slug, // Using slug as description for now
-          }),
+          body: JSON.stringify(payload)
         })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-        
-        if (!result.success) {
-          throw new Error(result.error || "Error creating company")
-        }
-
-        toast.success("Empresa creada correctamente")
       }
-
+      
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || `Error al ${editingCompany ? 'actualizar' : 'crear'} la empresa`)
+      }
+      
+      toast.success(result.message || `Empresa ${editingCompany ? 'actualizada' : 'creada'} correctamente`)
       setEditingCompany(null)
-      setFormData({ name: "", slug: "" })
-      fetchCompanies()
-    } catch (error: any) {
-      console.error("Error saving company:", error)
-      toast.error(error.message || "Error al guardar la empresa")
+      setFormData({ name: "", description: "", industry: "", size: "" })
+      await fetchCompanies()
+      
+    } catch (error: unknown) {
+      console.error('Error saving company:', error)
+      const errorMessage = error instanceof Error ? error.message : `Error al ${editingCompany ? 'actualizar' : 'crear'} la empresa`
+      toast.error(errorMessage)
     }
   }
 
-  const openEditDialog = (company?: Company) => {
+  const openEditDialog = (company?: CompanyWithStats) => {
+    // Clear any previous errors
+    setErrors(prev => ({ ...prev, save: '' }))
+    
     if (company) {
       setEditingCompany(company)
-      setFormData({ name: company.name, slug: company.slug })
+      setFormData({
+        name: company.name,
+        description: company.description || "",
+        industry: company.industry || "",
+        size: company.size || ""
+      })
     } else {
       setEditingCompany(null)
-      setFormData({ name: "", slug: "" })
+      setFormData({ name: "", description: "", industry: "", size: "" })
     }
   }
 
@@ -275,21 +297,67 @@ export default function CompaniesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="slug">Slug (identificador único)</Label>
+                <Label htmlFor="description">Descripción</Label>
                 <Input
-                  id="slug"
-                  value={formData.slug}
+                  id="description"
+                  value={formData.description}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") }))
+                    setFormData((prev) => ({ ...prev, description: e.target.value }))
                   }
-                  placeholder="acme-corp"
+                  placeholder="Descripción de la empresa"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="industry">Industria</Label>
+                <Input
+                  id="industry"
+                  value={formData.industry}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, industry: e.target.value }))
+                  }
+                  placeholder="Tecnología, Finanzas, etc."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="size">Tamaño</Label>
+                <Input
+                  id="size"
+                  value={formData.size}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, size: e.target.value }))
+                  }
+                  placeholder="Startup, Pequeña, Mediana, Grande"
+                />
+              </div>
+              {errors.save && (
+                <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+                  {errors.save}
+                </div>
+              )}
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setEditingCompany(null)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditingCompany(null)
+                    setErrors(prev => ({ ...prev, save: '' }))
+                  }}
+                  disabled={operationLoading[editingCompany ? `update-${editingCompany.id}` : 'create']}
+                >
                   Cancelar
                 </Button>
-                <Button onClick={handleSave}>{editingCompany ? "Actualizar" : "Crear"}</Button>
+                <Button 
+                  onClick={handleSave}
+                  disabled={operationLoading[editingCompany ? `update-${editingCompany.id}` : 'create']}
+                >
+                  {operationLoading[editingCompany ? `update-${editingCompany.id}` : 'create'] ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      {editingCompany ? "Actualizando..." : "Creando..."}
+                    </div>
+                  ) : (
+                    editingCompany ? "Actualizar" : "Crear"
+                  )}
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -298,8 +366,39 @@ export default function CompaniesPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="text-sm text-muted-foreground">Cargando empresas...</p>
+          </div>
         </div>
+      ) : errors.fetch ? (
+        <Card className="border-destructive">
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center space-y-4">
+              <Building2 className="h-12 w-12 text-destructive mx-auto" />
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-destructive">Error al cargar empresas</h3>
+                <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20 max-w-md mx-auto">
+                  {errors.fetch}
+                </div>
+              </div>
+              <Button 
+                onClick={fetchCompanies} 
+                variant="outline"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                    Reintentando...
+                  </div>
+                ) : (
+                  "Reintentar"
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {companies.map((company) => (
@@ -310,17 +409,17 @@ export default function CompaniesPage() {
                     <Building2 className="h-8 w-8 text-primary" />
                     <div>
                       <CardTitle className="text-lg">{company.name}</CardTitle>
-                      <CardDescription>@{company.slug}</CardDescription>
+                      <CardDescription>{company.description || "Sin descripción"}</CardDescription>
                     </div>
                   </div>
-                  <Badge variant="secondary">{company.profiles?.[0]?.count || 0} usuarios</Badge>
+                  <Badge variant="secondary">{company.profilesCount || 0} usuarios</Badge>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>Empleados activos: {company.profiles?.[0]?.count || 0}</span>
+                    <span>Empleados activos: {company.profilesCount || 0}</span>
                   </div>
 
                   <div className="flex items-center gap-2">
