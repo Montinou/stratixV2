@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -25,6 +26,8 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [importStep, setImportStep] = useState<"idle" | "uploading" | "processing" | "completed">("idle")
   const [periodStart, setPeriodStart] = useState<Date>()
   const [periodEnd, setPeriodEnd] = useState<Date>()
   const [departmentMapping, setDepartmentMapping] = useState<Record<string, string>>({})
@@ -69,6 +72,8 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
     if (!file || !canImport) return
 
     setImporting(true)
+    setImportStep("uploading")
+    setUploadProgress(0)
 
     try {
       // Create form data for multipart upload
@@ -91,11 +96,25 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
         }
       }
 
+      // Simulate upload progress
+      const uploadProgressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(uploadProgressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 100)
+
       // Upload file to API endpoint
       const uploadResponse = await fetch("/api/import/upload", {
         method: "POST",
         body: formData,
       })
+
+      clearInterval(uploadProgressInterval)
+      setUploadProgress(100)
 
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.json().catch(() => ({}))
@@ -104,6 +123,10 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
 
       const uploadResult = await uploadResponse.json()
       const { importId } = uploadResult
+
+      // Start processing step
+      setImportStep("processing")
+      setUploadProgress(0)
 
       // Start processing via API endpoint
       const processResponse = await fetch("/api/import/process", {
@@ -121,6 +144,10 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
 
       const result = await processResponse.json()
 
+      // Update to completed step
+      setImportStep("completed")
+      setUploadProgress(100)
+
       // Show results based on API response
       if (result.success) {
         toast.success(
@@ -134,17 +161,23 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
         )
       }
 
-      // Reset form and close dialog on success
-      setOpen(false)
-      setFile(null)
-      setPeriodStart(undefined)
-      setPeriodEnd(undefined)
-      setDepartmentMapping({})
+      // Reset form and close dialog on success after a brief delay
+      setTimeout(() => {
+        setOpen(false)
+        setFile(null)
+        setPeriodStart(undefined)
+        setPeriodEnd(undefined)
+        setDepartmentMapping({})
+        setImportStep("idle")
+        setUploadProgress(0)
+      }, 2000)
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Error durante la importación"
       toast.error(errorMessage)
       console.error("Import error:", error)
+      setImportStep("idle")
+      setUploadProgress(0)
     } finally {
       setImporting(false)
     }
@@ -311,6 +344,26 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Progress indicator */}
+        {importing && (
+          <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {importStep === "uploading" && "Subiendo archivo..."}
+                {importStep === "processing" && "Procesando datos..."}
+                {importStep === "completed" && "¡Completado!"}
+              </span>
+              <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+            </div>
+            <Progress value={uploadProgress} className="w-full" />
+            {importStep === "processing" && (
+              <p className="text-xs text-muted-foreground">
+                Esto puede tomar varios minutos dependiendo del tamaño del archivo
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
