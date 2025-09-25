@@ -6,12 +6,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
-import type { Profile, Objective } from "@/lib/types/okr"
+import type { ProfileWithCompany, Objective, ApiResponse } from "@/lib/database/types"
 import { useState, useEffect } from "react"
 import { Users, Target, TrendingUp, Award, Mail, Building2 } from "lucide-react"
 
-interface TeamMember extends Profile {
+interface TeamMember extends ProfileWithCompany {
   objectives?: Objective[]
   averageProgress?: number
 }
@@ -30,49 +29,94 @@ export default function TeamPage() {
   const fetchTeamData = async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
-      let membersQuery = supabase.from("profiles").select("*")
-
-      // Apply role-based filtering
-      if (profile.role === "gerente") {
-        // Gerentes ven su equipo (subordinados directos)
-        membersQuery = membersQuery.eq("manager_id", profile.id)
-      } else if (profile.role === "corporativo") {
-        // Corporativo ve todos los usuarios
-        membersQuery = membersQuery.neq("id", profile.id) // Exclude self
+      // Build query parameters for profiles API based on role
+      const profileParams = new URLSearchParams()
+      
+      if (profile.roleType === "gerente") {
+        // Gerentes ven su equipo (filtrado por departamento)
+        profileParams.append("department", profile.department)
+        profileParams.append("companyId", profile.companyId)
+      } else if (profile.roleType === "corporativo") {
+        // Corporativo ve todos los usuarios de la empresa
+        profileParams.append("companyId", profile.companyId)
       } else {
         // Empleados no tienen acceso a esta página
         setLoading(false)
         return
       }
 
-      const { data: members, error: membersError } = await membersQuery
+      // Fetch team members via API
+      const profilesResponse = await fetch(`/api/profiles?${profileParams.toString()}`)
+      
+      if (!profilesResponse.ok) {
+        throw new Error(`Failed to fetch profiles: ${profilesResponse.status}`)
+      }
 
-      if (membersError) throw membersError
+      const profilesResult: ApiResponse<ProfileWithCompany[]> = await profilesResponse.json()
+      
+      if (!profilesResult.success || !profilesResult.data) {
+        throw new Error(profilesResult.error || 'Failed to fetch team members')
+      }
+
+      // Filter out current user for corporativo role
+      const members = profile.roleType === "corporativo" 
+        ? profilesResult.data.filter(member => member.userId !== profile.userId)
+        : profilesResult.data
 
       // Fetch objectives for each team member
       const membersWithObjectives = await Promise.all(
-        (members || []).map(async (member) => {
-          const { data: objectives } = await supabase.from("objectives").select("*").eq("owner_id", member.id)
+        members.map(async (member) => {
+          try {
+            // Build objectives query parameters
+            const objectivesParams = new URLSearchParams({
+              userId: member.userId,
+              userRole: member.roleType,
+              userDepartment: member.department
+            })
 
-          const averageProgress = objectives?.length
-            ? Math.round(objectives.reduce((sum, obj) => sum + obj.progress, 0) / objectives.length)
-            : 0
+            const objectivesResponse = await fetch(`/api/objectives?${objectivesParams.toString()}`)
+            
+            if (!objectivesResponse.ok) {
+              console.warn(`Failed to fetch objectives for user ${member.userId}`)
+              return {
+                ...member,
+                objectives: [],
+                averageProgress: 0,
+              }
+            }
 
-          return {
-            ...member,
-            objectives: objectives || [],
-            averageProgress,
+            const objectivesResult: { data: Objective[] } = await objectivesResponse.json()
+            const objectives = objectivesResult.data || []
+
+            // Filter objectives owned by this member
+            const memberObjectives = objectives.filter(obj => obj.ownerId === member.userId)
+
+            const averageProgress = memberObjectives.length
+              ? Math.round(memberObjectives.reduce((sum, obj) => sum + (obj.progress || 0), 0) / memberObjectives.length)
+              : 0
+
+            return {
+              ...member,
+              objectives: memberObjectives,
+              averageProgress,
+            }
+          } catch (error) {
+            console.warn(`Error fetching objectives for user ${member.userId}:`, error)
+            return {
+              ...member,
+              objectives: [],
+              averageProgress: 0,
+            }
           }
         }),
       )
 
       setTeamMembers(membersWithObjectives)
 
-      // Calculate team stats
+      // Calculate team stats for performance insights
       const totalMembers = membersWithObjectives.length
       const totalObjectives = membersWithObjectives.reduce((sum, member) => sum + (member.objectives?.length || 0), 0)
       const averageProgress = membersWithObjectives.length
@@ -104,8 +148,8 @@ export default function TeamPage() {
     fetchTeamData()
   }, [profile])
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
+  const getRoleBadgeColor = (roleType: string) => {
+    switch (roleType) {
       case "corporativo":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
       case "gerente":
@@ -117,8 +161,8 @@ export default function TeamPage() {
     }
   }
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
+  const getRoleLabel = (roleType: string) => {
+    switch (roleType) {
       case "corporativo":
         return "Corporativo"
       case "gerente":
@@ -126,11 +170,11 @@ export default function TeamPage() {
       case "empleado":
         return "Empleado"
       default:
-        return role
+        return roleType
     }
   }
 
-  if (profile?.role === "empleado") {
+  if (profile?.roleType === "empleado") {
     return (
       <DashboardLayout>
         <div className="p-6">
@@ -169,7 +213,7 @@ export default function TeamPage() {
               Gestión de Equipo
             </h1>
             <p className="text-muted-foreground">
-              {profile?.role === "corporativo"
+              {profile?.roleType === "corporativo"
                 ? "Supervisa el rendimiento de toda la organización"
                 : `Gestiona tu equipo del departamento ${profile?.department}`}
             </p>
@@ -186,7 +230,7 @@ export default function TeamPage() {
             <CardContent>
               <div className="text-2xl font-bold">{teamStats.totalMembers}</div>
               <p className="text-xs text-muted-foreground">
-                {profile?.role === "corporativo" ? "Total organización" : "Reportan a ti"}
+                {profile?.roleType === "corporativo" ? "Total organización" : "Reportan a ti"}
               </p>
             </CardContent>
           </Card>
@@ -222,7 +266,7 @@ export default function TeamPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{teamStats.topPerformer?.averageProgress || 0}%</div>
-              <p className="text-xs text-muted-foreground truncate">{teamStats.topPerformer?.full_name || "N/A"}</p>
+              <p className="text-xs text-muted-foreground truncate">{teamStats.topPerformer?.fullName || "N/A"}</p>
             </CardContent>
           </Card>
         </div>
@@ -239,7 +283,7 @@ export default function TeamPage() {
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No hay miembros del equipo</h3>
                 <p className="text-muted-foreground">
-                  {profile?.role === "gerente"
+                  {profile?.roleType === "gerente"
                     ? "Aún no tienes empleados asignados a tu equipo."
                     : "No hay usuarios registrados en el sistema."}
                 </p>
@@ -253,19 +297,19 @@ export default function TeamPage() {
                   >
                     <div className="flex items-center gap-4">
                       <Avatar className="h-12 w-12">
-                        <AvatarFallback className="text-lg">{member.full_name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="text-lg">{member.fullName.charAt(0)}</AvatarFallback>
                       </Avatar>
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{member.full_name}</h4>
-                          <Badge className={getRoleBadgeColor(member.role)}>{getRoleLabel(member.role)}</Badge>
+                          <h4 className="font-medium">{member.fullName}</h4>
+                          <Badge className={getRoleBadgeColor(member.roleType)}>{getRoleLabel(member.roleType)}</Badge>
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Mail className="h-3 w-3" />
-                            {member.email}
+                            {member.user?.email || 'Sin email'}
                           </div>
                           {member.department && (
                             <div className="flex items-center gap-1">
