@@ -7,16 +7,15 @@ import { Badge } from "@/components/ui/badge"
 import { FileImportDialog } from "@/components/import/file-import-dialog"
 import { Upload, FileSpreadsheet, Clock, CheckCircle, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import type { ImportLog } from "@/lib/types/import"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { toast } from "sonner"
 
 export default function ImportPage() {
   const { profile } = useAuth()
   const [importLogs, setImportLogs] = useState<ImportLog[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const canImport = profile?.role === "corporativo" || profile?.role === "gerente"
 
@@ -28,16 +27,22 @@ export default function ImportPage() {
 
   const fetchImportLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from("import_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20)
+      const response = await fetch("/api/import/logs", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error(`Failed to fetch import logs: ${response.status}`)
+      }
+
+      const { data } = await response.json()
       setImportLogs(data || [])
     } catch (error) {
       console.error("Error fetching import logs:", error)
+      toast.error("Error al cargar el historial de importaciones")
     } finally {
       setLoading(false)
     }
