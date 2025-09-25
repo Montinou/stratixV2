@@ -95,9 +95,6 @@ export default function CompaniesPage() {
   }
 
   const handleSave = async () => {
-    // Clear previous errors
-    setErrors(prev => ({ ...prev, save: '' }))
-    
     // Validate required fields
     if (!formData.name?.trim()) {
       toast.error("El nombre de la empresa es requerido")
@@ -125,10 +122,7 @@ export default function CompaniesPage() {
       return
     }
 
-    const operationKey = editingCompany ? `update-${editingCompany.id}` : 'create'
-    
     try {
-      setOperationLoading(prev => ({ ...prev, [operationKey]: true }))
       
       let response: Response
       const payload = {
