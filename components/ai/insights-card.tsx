@@ -6,15 +6,30 @@ import { Badge } from "@/components/ui/badge"
 import { Lightbulb, RefreshCw, Sparkles, TrendingUp } from "lucide-react"
 import { useState } from "react"
 
+interface AnalyticsInsight {
+  metric: string
+  value: number | string
+  trend?: "up" | "down" | "stable"
+  recommendation?: string
+}
+
 interface InsightsCardProps {
   title: string
-  insights: string
+  insights: string | AnalyticsInsight[]
   type: "daily" | "objective" | "team"
   onRefresh?: () => void
   loading?: boolean
+  analyticsData?: {
+    totalObjectives?: number
+    totalInitiatives?: number
+    totalActivities?: number
+    averageProgress?: number
+    completionRate?: number
+    onTrackPercentage?: number
+  } | null
 }
 
-export function InsightsCard({ title, insights, type, onRefresh, loading }: InsightsCardProps) {
+export function InsightsCard({ title, insights, type, onRefresh, loading, analyticsData }: InsightsCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const getIcon = () => {
@@ -43,8 +58,36 @@ export function InsightsCard({ title, insights, type, onRefresh, loading }: Insi
     }
   }
 
-  const formatInsights = (text: string) => {
-    // Split by numbered lists and bullet points for better formatting
+  const formatInsights = (content: string | AnalyticsInsight[]) => {
+    // Handle structured analytics insights
+    if (Array.isArray(content)) {
+      return content.map((insight, index) => (
+        <div key={index} className="mb-3 p-3 bg-accent/20 rounded-lg border border-accent">
+          <div className="flex items-center justify-between mb-2">
+            <strong className="text-primary">{insight.metric}</strong>
+            {insight.trend && (
+              <TrendingUp 
+                className={`h-4 w-4 ${
+                  insight.trend === 'up' ? 'text-green-500' : 
+                  insight.trend === 'down' ? 'text-red-500 rotate-180' : 
+                  'text-yellow-500'
+                }`} 
+              />
+            )}
+          </div>
+          <div className="text-lg font-semibold text-foreground mb-1">
+            {typeof insight.value === 'number' && insight.metric.includes('Progreso') ? 
+              `${insight.value}%` : insight.value}
+          </div>
+          {insight.recommendation && (
+            <p className="text-sm text-muted-foreground">{insight.recommendation}</p>
+          )}
+        </div>
+      ))
+    }
+
+    // Handle string insights (existing functionality)
+    const text = content as string
     const paragraphs = text.split("\n").filter((p) => p.trim())
 
     return paragraphs.map((paragraph, index) => {
@@ -72,8 +115,55 @@ export function InsightsCard({ title, insights, type, onRefresh, loading }: Insi
     })
   }
 
-  const truncatedInsights = insights.length > 200 ? insights.substring(0, 200) + "..." : insights
-  const displayInsights = isExpanded ? insights : truncatedInsights
+  const generateAnalyticsInsights = (): AnalyticsInsight[] => {
+    if (!analyticsData) return []
+    
+    const insights: AnalyticsInsight[] = []
+    
+    if (analyticsData.averageProgress !== undefined) {
+      insights.push({
+        metric: "Progreso Promedio",
+        value: analyticsData.averageProgress,
+        trend: analyticsData.averageProgress >= 70 ? "up" : analyticsData.averageProgress >= 40 ? "stable" : "down",
+        recommendation: analyticsData.averageProgress < 50 ? 
+          "Considera revisar las estrategias actuales para acelerar el progreso." :
+          "Mantén el buen ritmo de trabajo actual."
+      })
+    }
+    
+    if (analyticsData.totalObjectives !== undefined) {
+      insights.push({
+        metric: "Objetivos Activos",
+        value: analyticsData.totalObjectives,
+        trend: "stable",
+        recommendation: analyticsData.totalObjectives > 5 ? 
+          "Considera priorizar objetivos para mantener el enfoque." :
+          "Buen balance de objetivos para mantener el enfoque."
+      })
+    }
+    
+    if (analyticsData.completionRate !== undefined) {
+      insights.push({
+        metric: "Tasa de Finalización",
+        value: `${analyticsData.completionRate}%`,
+        trend: analyticsData.completionRate >= 80 ? "up" : analyticsData.completionRate >= 60 ? "stable" : "down",
+        recommendation: analyticsData.completionRate < 70 ? 
+          "Analiza los objetivos rezagados para identificar obstáculos." :
+          "Excelente tasa de finalización, continúa con esta dinámica."
+      })
+    }
+    
+    return insights
+  }
+
+  // Determine which insights to display
+  const actualInsights = Array.isArray(insights) ? insights : 
+    (analyticsData && type !== "daily" ? generateAnalyticsInsights() : insights)
+
+  // Handle truncation for string insights only
+  const shouldTruncate = typeof actualInsights === 'string' && actualInsights.length > 200
+  const truncatedInsights = shouldTruncate ? actualInsights.substring(0, 200) + "..." : actualInsights
+  const displayInsights = (isExpanded || Array.isArray(actualInsights)) ? actualInsights : truncatedInsights
 
   return (
     <Card className="relative overflow-hidden">
@@ -113,7 +203,7 @@ export function InsightsCard({ title, insights, type, onRefresh, loading }: Insi
           <div className="space-y-2">
             <div className="text-sm text-foreground">{formatInsights(displayInsights)}</div>
 
-            {insights.length > 200 && (
+            {shouldTruncate && (
               <Button
                 variant="ghost"
                 size="sm"

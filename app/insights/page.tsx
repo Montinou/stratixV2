@@ -385,6 +385,7 @@ export default function InsightsPage() {
             type="daily"
             onRefresh={generateInsights}
             loading={generatingInsights && !insights.daily}
+            analyticsData={analyticsData?.analytics}
           />
 
           {profile?.role !== "empleado" && (
@@ -394,6 +395,7 @@ export default function InsightsPage() {
               type="team"
               onRefresh={generateInsights}
               loading={generatingInsights && !insights.team}
+              analyticsData={analyticsData?.analytics}
             />
           )}
 
@@ -408,17 +410,38 @@ export default function InsightsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  {analyticsData?.analytics && (
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="text-center p-3 bg-accent/20 rounded-lg">
+                        <div className="text-lg font-semibold text-primary">
+                          {analyticsData.analytics.averageProgress ?? '--'}%
+                        </div>
+                        <p className="text-xs text-muted-foreground">Tu progreso</p>
+                      </div>
+                      <div className="text-center p-3 bg-accent/20 rounded-lg">
+                        <div className="text-lg font-semibold text-primary">
+                          {analyticsData.analytics.totalObjectives ?? '--'}
+                        </div>
+                        <p className="text-xs text-muted-foreground">Objetivos activos</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                     <h4 className="font-medium text-primary mb-2">Enfoque Semanal</h4>
                     <p className="text-sm text-muted-foreground">
-                      Concéntrate en completar las actividades con mayor impacto en tus objetivos principales.
+                      {analyticsData?.analytics?.averageProgress && analyticsData.analytics.averageProgress < 50 ?
+                        "Prioriza completar actividades pendientes para acelerar tu progreso hacia los objetivos." :
+                        "Concéntrate en completar las actividades con mayor impacto en tus objetivos principales."
+                      }
                     </p>
                   </div>
                   <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">Mejora Continua</h4>
                     <p className="text-sm text-muted-foreground">
-                      Considera actualizar el progreso de tus objetivos más frecuentemente para obtener insights más
-                      precisos.
+                      {analyticsData?.analytics?.totalObjectives && analyticsData.analytics.totalObjectives > 5 ?
+                        "Considera priorizar tus objetivos más importantes para mantener el enfoque y mejorar los resultados." :
+                        "Considera actualizar el progreso de tus objetivos más frecuentemente para obtener insights más precisos."
+                      }
                     </p>
                   </div>
                 </div>
@@ -435,46 +458,126 @@ export default function InsightsPage() {
               Acciones Recomendadas
             </CardTitle>
             <CardDescription>
-              Basado en el análisis de IA, estas son las acciones que podrían mejorar tu rendimiento
+              Basado en el análisis de IA y datos analíticos, estas son las acciones que podrían mejorar tu rendimiento
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+              {/* Dynamic action based on progress */}
+              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                    <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <div className={`p-2 rounded-lg ${
+                    analyticsData?.analytics?.averageProgress && analyticsData.analytics.averageProgress < 50 
+                      ? 'bg-red-100 dark:bg-red-900/20' 
+                      : 'bg-green-100 dark:bg-green-900/20'
+                  }`}>
+                    <TrendingUp className={`h-4 w-4 ${
+                      analyticsData?.analytics?.averageProgress && analyticsData.analytics.averageProgress < 50 
+                        ? 'text-red-600 dark:text-red-400' 
+                        : 'text-green-600 dark:text-green-400'
+                    }`} />
                   </div>
-                  <h4 className="font-medium">Revisar Progreso</h4>
+                  <h4 className="font-medium">
+                    {analyticsData?.analytics?.averageProgress && analyticsData.analytics.averageProgress < 50 
+                      ? 'Acelerar Progreso' 
+                      : 'Mantener Ritmo'
+                    }
+                  </h4>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Actualiza el progreso de tus objetivos para obtener insights más precisos.
+                  {analyticsData?.analytics?.averageProgress && analyticsData.analytics.averageProgress < 50 
+                    ? `Con ${analyticsData.analytics.averageProgress}% de progreso promedio, prioriza actividades de alto impacto.`
+                    : 'Excelente progreso. Actualiza regularmente para mantener la visibilidad.'
+                  }
                 </p>
               </div>
 
-              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+              {/* Dynamic collaboration action */}
+              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
                     <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <h4 className="font-medium">Colaborar</h4>
+                  <h4 className="font-medium">
+                    {profile?.role === 'empleado' ? 'Colaborar' : 'Gestionar Equipo'}
+                  </h4>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Conecta con tu equipo para alinear objetivos y compartir mejores prácticas.
+                  {profile?.role === 'empleado' 
+                    ? `Conecta con tu equipo para alinear ${analyticsData?.analytics?.totalObjectives || ''} objetivos y compartir mejores prácticas.`
+                    : `Supervisa el progreso del equipo y alinea ${analyticsData?.analytics?.totalObjectives || ''} objetivos organizacionales.`
+                  }
                 </p>
               </div>
 
-              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+              {/* Dynamic optimization action */}
+              <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                    <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <div className={`p-2 rounded-lg ${
+                    analyticsData?.analytics?.totalObjectives && analyticsData.analytics.totalObjectives > 5 
+                      ? 'bg-orange-100 dark:bg-orange-900/20' 
+                      : 'bg-purple-100 dark:bg-purple-900/20'
+                  }`}>
+                    <Sparkles className={`h-4 w-4 ${
+                      analyticsData?.analytics?.totalObjectives && analyticsData.analytics.totalObjectives > 5 
+                        ? 'text-orange-600 dark:text-orange-400' 
+                        : 'text-purple-600 dark:text-purple-400'
+                    }`} />
                   </div>
-                  <h4 className="font-medium">Optimizar</h4>
+                  <h4 className="font-medium">
+                    {analyticsData?.analytics?.totalObjectives && analyticsData.analytics.totalObjectives > 5 
+                      ? 'Priorizar' 
+                      : 'Optimizar'
+                    }
+                  </h4>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Identifica actividades de bajo impacto y reenfoca tus esfuerzos.
+                  {analyticsData?.analytics?.totalObjectives && analyticsData.analytics.totalObjectives > 5 
+                    ? `Con ${analyticsData.analytics.totalObjectives} objetivos activos, considera priorizar los más críticos.`
+                    : 'Identifica actividades de bajo impacto y reenfoca tus esfuerzos estratégicamente.'
+                  }
                 </p>
               </div>
+
+              {/* Additional insights-based action */}
+              {analyticsData?.analytics?.completionRate !== undefined && (
+                <div className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer md:col-span-2 lg:col-span-3">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      analyticsData.analytics.completionRate >= 80 
+                        ? 'bg-emerald-100 dark:bg-emerald-900/20' 
+                        : analyticsData.analytics.completionRate >= 60 
+                        ? 'bg-yellow-100 dark:bg-yellow-900/20'
+                        : 'bg-red-100 dark:bg-red-900/20'
+                    }`}>
+                      <Calendar className={`h-4 w-4 ${
+                        analyticsData.analytics.completionRate >= 80 
+                          ? 'text-emerald-600 dark:text-emerald-400' 
+                          : analyticsData.analytics.completionRate >= 60 
+                          ? 'text-yellow-600 dark:text-yellow-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`} />
+                    </div>
+                    <h4 className="font-medium">
+                      {analyticsData.analytics.completionRate >= 80 
+                        ? 'Mantener Excelencia' 
+                        : analyticsData.analytics.completionRate >= 60 
+                        ? 'Acelerar Finalización'
+                        : 'Revisar Estrategia'
+                      }
+                    </h4>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Tu tasa de finalización es del {analyticsData.analytics.completionRate}%. 
+                    {analyticsData.analytics.completionRate >= 80 
+                      ? ' Excelente trabajo, comparte tus mejores prácticas con el equipo.'
+                      : analyticsData.analytics.completionRate >= 60 
+                      ? ' Identifica los obstáculos que impiden completar objetivos a tiempo.'
+                      : ' Es momento de revisar la planificación y redistribuir recursos.'
+                    }
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
