@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { neonServerClient } from '@/lib/neon-auth/server';
+import { stackServerApp } from '@/stack';
 import { ProfilesRepository } from './queries/profiles';
 import { UsersRepository } from './queries/users';
 import type { UserRole, ProfileWithCompany } from './types';
@@ -32,8 +32,8 @@ export async function verifyAuthentication(
   request: NextRequest
 ): Promise<{ user: AuthenticatedUser | null; error?: string }> {
   try {
-    // Get user from NeonAuth with request context
-    const user = await neonServerClient.getUser({ request });
+    // Get user from Stack Auth server app
+    const user = await stackServerApp.getUser();
     
     if (!user) {
       return { user: null, error: 'Unauthorized' };

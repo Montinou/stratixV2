@@ -2,7 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { AuthProvider } from "@/lib/hooks/use-auth"
+import { StackProvider } from "@stackframe/stack"
+import { stackClientApp } from "@/stack"
 import { AuthErrorBoundaryWrapper, StackAuthErrorFallback } from "@/components/auth/auth-error-boundary"
 import { Suspense } from "react"
 import "./globals.css"
@@ -35,7 +36,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <AuthErrorBoundaryWrapper fallback={StackAuthErrorFallback}>
           <Suspense fallback={<div>Loading...</div>}>
-            <AuthProvider>{children}</AuthProvider>
+            <StackProvider app={stackClientApp}>{children}</StackProvider>
           </Suspense>
         </AuthErrorBoundaryWrapper>
         <Analytics />
