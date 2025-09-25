@@ -1,24 +1,42 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileImportDialog } from "@/components/import/file-import-dialog"
-import { Upload, FileSpreadsheet, Clock, CheckCircle, XCircle } from "lucide-react"
+import { ImportProgressIndicator, ImportProgressItem } from "@/components/import/import-progress-indicator"
+import { Upload, FileSpreadsheet, Clock, CheckCircle, XCircle, RefreshCw } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
+import { useImportProgress } from "@/lib/hooks/use-import-progress"
 import type { ImportLog } from "@/lib/types/import"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { toast } from "sonner"
 
 export default function ImportPage() {
   const { profile } = useAuth()
   const [importLogs, setImportLogs] = useState<ImportLog[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [refreshing, setRefreshing] = useState(false)
 
   const canImport = profile?.role === "corporativo" || profile?.role === "gerente"
+
+  // Initialize import progress tracking
+  const { 
+    activeImports, 
+    cancelImport, 
+    retryImport 
+  } = useImportProgress({
+    onComplete: (data) => {
+      console.log('Import completed:', data)
+      fetchImportLogs() // Refresh logs when import completes
+    },
+    onError: (error) => {
+      console.error('Import error:', error)
+      fetchImportLogs() // Refresh logs when import fails
+    }
+  })
 
   useEffect(() => {
     if (canImport) {
@@ -26,22 +44,25 @@ export default function ImportPage() {
     }
   }, [canImport])
 
-  const fetchImportLogs = async () => {
+  const fetchImportLogs = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("import_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20)
-
-      if (error) throw error
-      setImportLogs(data || [])
+      setRefreshing(true)
+      const response = await fetch('/api/import/logs')
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setImportLogs(data.logs || [])
     } catch (error) {
       console.error("Error fetching import logs:", error)
+      toast.error("Error al cargar el historial de importaciones")
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  }
+  }, [])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -103,15 +124,52 @@ export default function ImportPage() {
           <p className="text-muted-foreground">
             Importa objetivos, iniciativas y actividades desde archivos Excel o CSV
           </p>
+          {activeImports.length > 0 && (
+            <p className="text-sm text-blue-600 mt-1">
+              {activeImports.length} importación{activeImports.length > 1 ? 'es' : ''} en progreso
+            </p>
+          )}
         </div>
 
-        <FileImportDialog>
-          <Button className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Importar Datos
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={fetchImportLogs}
+            disabled={refreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Actualizar
           </Button>
-        </FileImportDialog>
+          
+          <FileImportDialog onImportStart={(importId) => {
+            console.log('Import started:', importId)
+            // Progress tracking is already handled by the dialog
+          }}>
+            <Button className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Importar Datos
+            </Button>
+          </FileImportDialog>
+        </div>
       </div>
+
+      {/* Active Import Progress */}
+      {activeImports.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Importaciones en Progreso</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {activeImports.map((importData) => (
+              <ImportProgressIndicator
+                key={importData.id}
+                importData={importData}
+                onCancel={cancelImport}
+                onRetry={retryImport}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
@@ -170,8 +228,20 @@ export default function ImportPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Historial de Importaciones</CardTitle>
-          <CardDescription>Registro de todas las importaciones realizadas</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Historial de Importaciones</CardTitle>
+              <CardDescription>Registro de todas las importaciones realizadas</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchImportLogs}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -185,29 +255,59 @@ export default function ImportPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {importLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    {getStatusIcon(log.status)}
-                    <div>
-                      <p className="font-medium">{log.file_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(log.created_at), "PPp", { locale: es })}
-                      </p>
+              {importLogs.map((log) => {
+                // Check if this log has an active import in progress
+                const activeImport = activeImports.find(active => 
+                  active.id === log.id || active.id.includes(log.id.slice(0, 8))
+                )
+                
+                if (activeImport) {
+                  return (
+                    <ImportProgressItem
+                      key={log.id}
+                      importData={activeImport}
+                      onCancel={cancelImport}
+                      onRetry={retryImport}
+                    />
+                  )
+                }
+                
+                return (
+                  <div key={log.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-4">
+                      {getStatusIcon(log.status)}
+                      <div>
+                        <p className="font-medium">{log.file_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(log.created_at), "PPp", { locale: es })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-4">
-                    <div className="text-right text-sm">
-                      <p>
-                        {log.successful_records}/{log.total_records} exitosos
-                      </p>
-                      {log.failed_records > 0 && <p className="text-red-500">{log.failed_records} fallidos</p>}
+                    <div className="flex items-center gap-4">
+                      <div className="text-right text-sm">
+                        <p>
+                          {log.successful_records}/{log.total_records} exitosos
+                        </p>
+                        {log.failed_records > 0 && <p className="text-red-500">{log.failed_records} fallidos</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(log.status)}
+                        {(log.status === 'failed' || log.status === 'cancelled') && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => retryImport(log.id)}
+                            className="h-8 px-2 text-xs"
+                          >
+                            Reintentar
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    {getStatusBadge(log.status)}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>

@@ -1,6 +1,8 @@
 "use client"
 
 import type React from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { useAuth } from "@/lib/hooks/use-auth"
@@ -8,20 +10,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "@/hooks/use-toast"
+import { profileFormSchema, type ProfileFormValues } from "@/lib/validations/profile"
 
 export default function ProfilePage() {
   const { profile, refreshProfile } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    full_name: profile?.full_name || "",
-    department: profile?.department || "",
+
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      fullName: "",
+      department: "",
+    },
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Update form when profile data loads
+  useEffect(() => {
+    if (profile) {
+      form.reset({
+        fullName: profile.fullName || "",
+        department: profile.department || "",
+      })
+    }
+  }, [profile, form])
+
+  const handleSubmit = async (data: ProfileFormValues) => {
     if (!profile) return
 
     setIsLoading(true)
@@ -31,10 +48,10 @@ export default function ProfilePage() {
       const { error } = await supabase
         .from("profiles")
         .update({
-          full_name: formData.full_name,
-          department: formData.department,
+          full_name: data.fullName,
+          department: data.department,
         })
-        .eq("id", profile.id)
+        .eq("userId", profile.userId)
 
       if (error) throw error
 
@@ -82,41 +99,84 @@ export default function ProfilePage() {
               <CardDescription>Actualiza tu información básica</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" value={profile?.email || ""} disabled />
-                </div>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={profile?.email || ""} 
+                      disabled 
+                      className="bg-muted"
+                    />
+                    <FormDescription>
+                      El email no se puede modificar desde este formulario
+                    </FormDescription>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">Nombre Completo</Label>
-                  <Input
-                    id="full_name"
-                    type="text"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  <FormField
+                    control={form.control}
+                    name="fullName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre Completo</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ingresa tu nombre completo"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Tu nombre completo como aparecerá en la aplicación
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="role">Rol</Label>
-                  <Input id="role" value={getRoleLabel(profile?.role || "")} disabled />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Rol</Label>
+                    <Input 
+                      id="role" 
+                      value={getRoleLabel(profile?.roleType || "")} 
+                      disabled 
+                      className="bg-muted"
+                    />
+                    <FormDescription>
+                      Tu rol es asignado por el administrador
+                    </FormDescription>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="department">Departamento</Label>
-                  <Input
-                    id="department"
-                    type="text"
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                  <FormField
+                    control={form.control}
+                    name="department"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Departamento</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Ingresa tu departamento"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          El departamento donde trabajas
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
 
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Guardando..." : "Guardar Cambios"}
-                </Button>
-              </form>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading || !form.formState.isDirty}
+                    className="w-full"
+                  >
+                    {isLoading ? "Guardando..." : "Guardar Cambios"}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
 

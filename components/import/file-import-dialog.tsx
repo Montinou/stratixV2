@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Upload, Download, FileSpreadsheet, FileText } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { FileImporter } from "@/lib/utils/file-import"
+import { useImportProgress } from "@/lib/hooks/use-import-progress"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { toast } from "sonner"
 
@@ -21,7 +21,12 @@ interface FileImportDialogProps {
   children: React.ReactNode
 }
 
-export function FileImportDialog({ children }: FileImportDialogProps) {
+interface FileImportDialogProps {
+  children: React.ReactNode
+  onImportStart?: (importId: string) => void
+}
+
+export function FileImportDialog({ children, onImportStart }: FileImportDialogProps) {
   const { user, profile } = useAuth()
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
@@ -29,6 +34,8 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
   const [periodStart, setPeriodStart] = useState<Date>()
   const [periodEnd, setPeriodEnd] = useState<Date>()
   const [departmentMapping, setDepartmentMapping] = useState<Record<string, string>>({})
+  
+  const { startTracking } = useImportProgress()
 
   const canImport = profile?.role === "corporativo" || profile?.role === "gerente"
 
@@ -48,53 +55,86 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
     if (!file || !canImport) return
 
     setImporting(true)
-    const importer = new FileImporter()
 
     try {
-      let result
-
-      if (file.name.endsWith(".xlsx")) {
-        result = await importer.importXLSX(file, periodStart, periodEnd)
-      } else {
-        result = await importer.importCSV(file, departmentMapping)
+      // Create FormData for file upload
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('fileType', file.name.endsWith('.xlsx') ? 'xlsx' : 'csv')
+      
+      if (periodStart) {
+        formData.append('periodStart', periodStart.toISOString())
+      }
+      if (periodEnd) {
+        formData.append('periodEnd', periodEnd.toISOString())
+      }
+      if (Object.keys(departmentMapping).length > 0) {
+        formData.append('departmentMapping', JSON.stringify(departmentMapping))
       }
 
-      if (result.success) {
-        toast.success(`Importación completada: ${result.successfulRecords} registros importados`)
-      } else {
-        toast.error(`Importación con errores: ${result.failedRecords} registros fallaron`)
+      // Upload and start import process
+      const response = await fetch('/api/import/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error durante la importación')
       }
 
+      const result = await response.json()
+      
+      // Start tracking the import progress
+      startTracking(result.importId, {
+        status: 'pending',
+        total_records: result.estimatedRecords || 0
+      })
+      
+      // Notify parent component
+      onImportStart?.(result.importId)
+      
+      toast.success('Importación iniciada. Puedes seguir el progreso en tiempo real.')
+      
       setOpen(false)
       setFile(null)
+      setPeriodStart(undefined)
+      setPeriodEnd(undefined)
+      setDepartmentMapping({})
+      
     } catch (error) {
-      toast.error("Error durante la importación")
-      console.error("Import error:", error)
+      const errorMessage = error instanceof Error ? error.message : 'Error durante la importación'
+      toast.error(errorMessage)
+      console.error('Import error:', error)
     } finally {
       setImporting(false)
     }
   }
 
-  const downloadTemplate = (type: "xlsx" | "csv") => {
-    let blob: Blob
-    let filename: string
-
-    if (type === "xlsx") {
-      blob = FileImporter.generateXLSXTemplate()
-      filename = "okr_template.xlsx"
-    } else {
-      blob = FileImporter.generateCSVTemplate()
-      filename = "okr_template.csv"
+  const downloadTemplate = async (type: "xlsx" | "csv") => {
+    try {
+      const response = await fetch(`/api/import/template?type=${type}`)
+      
+      if (!response.ok) {
+        throw new Error('Error al descargar la plantilla')
+      }
+      
+      const blob = await response.blob()
+      const filename = type === 'xlsx' ? 'okr_template.xlsx' : 'okr_template.csv'
+      
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+    } catch (error) {
+      console.error('Template download error:', error)
+      toast.error('Error al descargar la plantilla')
     }
-
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
   }
 
   if (!canImport) {
