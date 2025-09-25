@@ -9,18 +9,17 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Building2, Users, Settings, Plus } from "lucide-react"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import { toast } from "sonner"
 
 interface Company {
   id: string
   name: string
-  slug: string
-  logo_url: string | null
-  settings: any
-  created_at: string
-  updated_at: string
-  profiles?: { count: number }[]
+  description?: string | null
+  industry?: string | null
+  size?: string | null
+  createdAt: string
+  updatedAt: string
+  profilesCount?: number
 }
 
 export default function CompaniesPage() {
@@ -28,31 +27,67 @@ export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [editingCompany, setEditingCompany] = useState<Company | null>(null)
-  const [formData, setFormData] = useState({ name: "", slug: "" })
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    industry: "",
+    size: ""
+  })
   const supabase = createClient()
 
+  // Enhanced role validation with error handling
+  const [roleValidationError, setRoleValidationError] = useState<string | null>(null)
+  const [roleLoading, setRoleLoading] = useState(true)
+  
   const isCorporativo = profile?.role === "corporativo"
+  const hasValidProfile = !!profile && !!profile.role
 
   useEffect(() => {
+    // Wait for profile to be loaded before checking role
+    if (profile === undefined) {
+      setRoleLoading(true)
+      return
+    }
+
+    setRoleLoading(false)
+    
+    // Check if profile loaded successfully
+    if (!hasValidProfile) {
+      setRoleValidationError("No se pudo cargar el perfil de usuario")
+      setLoading(false)
+      return
+    }
+
+    // Clear any previous errors
+    setRoleValidationError(null)
+
     if (isCorporativo) {
       fetchCompanies()
     } else {
       setLoading(false)
     }
-  }, [isCorporativo])
+  }, [profile, isCorporativo, hasValidProfile])
 
   const fetchCompanies = async () => {
     try {
-      const { data, error } = await supabase
-        .from("companies")
-        .select(`
-          *,
-          profiles!inner(count)
-        `)
-        .order("created_at", { ascending: false })
+      const response = await fetch("/api/companies?withStats=true", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
 
-      if (error) throw error
-      setCompanies(data || [])
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || "Error fetching companies")
+      }
+
+      setCompanies(result.data || [])
     } catch (error) {
       console.error("Error fetching companies:", error)
       toast.error("Error al cargar las empresas")
@@ -69,23 +104,52 @@ export default function CompaniesPage() {
 
     try {
       if (editingCompany) {
-        const { error } = await supabase
-          .from("companies")
-          .update({
+        // Update existing company
+        const response = await fetch(`/api/companies/${editingCompany.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
             name: formData.name,
-            slug: formData.slug,
-          })
-          .eq("id", editingCompany.id)
-
-        if (error) throw error
-        toast.success("Empresa actualizada correctamente")
-      } else {
-        const { error } = await supabase.from("companies").insert({
-          name: formData.name,
-          slug: formData.slug,
+            description: formData.slug, // Using slug as description for now
+          }),
         })
 
-        if (error) throw error
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+        
+        if (!result.success) {
+          throw new Error(result.error || "Error updating company")
+        }
+
+        toast.success("Empresa actualizada correctamente")
+      } else {
+        // Create new company
+        const response = await fetch("/api/companies", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.slug, // Using slug as description for now
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+        
+        if (!result.success) {
+          throw new Error(result.error || "Error creating company")
+        }
+
         toast.success("Empresa creada correctamente")
       }
 
@@ -108,21 +172,72 @@ export default function CompaniesPage() {
     }
   }
 
-  if (!isCorporativo) {
+  // Show loading state while validating role
+  if (roleLoading) {
     return (
       <div className="container mx-auto py-8">
         <Card>
           <CardContent className="flex items-center justify-center py-12">
             <div className="text-center">
-              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Acceso Restringido</h3>
-              <p className="text-muted-foreground">Solo usuarios Corporativo pueden gestionar empresas.</p>
-              {company && (
-                <div className="mt-4 p-4 bg-muted rounded-lg">
-                  <p className="font-medium">Tu empresa actual:</p>
-                  <p className="text-lg font-bold text-primary">{company.name}</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Validando permisos...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Show error state if role validation failed
+  if (roleValidationError) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card className="border-destructive">
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Building2 className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2 text-destructive">Error de Validación</h3>
+              <p className="text-muted-foreground mb-4">{roleValidationError}</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                variant="outline"
+              >
+                Reintentar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Show access denied for non-corporativo users
+  if (!isCorporativo) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Building2 className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2 text-amber-800">Acceso Restringido</h3>
+              <p className="text-amber-700 mb-4">
+                Solo usuarios con rol Corporativo pueden gestionar empresas.
+              </p>
+              {profile && (
+                <div className="mb-4 p-3 bg-white/80 rounded-lg border border-amber-200">
+                  <p className="text-sm font-medium text-amber-800">Tu rol actual:</p>
+                  <p className="text-lg font-bold text-amber-900 capitalize">{profile.role}</p>
                 </div>
               )}
+              {company && (
+                <div className="mt-4 p-4 bg-white/80 rounded-lg border border-amber-200">
+                  <p className="text-sm font-medium text-amber-800">Tu empresa actual:</p>
+                  <p className="text-lg font-bold text-amber-900">{company.name}</p>
+                </div>
+              )}
+              <p className="text-xs text-amber-600 mt-4">
+                Contacta a un administrador si necesitas acceso a esta funcionalidad.
+              </p>
             </div>
           </CardContent>
         </Card>
