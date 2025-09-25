@@ -43,7 +43,7 @@ export default function ProfilePage() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          fullName: formData.full_name,
+          fullName: formData.fullName,
           department: formData.department,
         }),
       })
@@ -133,7 +133,7 @@ export default function ProfilePage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" value={profile?.email || ""} disabled />
+                  <Input id="email" type="email" value={profile?.user_email || profile?.email || ""} disabled />
                 </div>
 
                 <div className="space-y-2">
@@ -141,14 +141,14 @@ export default function ProfilePage() {
                   <Input
                     id="full_name"
                     type="text"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Rol</Label>
-                  <Input id="role" value={getRoleLabel(profile?.role || "")} disabled />
+                  <Input id="role" value={getRoleLabel(profile?.roleType || "")} disabled />
                 </div>
 
                 <div className="space-y-2">
@@ -177,35 +177,35 @@ export default function ProfilePage() {
               <div>
                 <Label className="text-sm font-medium">Fecha de Registro</Label>
                 <p className="text-sm text-muted-foreground">
-                  {profile?.created_at ? new Date(profile.created_at).toLocaleDateString("es-ES") : "N/A"}
+                  {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString("es-ES") : "N/A"}
                 </p>
               </div>
 
               <div>
                 <Label className="text-sm font-medium">Última Actualización</Label>
                 <p className="text-sm text-muted-foreground">
-                  {profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString("es-ES") : "N/A"}
+                  {profile?.updatedAt ? new Date(profile.updatedAt).toLocaleDateString("es-ES") : "N/A"}
                 </p>
               </div>
 
               <div>
                 <Label className="text-sm font-medium">Permisos del Rol</Label>
                 <div className="mt-2 space-y-1">
-                  {profile?.role === "corporativo" && (
+                  {profile?.roleType === "corporativo" && (
                     <>
                       <p className="text-sm text-muted-foreground">• Acceso total a todos los datos</p>
                       <p className="text-sm text-muted-foreground">• Gestión de usuarios y equipos</p>
                       <p className="text-sm text-muted-foreground">• Análisis corporativo completo</p>
                     </>
                   )}
-                  {profile?.role === "gerente" && (
+                  {profile?.roleType === "gerente" && (
                     <>
                       <p className="text-sm text-muted-foreground">• Gestión de su equipo</p>
                       <p className="text-sm text-muted-foreground">• Análisis de departamento</p>
                       <p className="text-sm text-muted-foreground">• Supervisión de objetivos del equipo</p>
                     </>
                   )}
-                  {profile?.role === "empleado" && (
+                  {profile?.roleType === "empleado" && (
                     <>
                       <p className="text-sm text-muted-foreground">• Gestión de objetivos personales</p>
                       <p className="text-sm text-muted-foreground">• Seguimiento de progreso individual</p>
