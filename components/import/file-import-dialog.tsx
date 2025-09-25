@@ -13,7 +13,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Upload, Download, FileSpreadsheet, FileText } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { FileImporter } from "@/lib/utils/file-import"
 import { useAuth } from "@/lib/hooks/use-auth"
 import { toast } from "sonner"
 
@@ -70,53 +69,114 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
     if (!file || !canImport) return
 
     setImporting(true)
-    const importer = new FileImporter()
 
     try {
-      let result
-
+      // Create form data for multipart upload
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("fileType", file.name.split(".").pop()?.toLowerCase() || "")
+      
+      // Add XLSX-specific parameters
       if (file.name.endsWith(".xlsx")) {
-        result = await importer.importXLSX(file, periodStart, periodEnd)
+        if (periodStart) {
+          formData.append("periodStart", periodStart.toISOString())
+        }
+        if (periodEnd) {
+          formData.append("periodEnd", periodEnd.toISOString())
+        }
       } else {
-        result = await importer.importCSV(file, departmentMapping)
+        // Add CSV-specific parameters (department mapping)
+        if (Object.keys(departmentMapping).length > 0) {
+          formData.append("departmentMapping", JSON.stringify(departmentMapping))
+        }
       }
 
+      // Upload file to API endpoint
+      const uploadResponse = await fetch("/api/import/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({}))
+        throw new Error(errorData.message || `Upload failed: ${uploadResponse.status}`)
+      }
+
+      const uploadResult = await uploadResponse.json()
+      const { importId } = uploadResult
+
+      // Start processing via API endpoint
+      const processResponse = await fetch("/api/import/process", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ importId }),
+      })
+
+      if (!processResponse.ok) {
+        const errorData = await processResponse.json().catch(() => ({}))
+        throw new Error(errorData.message || `Processing failed: ${processResponse.status}`)
+      }
+
+      const result = await processResponse.json()
+
+      // Show results based on API response
       if (result.success) {
-        toast.success(`Importación completada: ${result.successfulRecords} registros importados`)
+        toast.success(
+          `Importación completada: ${result.successfulRecords} registros importados${
+            result.failedRecords > 0 ? `, ${result.failedRecords} fallidos` : ""
+          }`
+        )
       } else {
-        toast.error(`Importación con errores: ${result.failedRecords} registros fallaron`)
+        toast.error(
+          `Importación con errores: ${result.failedRecords} registros fallaron de ${result.totalRecords} total`
+        )
       }
 
+      // Reset form and close dialog on success
       setOpen(false)
       setFile(null)
+      setPeriodStart(undefined)
+      setPeriodEnd(undefined)
+      setDepartmentMapping({})
+
     } catch (error) {
-      toast.error("Error durante la importación")
+      const errorMessage = error instanceof Error ? error.message : "Error durante la importación"
+      toast.error(errorMessage)
       console.error("Import error:", error)
     } finally {
       setImporting(false)
     }
   }
 
-  const downloadTemplate = (type: "xlsx" | "csv") => {
-    let blob: Blob
-    let filename: string
+  const downloadTemplate = async (type: "xlsx" | "csv") => {
+    try {
+      const response = await fetch(`/api/import/template?type=${type}`, {
+        method: "GET",
+      })
 
-    if (type === "xlsx") {
-      blob = FileImporter.generateXLSXTemplate()
-      filename = "okr_template.xlsx"
-    } else {
-      blob = FileImporter.generateCSVTemplate()
-      filename = "okr_template.csv"
+      if (!response.ok) {
+        throw new Error(`Failed to download template: ${response.status}`)
+      }
+
+      const blob = await response.blob()
+      const filename = type === "xlsx" ? "okr_template.xlsx" : "okr_template.csv"
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      toast.success(`Plantilla ${type.toUpperCase()} descargada correctamente`)
+    } catch (error) {
+      toast.error("Error al descargar la plantilla")
+      console.error("Template download error:", error)
     }
-
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
   }
 
   if (!canImport) {
