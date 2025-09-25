@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
-import { useUser } from '@stackframe/stack'
+import { useUser as useStackUser } from '@stackframe/stack'
 
 interface Profile {
   userId: string
@@ -46,7 +46,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const stackUser = useUser()
+  const stackUser = useStackUser()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
