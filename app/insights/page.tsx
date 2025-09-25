@@ -6,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
+// Removed supabase import - now using analytics API endpoints
 import { generateDailyInsights, generateTeamInsights } from "@/lib/ai/insights"
 import type { Objective, Initiative, Activity } from "@/lib/types/okr"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Lightbulb, Sparkles, TrendingUp, Users, RefreshCw, Calendar } from "lucide-react"
 
 export default function InsightsPage() {
@@ -17,18 +17,20 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(true)
   const [generatingInsights, setGeneratingInsights] = useState(false)
   const [timeRange, setTimeRange] = useState("week")
+  const [error, setError] = useState<string | null>(null)
 
-  // Create supabase client once to prevent recreating on every function call
-  const supabase = useMemo(() => createClient(), [])
+  // No longer needed - using analytics API endpoints instead of direct Supabase calls
 
   const [data, setData] = useState<{
     objectives: Objective[]
     initiatives: Initiative[]
     activities: Activity[]
+    analytics?: any
   }>({
     objectives: [],
     initiatives: [],
     activities: [],
+    analytics: null,
   })
 
   const [insights, setInsights] = useState({
@@ -41,25 +43,84 @@ export default function InsightsPage() {
     if (!profile) return
 
     setLoading(true)
+    setError(null) // Clear any previous errors
 
     try {
-      const [objectivesResult, initiativesResult, activitiesResult] = await Promise.all([
-        supabase.from("objectives").select("*"),
-        supabase.from("initiatives").select("*"),
-        supabase.from("activities").select("*"),
+      // Build query parameters for date filtering based on selected time range
+      const params = new URLSearchParams()
+      
+      // Add date range filtering based on timeRange state
+      const now = new Date()
+      let startDate: Date
+      
+      switch (timeRange) {
+        case 'week':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
+          break
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+          break
+        case 'quarter':
+          const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+          startDate = new Date(now.getFullYear(), quarterStartMonth, 1)
+          break
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
+      }
+      
+      params.append('startDate', startDate.toISOString())
+      params.append('endDate', now.toISOString())
+
+      // Fetch analytics overview data from API with date filtering
+      const analyticsUrl = `/api/analytics/overview?${params.toString()}`
+      const response = await fetch(analyticsUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Important for auth cookies
+      })
+
+      if (!response.ok) {
+        throw new Error(`Analytics API error: ${response.status} ${response.statusText}`)
+      }
+
+      const analyticsData = await response.json()
+
+      // For insights generation, we need the individual records, not just aggregated data
+      // So we'll fetch the actual data from the existing APIs until migration is complete
+      // TODO: Eventually these should also support date filtering when migrated
+      const [objectivesRes, initiativesRes, activitiesRes] = await Promise.all([
+        fetch('/api/objectives', { credentials: 'include' }),
+        fetch('/api/initiatives', { credentials: 'include' }),
+        fetch('/api/activities', { credentials: 'include' })
       ])
 
+      const objectives = objectivesRes.ok ? await objectivesRes.json() : []
+      const initiatives = initiativesRes.ok ? await initiativesRes.json() : []
+      const activities = activitiesRes.ok ? await activitiesRes.json() : []
+
       setData({
-        objectives: objectivesResult.data || [],
-        initiatives: initiativesResult.data || [],
-        activities: activitiesResult.data || [],
+        objectives: Array.isArray(objectives) ? objectives : [],
+        initiatives: Array.isArray(initiatives) ? initiatives : [],
+        activities: Array.isArray(activities) ? activities : [],
+        analytics: analyticsData, // Store analytics data for potential use
       })
     } catch (error) {
       console.error("Error fetching data:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido al cargar los datos"
+      setError(`No se pudieron cargar los datos: ${errorMessage}`)
+      
+      // Set empty data on error to prevent crashes
+      setData({
+        objectives: [],
+        initiatives: [],
+        activities: [],
+        analytics: null,
+      })
     } finally {
       setLoading(false)
     }
-  }, [profile, supabase])
+  }, [profile, timeRange])
 
   const generateInsights = useCallback(async () => {
     if (!profile) return
@@ -123,6 +184,37 @@ export default function InsightsPage() {
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 text-red-700 dark:text-red-300">
+                <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Error al cargar los datos</h3>
+                  <p className="text-sm mt-1">{error}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3" 
+                    onClick={fetchData}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Intentar de nuevo
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     )
