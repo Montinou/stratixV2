@@ -36,11 +36,33 @@ export function FileImportDialog({ children }: FileImportDialogProps) {
     const selectedFile = event.target.files?.[0]
     if (selectedFile) {
       const fileType = selectedFile.name.split(".").pop()?.toLowerCase()
-      if (fileType === "xlsx" || fileType === "csv") {
-        setFile(selectedFile)
-      } else {
+      const maxFileSize = 10 * 1024 * 1024 // 10MB limit
+      
+      if (fileType !== "xlsx" && fileType !== "csv") {
         toast.error("Por favor selecciona un archivo XLSX o CSV válido")
+        return
       }
+      
+      if (selectedFile.size > maxFileSize) {
+        toast.error("El archivo es demasiado grande. El tamaño máximo permitido es 10MB")
+        return
+      }
+      
+      // Additional validation for file content type
+      const validMimeTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+        "application/vnd.ms-excel", // .xls
+        "text/csv", // .csv
+        "application/csv"
+      ]
+      
+      if (!validMimeTypes.includes(selectedFile.type) && selectedFile.type !== "") {
+        toast.error("Tipo de archivo no válido. Solo se permiten archivos XLSX y CSV")
+        return
+      }
+      
+      setFile(selectedFile)
+      toast.success(`Archivo seleccionado: ${selectedFile.name}`)
     }
   }
 
