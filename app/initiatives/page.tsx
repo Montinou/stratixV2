@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/hooks/use-auth"
-import { createClient } from "@/lib/supabase/client-stub" // TEMPORARY: using stub during migration
 import type { Initiative } from "@/lib/types/okr"
+// Removed Supabase client stub - now using API endpoints
 import { useState, useEffect } from "react"
 import { Plus, Search, Filter } from "lucide-react"
 import { InitiativeForm } from "@/components/okr/initiative-form"
@@ -41,29 +41,32 @@ export default function InitiativesPage() {
   const fetchInitiatives = async () => {
     if (!profile) return
 
-    const supabase = createClient()
     setLoading(true)
 
     try {
-      let query = supabase.from("initiatives").select(`
-        *,
-        owner:profiles(*),
-        objective:objectives(*)
-      `)
+      // Use API endpoint with role-based filtering
+      const params = new URLSearchParams({
+        userId: profile.user_id,
+        userRole: profile.role,
+        userDepartment: profile.department || ''
+      })
 
-      // Apply role-based filtering
-      if (profile.role === "empleado") {
-        query = query.eq("owner_id", profile.id)
+      const response = await fetch(`/api/initiatives?${params}`)
+      if (!response.ok) throw new Error('Failed to fetch initiatives')
+      
+      const result = await response.json()
+      if (result.success && result.data) {
+        setInitiatives(result.data)
+      } else {
+        throw new Error(result.error || 'Failed to fetch initiatives')
       }
-      // Gerentes y Corporativo pueden ver más iniciativas según las políticas RLS
-
-      const { data, error } = await query.order("created_at", { ascending: false })
-
-      if (error) throw error
-
-      setInitiatives(data || [])
     } catch (error) {
       console.error("Error fetching initiatives:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las iniciativas.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -74,11 +77,15 @@ export default function InitiativesPage() {
   }, [profile])
 
   const handleDelete = async (initiative: Initiative) => {
-    const supabase = createClient()
-
     try {
-      const { error } = await supabase.from("initiatives").delete().eq("id", initiative.id)
-      if (error) throw error
+      const response = await fetch(`/api/initiatives/${initiative.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) throw new Error('Failed to delete initiative')
+      
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || 'Failed to delete initiative')
 
       toast({ title: "Iniciativa eliminada", description: "La iniciativa ha sido eliminada correctamente." })
       fetchInitiatives()
