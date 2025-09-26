@@ -1,6 +1,6 @@
 import { StackServerApp, StackClientApp } from "@stackframe/stack";
 
-// 2025 configuration with explicit environment variables
+// 2025 configuration with nextjs-cookie token store
 export const stackServerApp = new StackServerApp({
   tokenStore: "nextjs-cookie",
   projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
@@ -9,7 +9,7 @@ export const stackServerApp = new StackServerApp({
 });
 
 export const stackClientApp = new StackClientApp({
-  tokenStore: "nextjs-cookie",
+  tokenStore: "nextjs-cookie", 
   projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
   publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!,
 });

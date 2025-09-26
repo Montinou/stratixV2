@@ -1,8 +1,10 @@
-import { stackServerApp } from "@/stack"
+import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request)
+  // With memory token store, no middleware is needed for Stack Auth
+  // Authentication is handled directly in components and API routes
+  return NextResponse.next()
 }
 
 export const config = {
