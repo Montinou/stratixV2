@@ -81,9 +81,14 @@ function ClientOnlyStackProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       setIsClient(true)
 
-      // Dynamic import to avoid SSR issues
-      import('@/stack').then(({ stackClientApp: app }) => {
-        setStackClientApp(app)
+      // Dynamic import and create Stack client app directly in browser
+      import('@stackframe/stack').then(({ StackClientApp }) => {
+        const clientApp = new StackClientApp({
+          tokenStore: "nextjs-cookie",
+          projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
+          publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!,
+        })
+        setStackClientApp(clientApp)
       }).catch((error) => {
         console.error('Failed to load Stack Auth client app:', error)
       })
