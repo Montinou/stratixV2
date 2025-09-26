@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { StackProvider } from '@stackframe/stack'
 import { AuthProvider } from '@/lib/hooks/use-auth'
-import { stackClientApp } from '@/stack/client'
+import { stackClientApp } from '@/stack'
 import React from 'react'
 
 interface ConditionalAuthProviderProps {
