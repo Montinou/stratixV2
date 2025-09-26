@@ -6,7 +6,7 @@ import { stackServerApp } from '@/stack';
 
 export async function getCompanies(): Promise<{ data: Company[] | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -21,7 +21,7 @@ export async function getCompanies(): Promise<{ data: Company[] | null; error?: 
 
 export async function getCompany(id: string): Promise<{ data: Company | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -38,7 +38,7 @@ export async function createCompany(
   companyData: Omit<Company, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ data: Company | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -58,7 +58,7 @@ export async function updateCompany(
   updates: Partial<Company>
 ): Promise<{ data: Company | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -75,7 +75,7 @@ export async function updateCompany(
 
 export async function deleteCompany(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { success: false, error: 'Unauthorized' };
     }

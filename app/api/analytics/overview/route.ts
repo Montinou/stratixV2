@@ -4,6 +4,8 @@ import { ObjectivesRepository } from '@/lib/database/queries/objectives'
 import { ObjectivesService, InitiativesService, ActivitiesService } from '@/lib/database/services'
 import { getCurrentProfile } from '@/lib/actions/profiles'
 
+export const dynamic = 'force-dynamic'
+
 interface AnalyticsOverview {
   totalObjectives: number
   totalInitiatives: number
@@ -17,7 +19,7 @@ interface AnalyticsOverview {
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const user = await neonServerClient.getUser()
+    const user = await stackServerApp.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

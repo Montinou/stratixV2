@@ -4,6 +4,8 @@ import { ObjectivesRepository } from '@/lib/database/queries/objectives'
 import { ObjectivesService, InitiativesService, ActivitiesService } from '@/lib/database/services'
 import { getCurrentProfile } from '@/lib/actions/profiles'
 
+export const dynamic = 'force-dynamic'
+
 interface CompletionRateData {
   week: string
   completionRate: number
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
     // Check authentication
     let user
     try {
-      user = await neonServerClient.getUser()
+      user = await stackServerApp.getUser()
     } catch (error) {
       console.error('Error getting user:', error)
       return NextResponse.json({ error: 'Authentication service unavailable' }, { status: 503 })

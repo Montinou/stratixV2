@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage() {
   try {
     // Check authentication
-    const user = await neonServerClient.getUser()
+    const user = await stackServerApp.getUser()
     if (!user) {
       redirect("/auth/login")
     }
