@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { StackProvider } from '@stackframe/stack'
 import { AuthProvider } from '@/lib/hooks/use-auth'
+import { stackClientApp } from '@/stack/client'
 import React from 'react'
 
 interface ConditionalAuthProviderProps {
@@ -53,7 +54,7 @@ export function ConditionalAuthProvider({ children }: ConditionalAuthProviderPro
   // For auth handler routes, only wrap with StackProvider (no AuthProvider)
   if (isAuthHandlerRoute(pathname)) {
     return (
-      <StackProvider>
+      <StackProvider app={stackClientApp}>
         {children}
       </StackProvider>
     )
@@ -61,7 +62,7 @@ export function ConditionalAuthProvider({ children }: ConditionalAuthProviderPro
   
   // For protected routes, wrap with both StackProvider and AuthProvider
   return (
-    <StackProvider>
+    <StackProvider app={stackClientApp}>
       <AuthProvider>{children}</AuthProvider>
     </StackProvider>
   )
