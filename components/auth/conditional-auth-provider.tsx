@@ -123,13 +123,12 @@ export function ConditionalAuthProvider({ children }: ConditionalAuthProviderPro
     )
   }
 
-  // For auth handler routes, only wrap with StackProvider (no AuthProvider)
+  // For auth handler routes, don't wrap with any auth providers
+  // Stack Auth handlers use server-side stackServerApp directly
   if (isAuthHandlerRoute(pathname)) {
     return (
       <Suspense fallback={<AuthLoadingFallback />}>
-        <ClientOnlyStackProvider>
-          {children}
-        </ClientOnlyStackProvider>
+        {children}
       </Suspense>
     )
   }
