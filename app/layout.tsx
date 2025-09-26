@@ -6,7 +6,7 @@ import { ConditionalAuthProvider } from "@/components/auth/conditional-auth-prov
 import { Suspense } from "react"
 import "./globals.css"
 
-export const dynamic = 'force-dynamic'
+// Removed force-dynamic to prevent Stack Auth execution on static assets
 
 const inter = Inter({
   subsets: ["latin"],
