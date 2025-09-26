@@ -51,21 +51,5 @@ function createStackServerApp(): StackServerApp {
   });
 }
 
-function createStackClientApp(): StackClientApp {
-  if (isBuildTime()) {
-    // Return a mock object during build to prevent initialization
-    return {} as StackClientApp;
-  }
-
-  validateEnvironmentVariables();
-
-  return new StackClientApp({
-    tokenStore: "nextjs-cookie",
-    projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
-    publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!,
-  });
-}
-
-// Export the Stack Auth instances using standard initialization
+// Export only the server app - client app is created dynamically in components
 export const stackServerApp = createStackServerApp();
-export const stackClientApp = createStackClientApp();
