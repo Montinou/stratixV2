@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ProgressOverviewChart } from "@/components/charts/progress-overview-chart"
 import { ProgressTrendChart } from "@/components/charts/progress-trend-chart"

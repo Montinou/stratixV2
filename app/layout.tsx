@@ -7,6 +7,8 @@ import { AuthProvider } from "@/lib/hooks/use-auth"
 import { Suspense } from "react"
 import "./globals.css"
 
+export const dynamic = 'force-dynamic'
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-geist-sans",

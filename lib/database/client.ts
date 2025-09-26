@@ -1,5 +1,7 @@
 import { Pool, PoolClient, QueryResult } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { neon } from '@neondatabase/serverless';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
 import * as schema from './schema';
 import { dbLogger, LogLevel } from '../logging/database-logger';
 import { DatabaseErrorHandler, withErrorHandling } from '../errors/database-errors';
@@ -8,6 +10,7 @@ import { dbRecoveryManager, withRecovery } from '../utils/error-recovery';
 import { getPoolConfig, healthCheckConfig } from './pool-config';
 import { performanceMonitoring } from '../performance/query-optimization';
 import { poolMetricsCollector, performanceScheduler } from '../performance/connection-metrics';
+import { stackServerApp } from '@/stack';
 
 
 // Get production-optimized database configuration
@@ -352,3 +355,179 @@ export { pool };
 
 // Export typed database client for direct use
 export const db = getDrizzleClient();
+
+// ===== AUTHENTICATED NEON CONNECTION FOR STACK AUTH RLS =====
+
+// Authenticated Drizzle client for server components with Stack Auth
+export async function getAuthenticatedDrizzleClient() {
+  try {
+    const user = await stackServerApp.getUser();
+    if (!user) {
+      throw new Error('Not authenticated');
+    }
+
+    const authToken = (await user.getAuthJson())?.accessToken;
+    if (!authToken) {
+      throw new Error('No auth token available');
+    }
+
+    if (!process.env.DATABASE_AUTHENTICATED_URL) {
+      throw new Error('DATABASE_AUTHENTICATED_URL environment variable is not set');
+    }
+    
+    const sql = neon(process.env.DATABASE_AUTHENTICATED_URL, {
+      authToken: authToken
+    });
+    
+    return drizzleNeon(sql, { schema });
+  } catch (error) {
+    dbLogger.logError('authenticated_client_creation_failed', error as Error);
+    throw error;
+  }
+}
+
+// Client-side helper for authenticated connections
+export function getClientDrizzle(authToken: string) {
+  if (!authToken) {
+    throw new Error('Auth token is required');
+  }
+
+  if (!process.env.NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL) {
+    throw new Error('NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL environment variable is not set');
+  }
+  
+  const sql = neon(process.env.NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL, {
+    authToken: authToken
+  });
+  
+  return drizzleNeon(sql, { schema });
+}
+
+// Authenticated query wrapper with RLS support
+export async function authenticatedQuery<T = any>(
+  text: string, 
+  params?: any[]
+): Promise<QueryResult<T>> {
+  const startTime = Date.now();
+  
+  try {
+    const user = await stackServerApp.getUser();
+    if (!user) {
+      throw new Error('Authentication required');
+    }
+
+    const authToken = (await user.getAuthJson())?.accessToken;
+    if (!authToken) {
+      throw new Error('No auth token available');
+    }
+
+    const sql = neon(process.env.DATABASE_AUTHENTICATED_URL!, {
+      authToken: authToken
+    });
+    
+    // Log the query start
+    dbLogger.logQuery('authenticated_query', text, params, startTime);
+    
+    const result = await sql(text, params);
+    
+    // Log successful query
+    const duration = Date.now() - startTime;
+    dbLogger.logQueryResult('authenticated_query', { rows: result, rowCount: result.length }, startTime);
+    
+    return {
+      rows: result,
+      rowCount: result.length,
+      command: '',
+      oid: 0,
+      fields: []
+    } as QueryResult<T>;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    dbLogger.logError('authenticated_query_failed', error as Error, text, params);
+    throw error;
+  }
+}
+
+// Authenticated transaction wrapper with RLS support
+export async function authenticatedTransaction<T>(
+  callback: (client: any) => Promise<T>
+): Promise<T> {
+  const startTime = Date.now();
+  
+  try {
+    const user = await stackServerApp.getUser();
+    if (!user) {
+      throw new Error('Authentication required');
+    }
+
+    const authToken = (await user.getAuthJson())?.accessToken;
+    if (!authToken) {
+      throw new Error('No auth token available');
+    }
+
+    const sql = neon(process.env.DATABASE_AUTHENTICATED_URL!, {
+      authToken: authToken
+    });
+    
+    const connectionId = `auth-tx-${Date.now()}`;
+    
+    // Begin transaction
+    dbLogger.logTransaction('authenticated_transaction', 'begin', connectionId);
+    await sql('BEGIN');
+    
+    // Execute callback with authenticated connection
+    const result = await callback({ query: sql });
+    
+    // Commit transaction
+    await sql('COMMIT');
+    dbLogger.logTransaction('authenticated_transaction', 'commit', connectionId);
+    
+    return result;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    dbLogger.logError('authenticated_transaction_failed', error as Error);
+    
+    try {
+      // Try to rollback if possible
+      const user = await stackServerApp.getUser();
+      if (user) {
+        const authToken = (await user.getAuthJson())?.accessToken;
+        if (authToken) {
+          const sql = neon(process.env.DATABASE_AUTHENTICATED_URL!, {
+            authToken: authToken
+          });
+          await sql('ROLLBACK');
+          dbLogger.logTransaction('authenticated_transaction', 'rollback', `auth-tx-${Date.now()}`);
+        }
+      }
+    } catch (rollbackError) {
+      dbLogger.logError('authenticated_transaction_rollback_failed', rollbackError as Error);
+    }
+    
+    throw error;
+  }
+}
+
+// Test authenticated connection
+export async function testAuthenticatedConnection(): Promise<boolean> {
+  try {
+    const startTime = Date.now();
+    const result = await authenticatedQuery('SELECT NOW() as current_time, auth.user_id() as user_id');
+    const duration = Date.now() - startTime;
+    
+    dbLogger.log({
+      operation: {
+        operation: 'authenticated_connection_test_success',
+        duration,
+        timestamp: new Date()
+      },
+      level: LogLevel.INFO,
+      metadata: { result: result.rows[0] }
+    });
+    
+    return true;
+  } catch (error) {
+    dbLogger.logError('authenticated_connection_test_failed', error as Error);
+    return false;
+  }
+}

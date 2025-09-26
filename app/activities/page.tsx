@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ActivityCard } from "@/components/okr/activity-card"
 import { Button } from "@/components/ui/button"
