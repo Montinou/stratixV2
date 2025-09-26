@@ -36,19 +36,28 @@ function isBuildTime(): boolean {
 
 // Standard Stack Auth initialization following Neon's recommended approach
 function createStackServerApp(): StackServerApp {
+  // Only skip initialization during actual Next.js build phases
   if (isBuildTime()) {
-    // Return a mock object during build to prevent initialization
+    console.log('Stack Auth: Skipping server initialization during build phase')
     return {} as StackServerApp;
   }
 
-  validateEnvironmentVariables();
+  try {
+    validateEnvironmentVariables();
 
-  return new StackServerApp({
-    tokenStore: "nextjs-cookie",
-    projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
-    publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!,
-    secretServerKey: process.env.STACK_SECRET_SERVER_KEY!,
-  });
+    const serverApp = new StackServerApp({
+      tokenStore: "nextjs-cookie",
+      projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
+      publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!,
+      secretServerKey: process.env.STACK_SECRET_SERVER_KEY!,
+    });
+
+    console.log('Stack Auth: Server app initialized successfully')
+    return serverApp;
+  } catch (error) {
+    console.error('Stack Auth: Failed to initialize server app:', error)
+    throw error;
+  }
 }
 
 // Export only the server app - client app is created dynamically in components
