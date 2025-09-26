@@ -51,6 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isClient, setIsClient] = useState(false)
+
+  // Handle client-side hydration
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const fetchProfile = useCallback(
     async (currentUser: AuthUser) => {
@@ -153,6 +159,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
 
     const initializeAuth = async () => {
+      // Only initialize auth on client-side after hydration
+      if (!isClient) {
+        return
+      }
+
       try {
         // stackUser is undefined during loading, null when not authenticated, or User when authenticated
         if (stackUser === undefined) {
@@ -183,12 +194,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           setUser(authUser)
           setLoading(false)
-          
+
           // Only fetch profile and company data if user is authenticated and valid
           if (authUser.stackUserId && authUser.email) {
             try {
               const { profile: profileData, company: companyData } = await fetchProfile(authUser)
-              
+
               if (mounted) {
                 setProfile(profileData)
                 setCompany(companyData)
@@ -212,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false
     }
-  }, [stackUser, fetchProfile])
+  }, [stackUser, fetchProfile, isClient])
 
   const isAuthenticated = !!user
 
@@ -233,6 +244,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
+
+  // During SSR/SSG or build time, return a safe default state
+  if (typeof window === 'undefined') {
+    return {
+      user: null,
+      profile: null,
+      company: null,
+      loading: true, // Show loading during SSR to match client-side hydration
+      isAuthenticated: false,
+      signOut: async () => {},
+      refreshProfile: async () => {}
+    }
+  }
+
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
