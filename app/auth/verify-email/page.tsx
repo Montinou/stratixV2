@@ -25,7 +25,7 @@ export default function VerifyEmailPage() {
                 </p>
                 <div className="text-center">
                   <Button asChild>
-                    <Link href="/auth/login">Volver al inicio de sesión</Link>
+                    <Link href="/handler/sign-in">Volver al inicio de sesión</Link>
                   </Button>
                 </div>
               </div>

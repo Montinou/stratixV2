@@ -11,19 +11,19 @@ export default async function DashboardPage() {
     // Check authentication
     const user = await stackServerApp.getUser()
     if (!user) {
-      redirect("/auth/login")
+      redirect("/handler/sign-in")
     }
 
     // Get user profile
     const { data: profile, error } = await getCurrentProfile()
     if (error || !profile) {
-      redirect("/auth/login")
+      redirect("/handler/sign-in")
     }
 
     return <DashboardContent profile={profile} />
   } catch (error) {
     // Handle authentication errors during build/runtime
     console.error('Dashboard authentication error:', error)
-    redirect("/auth/login")
+    redirect("/handler/sign-in")
   }
 }
