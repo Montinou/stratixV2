@@ -358,6 +358,20 @@ export const db = getDrizzleClient();
 
 // ===== AUTHENTICATED NEON CONNECTION FOR STACK AUTH RLS =====
 
+// Simple authenticated database function as specified in NEON_STACK_AUTH_SETUP.md
+export async function getAuthenticatedDb() {
+  const user = await stackServerApp.getUser();
+  const authToken = (await user?.getAuthJson())?.accessToken;
+
+  if (!authToken) {
+    throw new Error('Not authenticated');
+  }
+
+  return neon(process.env.DATABASE_AUTHENTICATED_URL!, {
+    authToken: authToken
+  });
+}
+
 // Authenticated Drizzle client for server components with Stack Auth
 export async function getAuthenticatedDrizzleClient() {
   try {

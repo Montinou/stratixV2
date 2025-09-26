@@ -2,11 +2,12 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { ConditionalAuthProvider } from "@/components/auth/conditional-auth-provider"
-import { Suspense } from "react"
+import { StackProvider, StackTheme } from "@stackframe/stack"
+import { stackClientApp } from "@/stack"
 import "./globals.css"
 
-// Removed force-dynamic to prevent Stack Auth execution on static assets
+// Force dynamic rendering to avoid authentication issues during static generation
+export const dynamic = 'force-dynamic'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,9 +35,11 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased">
-        <Suspense fallback={<div>Loading...</div>}>
-          <ConditionalAuthProvider>{children}</ConditionalAuthProvider>
-        </Suspense>
+        <StackProvider app={stackClientApp}>
+          <StackTheme>
+            {children}
+          </StackTheme>
+        </StackProvider>
         <Analytics />
       </body>
     </html>
