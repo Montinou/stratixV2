@@ -182,14 +182,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (mounted) {
           setUser(authUser)
+          setLoading(false)
           
-          // Fetch profile and company data
-          const { profile: profileData, company: companyData } = await fetchProfile(authUser)
-          
-          if (mounted) {
-            setProfile(profileData)
-            setCompany(companyData)
-            setLoading(false)
+          // Only fetch profile and company data if user is authenticated and valid
+          if (authUser.stackUserId && authUser.email) {
+            try {
+              const { profile: profileData, company: companyData } = await fetchProfile(authUser)
+              
+              if (mounted) {
+                setProfile(profileData)
+                setCompany(companyData)
+              }
+            } catch (error) {
+              console.error('Error fetching profile data:', error)
+              // Continue without profile data
+            }
           }
         }
       } catch (error) {
