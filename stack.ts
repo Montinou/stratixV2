@@ -30,11 +30,7 @@ function validateEnvironmentVariables() {
 function isBuildTime(): boolean {
   return (
     process.env.NEXT_PHASE === 'phase-production-build' ||
-    process.env.NEXT_PHASE === 'phase-export' ||
-    (typeof window === 'undefined' &&
-     process.env.NODE_ENV === 'production' &&
-     (process.env.VERCEL_ENV === undefined || process.env.VERCEL_ENV === 'production') &&
-     !process.env.VERCEL_URL)
+    process.env.NEXT_PHASE === 'phase-export'
   );
 }
 
