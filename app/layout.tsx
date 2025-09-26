@@ -2,7 +2,6 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { StackProvider, StackTheme } from '@stackframe/stack'
 import { ConditionalAuthProvider } from "@/components/auth/conditional-auth-provider"
 import { Suspense } from "react"
 import "./globals.css"
@@ -35,11 +34,9 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased">
-        <StackProvider>
-          <Suspense fallback={<div>Loading...</div>}>
-            <ConditionalAuthProvider>{children}</ConditionalAuthProvider>
-          </Suspense>
-        </StackProvider>
+        <Suspense fallback={<div>Loading...</div>}>
+          <ConditionalAuthProvider>{children}</ConditionalAuthProvider>
+        </Suspense>
         <Analytics />
       </body>
     </html>
