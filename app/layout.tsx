@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { StackProvider, StackTheme } from '@stackframe/stack'
-import { AuthProvider } from "@/lib/hooks/use-auth"
+import { ConditionalAuthProvider } from "@/components/auth/conditional-auth-provider"
 import { Suspense } from "react"
 import "./globals.css"
 
@@ -37,7 +37,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <StackProvider>
           <Suspense fallback={<div>Loading...</div>}>
-            <AuthProvider>{children}</AuthProvider>
+            <ConditionalAuthProvider>{children}</ConditionalAuthProvider>
           </Suspense>
         </StackProvider>
         <Analytics />
