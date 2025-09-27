@@ -5,9 +5,11 @@ import { gateway } from '@ai-sdk/gateway'
 import type { CoreMessage } from 'ai'
 import { conversationManager } from '@/lib/ai/conversation-manager'
 import { chatContextBuilder, type ChatContextRequest } from '@/lib/ai/chat-context'
+import { validateAIGatewayConfig, validateAuthConfig } from '@/lib/validation/environment'
+import { handleUnknownError, CommonErrors } from '@/lib/api/error-handler'
 import { z } from 'zod'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 
 // Enhanced request validation schema
 const chatRequestSchema = z.object({
@@ -61,6 +63,17 @@ const ai = gateway({
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate environment configuration before processing
+    if (!validateAuthConfig()) {
+      console.error("Authentication configuration is invalid");
+      return new Response("Configuración de autenticación inválida", { status: 500 });
+    }
+
+    if (!validateAIGatewayConfig()) {
+      console.error("AI Gateway configuration is invalid");
+      return new Response("Configuración de AI Gateway inválida", { status: 500 });
+    }
+
     // Verificar autenticación con Stack Auth
     const user = await stackServerApp.getUser()
     if (!user) {
@@ -252,39 +265,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error en chat AI:", error)
 
+    // Handle validation errors specifically
     if (error instanceof z.ZodError) {
-      return new Response(JSON.stringify({
-        error: 'Formato de solicitud inválido',
-        details: error.errors
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
+      return CommonErrors.validationError(error.errors).clone();
     }
 
-    // Errores específicos para debugging
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        console.error("Error de configuración de API key")
-        return new Response("Error de configuración del servicio AI", { status: 500 })
-      }
-
-      if (error.message.includes('rate limit')) {
-        console.error("Rate limit alcanzado")
-        return new Response("Demasiadas solicitudes, intenta de nuevo en un momento", { status: 429 })
-      }
-
-      if (error.message.includes('timeout')) {
-        console.error("Timeout en respuesta AI")
-        return new Response("Tiempo de espera agotado, intenta de nuevo", { status: 504 })
-      }
-
-      if (error.message.includes('Profile not found')) {
-        return new Response("Error de perfil de usuario. Por favor, recarga la página.", { status: 400 })
-      }
-    }
-
-    return new Response("Error interno del servidor", { status: 500 })
+    // Use centralized error handler for consistent error responses
+    return handleUnknownError(error, 'AI Chat');
   }
 }
 
@@ -334,13 +321,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error("Error verificando estado del chat:", error)
-    return new Response(JSON.stringify({
-      status: 'error',
-      message: 'No se pudo verificar el estado del servicio'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return handleUnknownError(error, 'AI Chat Status');
   }
 }
 

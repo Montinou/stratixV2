@@ -204,15 +204,213 @@ const FALLBACK_TEMPLATES: Record<Industry, OKRTemplate> = {
     confidenceScore: 0.75,
     industryRelevance: 0.8
   },
-  healthcare: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  retail: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  manufacturing: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  education: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  consulting: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  marketing: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  sales: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  hr: FALLBACK_TEMPLATES?.general || {} as OKRTemplate,
-  operations: FALLBACK_TEMPLATES?.general || {} as OKRTemplate
+  healthcare: {
+    objective: {
+      title: 'Mejorar la calidad de atención al paciente',
+      description: 'Optimizar los procesos de atención para brindar un servicio de calidad superior',
+      category: 'Calidad de Servicio',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Reducir tiempo de espera promedio',
+        description: 'Disminuir el tiempo de espera de los pacientes en consultas',
+        target: '20%',
+        measurementType: 'percentage',
+        frequency: 'monthly'
+      }
+    ],
+    initiatives: ['Optimizar agendamiento', 'Implementar telemedicina'],
+    metrics: ['Tiempo de espera', 'Satisfacción del paciente'],
+    risks: ['Resistencia del personal', 'Limitaciones tecnológicas'],
+    successCriteria: ['Menor tiempo de espera', 'Mayor satisfacción'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  retail: {
+    objective: {
+      title: 'Incrementar ventas y satisfacción del cliente',
+      description: 'Mejorar la experiencia de compra y aumentar las conversiones',
+      category: 'Ventas',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Aumentar tasa de conversión',
+        description: 'Incrementar el porcentaje de visitantes que realizan compras',
+        target: '15%',
+        measurementType: 'percentage',
+        frequency: 'monthly'
+      }
+    ],
+    initiatives: ['Mejorar experiencia de usuario', 'Optimizar proceso de checkout'],
+    metrics: ['Tasa de conversión', 'Ticket promedio'],
+    risks: ['Competencia', 'Cambios en preferencias'],
+    successCriteria: ['Mayor conversión', 'Clientes más satisfechos'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  manufacturing: {
+    objective: {
+      title: 'Optimizar eficiencia de producción',
+      description: 'Mejorar los procesos de manufactura para aumentar la productividad',
+      category: 'Operaciones',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Reducir desperdicios',
+        description: 'Disminuir el porcentaje de material desperdiciado',
+        target: '10%',
+        measurementType: 'percentage',
+        frequency: 'monthly'
+      }
+    ],
+    initiatives: ['Implementar lean manufacturing', 'Capacitar operarios'],
+    metrics: ['Eficiencia de línea', 'Desperdicios'],
+    risks: ['Paradas no planificadas', 'Falta de capacitación'],
+    successCriteria: ['Menor desperdicio', 'Mayor throughput'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  education: {
+    objective: {
+      title: 'Mejorar resultados académicos',
+      description: 'Incrementar el rendimiento y satisfacción de los estudiantes',
+      category: 'Educación',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Aumentar tasa de aprobación',
+        description: 'Incrementar el porcentaje de estudiantes que aprueban',
+        target: '85%',
+        measurementType: 'percentage',
+        frequency: 'quarterly'
+      }
+    ],
+    initiatives: ['Implementar tutorías', 'Mejorar materiales educativos'],
+    metrics: ['Tasa de aprobación', 'Satisfacción estudiantil'],
+    risks: ['Recursos limitados', 'Variabilidad en calidad docente'],
+    successCriteria: ['Mejor rendimiento', 'Estudiantes más comprometidos'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  consulting: {
+    objective: {
+      title: 'Aumentar satisfacción y retención de clientes',
+      description: 'Mejorar la calidad del servicio de consultoría',
+      category: 'Servicio al Cliente',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Incrementar Net Promoter Score',
+        description: 'Aumentar la puntuación de recomendación de clientes',
+        target: '75',
+        measurementType: 'number',
+        frequency: 'quarterly'
+      }
+    ],
+    initiatives: ['Capacitar consultores', 'Implementar feedback continuo'],
+    metrics: ['NPS', 'Tasa de retención'],
+    risks: ['Alta rotación', 'Competencia'],
+    successCriteria: ['Clientes más leales', 'Mejor reputación'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  marketing: {
+    objective: {
+      title: 'Incrementar alcance y engagement',
+      description: 'Expandir la presencia de marca y mejorar la interacción',
+      category: 'Marketing',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Aumentar engagement rate',
+        description: 'Incrementar la tasa de interacción en redes sociales',
+        target: '25%',
+        measurementType: 'percentage',
+        frequency: 'monthly'
+      }
+    ],
+    initiatives: ['Crear contenido de valor', 'Optimizar campañas'],
+    metrics: ['Engagement rate', 'Alcance'],
+    risks: ['Cambios en algoritmos', 'Saturación del mercado'],
+    successCriteria: ['Mayor visibilidad', 'Mejor interacción'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  sales: {
+    objective: {
+      title: 'Incrementar ingresos por ventas',
+      description: 'Aumentar la efectividad del equipo de ventas',
+      category: 'Ventas',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Aumentar tasa de cierre',
+        description: 'Incrementar el porcentaje de leads que se convierten',
+        target: '30%',
+        measurementType: 'percentage',
+        frequency: 'monthly'
+      }
+    ],
+    initiatives: ['Capacitar en técnicas de venta', 'Implementar CRM'],
+    metrics: ['Tasa de cierre', 'Pipeline de ventas'],
+    risks: ['Competencia', 'Cambios en el mercado'],
+    successCriteria: ['Mayor facturación', 'Proceso más eficiente'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  hr: {
+    objective: {
+      title: 'Mejorar experiencia del empleado',
+      description: 'Incrementar la satisfacción y retención del talento',
+      category: 'Recursos Humanos',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Reducir rotación de personal',
+        description: 'Disminuir el porcentaje de empleados que abandonan',
+        target: '10%',
+        measurementType: 'percentage',
+        frequency: 'quarterly'
+      }
+    ],
+    initiatives: ['Mejorar programa de beneficios', 'Implementar feedback 360'],
+    metrics: ['Rotación', 'Satisfacción laboral'],
+    risks: ['Mercado competitivo', 'Expectativas cambiantes'],
+    successCriteria: ['Menor rotación', 'Mayor compromiso'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  },
+  operations: {
+    objective: {
+      title: 'Optimizar procesos operacionales',
+      description: 'Mejorar la eficiencia y reducir costos operativos',
+      category: 'Operaciones',
+      timeframe: 'quarterly'
+    },
+    keyResults: [
+      {
+        title: 'Reducir costos operativos',
+        description: 'Disminuir los gastos operacionales sin afectar calidad',
+        target: '12%',
+        measurementType: 'percentage',
+        frequency: 'monthly'
+      }
+    ],
+    initiatives: ['Automatizar procesos', 'Optimizar cadena de suministro'],
+    metrics: ['Costos operativos', 'Eficiencia'],
+    risks: ['Resistencia al cambio', 'Inversión inicial'],
+    successCriteria: ['Menor costo', 'Mayor eficiencia'],
+    confidenceScore: 0.75,
+    industryRelevance: 0.8
+  }
 }
 
 // Generate intelligent prompt based on context

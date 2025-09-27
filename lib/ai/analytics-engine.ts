@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
-import type { Objective, Initiative, Activity, Profile, UserRole } from "@/lib/types/okr"
+import { getDrizzleDb } from '@/lib/database/client'
+import type { Objective, Initiative, Activity, Profile, UserRole } from "@/lib/database/types"
 
 // Analytics interfaces following the API specification from Issue #65
 export interface AnalyticsTimeRange {

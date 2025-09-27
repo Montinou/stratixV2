@@ -1143,11 +1143,7 @@ export function validateOKRTemplateAdvanced(
   return advancedValidator.validateEnhancedTemplate(template as EnhancedOKRTemplate, { industry })
 }
 
-// Export all validation utilities
-export {
-  AdvancedTemplateValidator,
-  DEFAULT_QUALITY_CONFIG
-}
+// Configuration is already exported above
 
 export type {
   AdvancedValidationResult,

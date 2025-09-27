@@ -412,3 +412,35 @@ export class ProfilesRepository {
     }
   }
 }
+
+// Create singleton instance
+const profilesRepository = new ProfilesRepository();
+
+// Export adapter functions for backward compatibility
+export async function getProfileById(userId: string): Promise<Profile | null> {
+  const profileWithCompany = await profilesRepository.getByUserId(userId);
+  if (!profileWithCompany) {
+    return null;
+  }
+
+  // Convert ProfileWithCompany to Profile and add backward compatibility fields
+  const profile: Profile & { role?: string; name?: string; company_name?: string; industry?: string } = {
+    userId: profileWithCompany.userId,
+    fullName: profileWithCompany.fullName,
+    roleType: profileWithCompany.roleType,
+    department: profileWithCompany.department,
+    companyId: profileWithCompany.companyId,
+    createdAt: profileWithCompany.createdAt,
+    updatedAt: profileWithCompany.updatedAt,
+    // Add backward compatibility fields expected by chat context
+    role: profileWithCompany.roleType,
+    name: profileWithCompany.fullName,
+    company_name: profileWithCompany.company?.name,
+    industry: profileWithCompany.company?.industry,
+  };
+
+  return profile;
+}
+
+// Export the repository instance for direct use
+export { profilesRepository };
