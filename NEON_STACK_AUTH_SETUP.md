@@ -1,248 +1,186 @@
-# Neon + Stack Auth Complete Setup Plan
+---
+title: How Neon Auth works
+enableTableOfContents: true
+tag: beta
+updatedOn: '2025-05-16T19:06:06.841Z'
+redirectFrom:
+  - /docs/guides/neon-auth-how-it-works
+---
 
-## Prerequisites Completed ✅
-1. Stack Auth configured as provider
-2. Component patterns implemented correctly (componente-servidor.tsx, componente-cliente.tsx)
+<InfoBlock>
+  <DocsList title="Related docs" theme="docs">
+    <a href="/docs/guides/neon-auth">Get started</a>
+    <a href="/docs/guides/neon-auth-demo">Tutorial</a>
+  </DocsList>
 
-## Database Setup Requirements
+  <DocsList title="Sample project" theme="repo">
+    <a href="https://github.com/neondatabase-labs/neon-auth-demo-app">Neon Auth Demo App</a>
+  </DocsList>
+</InfoBlock>
 
-### Step 1: Install pg_session_jwt Extension
+**Neon Auth** simplifies user management by bundling auth with your database, so your user data is always available right from Postgres. No custom integration required.
+
+<FeatureBetaProps feature_name="Neon Auth" />
+
+## How it works
+
+When you set up Neon Auth, we create a `neon_auth` schema in your database. As users authenticate and manage their profiles in Neon Auth, you'll see them appear in your list of users on the **Auth** page.
+
+![Users in Neon Auth](/docs/guides/identity_users.png)
+
+**User data is immediately available in your database**
+
+User data is available in the `neon_auth.users_sync` table shortly after the Neon Auth processes the updates. Here's an example query to inspect the synchronized data:
+
 ```sql
--- Connect to your Neon database and run:
-CREATE EXTENSION IF NOT EXISTS pg_session_jwt;
+SELECT * FROM neon_auth.users_sync;
 ```
 
-### Step 2: Configure Postgres Roles
+| id          | name          | email             | created_at          | updated_at          | deleted_at | raw_json                         |
+| ----------- | ------------- | ----------------- | ------------------- | ------------------- | ---------- | -------------------------------- |
+| d37b6a30... | Jordan Rivera | jordan@company.co | 2025-05-09 16:15:00 | null                | null       | `{\"id\": \"d37b6a30...\", ...}` |
+| 51e491df... | Sam Patel     | sam@startup.dev   | 2025-02-27 18:36:00 | 2025-02-27 18:36:00 | null       | `{\"id\": \"51e491df...\", ...}` |
+
+The following columns are included in the `neon_auth.users_sync` table:
+
+- `raw_json`: Complete user profile as JSON
+- `id`: The unique ID of the user
+- `name`: The user's display name
+- `email`: The user's primary email
+- `created_at`: When the user signed up
+- `deleted_at`: When the user was deleted, if applicable (nullable)
+- `updated_at`: When the user was last updated, if applicable (nullable)
+
+Updates to user profiles in Neon Auth are automatically reflected in your database.
+
+<Admonition type="note">
+Do not try to change the `neon_auth.users_sync` table name. It's needed for the synchronization process to work correctly.
+</Admonition>
+
+Let's take a look at how Neon Auth simplifies database operations in a typical todos application, specifically when associating todos with users.
+
+<Steps>
+
+## Before Neon Auth
+
+Without Neon Auth, you would typically need to:
+
+1. Create and manage your own `users` table to store user information in your database.
+2. Implement synchronization logic to keep this `users` table in sync with your authentication provider. This includes handling user creation and, crucially, user updates and deletions.
+3. Create a `todos` table that references your `users` table using a foreign key.
+
+Here's how you would structure your database and perform insert operations _without_ Neon Auth:
+
+### 1. Create a `users` table:
+
 ```sql
--- Grant permissions for existing tables
-GRANT SELECT, UPDATE, INSERT, DELETE ON ALL TABLES
-  IN SCHEMA public
-  TO authenticated;
-
-GRANT SELECT, UPDATE, INSERT, DELETE ON ALL TABLES
-  IN SCHEMA public
-  TO anonymous;
-
--- Grant permissions for future tables
-ALTER DEFAULT PRIVILEGES
-  IN SCHEMA public
-  GRANT SELECT, UPDATE, INSERT, DELETE ON TABLES
-  TO authenticated;
-
-ALTER DEFAULT PRIVILEGES
-  IN SCHEMA public
-  GRANT SELECT, UPDATE, INSERT, DELETE ON TABLES
-  TO anonymous;
-
--- Grant USAGE on "public" schema
-GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT USAGE ON SCHEMA public TO anonymous;
+CREATE TABLE users (
+    id TEXT PRIMARY KEY, -- User ID from your auth provider (TEXT type)
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    -- ... other user fields
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ
+);
 ```
 
-### Step 3: Configure Row Level Security (RLS)
-```sql
--- Enable RLS on all tables that need user-specific access
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE objectives ENABLE ROW LEVEL SECURITY;
-ALTER TABLE initiatives ENABLE ROW LEVEL SECURITY;
-ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
+### 2. Insert a user into the `users` table:
 
--- Create RLS policies for authenticated users
--- Example for profiles table:
-CREATE POLICY "Users can view their own profile" 
-  ON profiles FOR SELECT 
-  USING (user_id = auth.user_id());
-
-CREATE POLICY "Users can update their own profile" 
-  ON profiles FOR UPDATE 
-  USING (user_id = auth.user_id());
-
--- Repeat similar policies for other tables
-```
-
-## Environment Variables Required
-
-### In `.env.local` and Vercel Dashboard:
-```env
-# Neon Database URLs
-DATABASE_URL=postgresql://[user]:[password]@[host]/[database]?sslmode=require
-DIRECT_DATABASE_URL=postgresql://[user]:[password]@[host]/[database]?sslmode=require
-
-# Authenticated URLs (with auth token support)
-DATABASE_AUTHENTICATED_URL=postgresql://[user]:[password]@[host]/[database]?sslmode=require&authToken=true
-NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL=postgresql://[user]:[password]@[host]/[database]?sslmode=require&authToken=true
-
-# Stack Auth
-NEXT_PUBLIC_STACK_PROJECT_ID=your_project_id
-NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY=your_publishable_key
-STACK_SECRET_SERVER_KEY=your_secret_key
-```
-
-## Code Updates Required
-
-### 1. Update Database Client (`/lib/database/client.ts`)
-Add support for authenticated connections:
+To insert this user into your database when a new user is created in your auth provider, you might set up a webhook endpoint. Here's an example of a simplified webhook handler that would receive a `user.created` event from your auth provider and insert the user into your `users` table:
 
 ```typescript
-import { neon } from '@neondatabase/serverless';
-import { stackServerApp } from '@/stack';
+// Webhook handler to insert a user into the 'users' table for a 'user.created' event
 
-export async function getAuthenticatedDb() {
-  const user = await stackServerApp.getUser();
-  const authToken = (await user?.getAuthJson())?.accessToken;
-  
-  if (!authToken) {
-    throw new Error('Not authenticated');
-  }
-  
-  return neon(process.env.DATABASE_AUTHENTICATED_URL!, {
-    authToken: authToken
-  });
-}
-```
+import { db } from '@/db';
 
-### 2. Update All Page Components
-Add dynamic rendering to prevent Stack Auth errors during build:
+export async function POST(request: Request) {
+  await checkIfRequestIsFromAuthProvider(request); // Validate request authenticity using headers, etc.
+  const payload = await request.json(); // Auth Provider webhook payload
 
-```typescript
-export const dynamic = 'force-dynamic'
-```
+  // Extract user data from the webhook payload
+  const userId = payload.user_id;
+  const email = payload.email_address;
+  const name = payload.name;
 
-Files to update:
-- `/app/page.tsx`
-- `/app/activities/page.tsx`
-- `/app/analytics/page.tsx`
-- `/app/auth/verify-email/page.tsx`
-- `/app/companies/page.tsx`
-- `/app/dashboard/page.tsx`
-- `/app/import/page.tsx`
-- `/app/initiatives/page.tsx`
-- `/app/insights/page.tsx`
-- `/app/objectives/page.tsx`
-- `/app/profile/page.tsx`
-- `/app/team/page.tsx`
-- `/app/layout.tsx`
-
-### 3. Update API Routes
-Ensure all API routes use authenticated database connections:
-
-```typescript
-import { getAuthenticatedDb } from '@/lib/database/client';
-
-export async function GET(request: NextRequest) {
   try {
-    const sql = await getAuthenticatedDb();
-    const result = await sql('SELECT * FROM table WHERE user_id = auth.user_id()');
-    return NextResponse.json(result);
+    await db.query(
+      `INSERT INTO users (id, email, name)
+       VALUES ($1, $2, $3)`,
+      [userId, email, name]
+    );
+    return new Response('User added successfully', { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    console.error('Database error inserting user:', error);
+
+    // Retry logic, error handling, etc. as needed
+    // Send notification to on-call team, etc to check why the insert operation failed
+
+    return new Response('Error inserting user into database', { status: 500 });
   }
 }
 ```
 
-## Deployment Checklist
+<Admonition type="note">
+- This code snippet only handles the `user.created` event. To achieve complete synchronization, you would need to write separate webhook handlers for `user.updated`, `user.deleted`, and potentially other event types. Each handler adds complexity and requires careful error handling, security considerations, and ongoing maintenance.
+- The provided webhook example is a simplified illustration, and a production-ready solution would necessitate more robust error handling, security measures, and potentially queueing mechanisms to ensure reliable synchronization.
+</Admonition>
 
-### Database Setup:
-- [ ] Run pg_session_jwt extension installation
-- [ ] Configure authenticated and anonymous roles
-- [ ] Set up RLS policies on all user tables
-- [ ] Test auth.user_id() function works
-
-### Code Updates:
-- [ ] Add `export const dynamic = 'force-dynamic'` to all pages
-- [ ] Update database client for authenticated connections
-- [ ] Update API routes to use authenticated DB
-- [ ] Verify environment variables in Vercel
-
-### Testing:
-- [ ] Test local build: `npm run build`
-- [ ] Test authentication flow
-- [ ] Test database queries with RLS
-- [ ] Deploy to Vercel preview
-- [ ] Verify production deployment
-
-## SQL Script for Complete Setup
-
-Save this as `neon-auth-setup.sql` and run in Neon console:
+### 3. Create a `todos` table with a foreign key to the `users` table:
 
 ```sql
--- 1. Install extension
-CREATE EXTENSION IF NOT EXISTS pg_session_jwt;
-
--- 2. Grant permissions to roles
-GRANT SELECT, UPDATE, INSERT, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO anonymous;
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-  GRANT SELECT, UPDATE, INSERT, DELETE ON TABLES TO authenticated;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public 
-  GRANT SELECT ON TABLES TO anonymous;
-
-GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT USAGE ON SCHEMA public TO anonymous;
-
--- 3. Enable RLS on user tables
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE objectives ENABLE ROW LEVEL SECURITY;
-ALTER TABLE initiatives ENABLE ROW LEVEL SECURITY;
-ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
-
--- 4. Create RLS policies
--- Profiles
-CREATE POLICY "Users can view own profile" ON profiles
-  FOR SELECT USING (user_id = auth.user_id());
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (user_id = auth.user_id());
-
--- Objectives (with department/role logic)
-CREATE POLICY "Users can view objectives" ON objectives
-  FOR SELECT USING (
-    user_id = auth.user_id() OR
-    department IN (SELECT department FROM profiles WHERE user_id = auth.user_id()) OR
-    EXISTS (SELECT 1 FROM profiles WHERE user_id = auth.user_id() AND role_type = 'corporativo')
-  );
-
--- Similar policies for other tables...
+CREATE TABLE todos (
+    id SERIAL PRIMARY KEY,
+    task TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-## Verification Steps
+### 4. Insert a todo, referencing the `users` table:
 
-1. **Test JWT Extension:**
 ```sql
-SELECT auth.user_id();  -- Should return current user's ID when authenticated
+INSERT INTO todos (task, user_id)
+VALUES ('Buy groceries', 'user-id-123');
 ```
 
-2. **Test RLS:**
+## After Neon Auth
+
+With Neon Auth, Neon automatically creates and manages the `neon_auth.users_sync` table. User profiles are stored automatically in your database, so you can directly rely on this table for up-to-date user data, simplifying your database operations.
+
+Here's how you would structure your `todos` table and perform insert operations _with_ Neon Auth:
+
+### Users table
+
+`neon_auth.users_sync` table is automatically created and kept in sync by Neon Auth (no action needed from you) and is available for direct use in your schema and queries. Here is the table structure as discussed above:
+
 ```sql
--- As authenticated user
-SELECT * FROM profiles;  -- Should only show current user's profile
+-- schema of neon_auth.users_sync table ( automatically created by Neon Auth )
+id TEXT PRIMARY KEY,
+raw_json JSONB,
+name TEXT,
+email TEXT,
+created_at TIMESTAMPTZ,
+deleted_at TIMESTAMPTZ,
+updated_at TIMESTAMPTZ
 ```
 
-3. **Test in Application:**
-- Login with Stack Auth
-- Check that database queries return user-specific data
-- Verify no unauthorized data access
+#### 1. Create a `todos` table with a foreign key to the `neon_auth.users_sync` table:
 
-## Common Issues & Solutions
+```sql
+CREATE TABLE todos (
+    id SERIAL PRIMARY KEY,
+    task TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES neon_auth.users_sync(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
 
-### Issue: "No token" error
-**Solution:** Ensure user is authenticated before database access
+#### 2. Insert a todo, referencing the `neon_auth.users_sync` table:
 
-### Issue: RLS blocking all queries
-**Solution:** Check that roles have proper GRANT permissions
+```sql
+INSERT INTO todos (task, user_id)
+```
 
-### Issue: Build fails with Stack Auth error
-**Solution:** Add `export const dynamic = 'force-dynamic'` to all pages
+</Steps>
 
-### Issue: auth.user_id() returns null
-**Solution:** Verify JWT token is being passed correctly in connection
-
-## Final Steps for Production
-
-1. Run database setup SQL script
-2. Update all page components with dynamic export
-3. Test locally with `npm run build`
-4. Deploy to Vercel preview
-5. Verify all features work
-6. Deploy to production
+<NeedHelp />
