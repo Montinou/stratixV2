@@ -509,3 +509,13 @@ export class ActivitiesRepository {
     }
   }
 }
+
+// Export adapter functions for backward compatibility with chat context
+export async function getRecentUserActivities(userId: string, limit: number = 10): Promise<Activity[]> {
+  try {
+    return await ActivitiesRepository.getByAssignee(userId, limit);
+  } catch (error) {
+    console.error('Error fetching recent user activities:', error);
+    return [];
+  }
+}

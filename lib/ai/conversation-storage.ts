@@ -1,495 +1,519 @@
-import {
-  pgTable,
-  uuid,
-  varchar,
-  text,
-  timestamp,
-  jsonb,
-  index
-} from 'drizzle-orm/pg-core';
-import { relations, sql, eq, desc, and, or } from 'drizzle-orm';
-import { authenticatedRole, authUid, crudPolicy } from 'drizzle-orm/neon';
-import { getAuthenticatedDrizzleClient, authenticatedQuery } from '@/lib/database/client';
-import type { ChatMessage, ConversationContext, RecommendedAction, Citation } from './conversation-manager';
+import { createClient } from '@/lib/database/neon-client'
+import type { CoreMessage } from 'ai'
+import type { ConversationContext, ConversationSummary } from './conversation-manager'
 
-// Conversation table schema
-export const conversations = pgTable('conversations', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  sessionId: varchar('session_id', { length: 255 }).notNull().unique(),
-  userId: uuid('user_id').notNull(),
-  title: varchar('title', { length: 255 }),
-  summary: text('summary'),
-  metadata: jsonb('metadata').$type<{
-    userRole: string;
-    department?: string;
-    companyContext?: string;
-    totalMessages: number;
-    lastMessageAt: Date;
-  }>(),
-  isActive: varchar('is_active', { length: 10 }).notNull().default('true'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => [
-  // Indexes for performance
-  { userIdx: index('conversations_user_idx').on(table.userId) },
-  { sessionIdx: index('conversations_session_idx').on(table.sessionId) },
-  { activeIdx: index('conversations_active_idx').on(table.isActive) },
-  { createdAtIdx: index('conversations_created_at_idx').on(table.createdAt) },
-  // RLS Policy - users can only access their own conversations
-  crudPolicy({
-    role: authenticatedRole,
-    read: sql`user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())`,
-    modify: sql`user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())`,
-  }),
-]);
-
-// Chat messages table schema
-export const chatMessages = pgTable('chat_messages', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
-  messageId: varchar('message_id', { length: 255 }).notNull().unique(),
-  role: varchar('role', { length: 20 }).notNull(), // user, assistant, system
-  content: text('content').notNull(),
-  metadata: jsonb('metadata').$type<{
-    suggestions?: string[];
-    actions?: RecommendedAction[];
-    citations?: Citation[];
-    processingTime?: number;
-    model?: string;
-  }>(),
-  timestamp: timestamp('timestamp').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-}, (table) => [
-  // Indexes for performance
-  { conversationIdx: index('chat_messages_conversation_idx').on(table.conversationId) },
-  { messageIdx: index('chat_messages_message_idx').on(table.messageId) },
-  { timestampIdx: index('chat_messages_timestamp_idx').on(table.timestamp) },
-  // RLS Policy - users can only access messages from their own conversations
-  crudPolicy({
-    role: authenticatedRole,
-    read: sql`EXISTS (
-      SELECT 1 FROM conversations
-      WHERE id = ${table.conversationId}
-      AND user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
-    )`,
-    modify: sql`EXISTS (
-      SELECT 1 FROM conversations
-      WHERE id = ${table.conversationId}
-      AND user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
-    )`,
-  }),
-]);
-
-// Relations
-export const conversationsRelations = relations(conversations, ({ many }) => ({
-  messages: many(chatMessages),
-}));
-
-export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
-  conversation: one(conversations, {
-    fields: [chatMessages.conversationId],
-    references: [conversations.id],
-  }),
-}));
-
-export interface ConversationStorageInterface {
-  createConversation(sessionId: string, userId: string, context: Partial<ConversationContext>): Promise<string>;
-  saveMessage(conversationId: string, message: ChatMessage): Promise<void>;
-  getConversation(sessionId: string): Promise<ConversationWithMessages | null>;
-  getConversationHistory(userId: string, limit?: number): Promise<ConversationSummary[]>;
-  updateConversationMetadata(sessionId: string, metadata: any): Promise<void>;
-  deleteConversation(sessionId: string): Promise<void>;
-  getMessages(conversationId: string, limit?: number): Promise<ChatMessage[]>;
-  searchConversations(userId: string, query: string): Promise<ConversationSummary[]>;
+// Database schema interfaces
+export interface StoredConversation {
+  id: string
+  user_id: string
+  title: string
+  summary?: string
+  session_type: 'strategy' | 'tracking' | 'problem_solving' | 'general'
+  urgency: 'low' | 'medium' | 'high'
+  message_count: number
+  created_at: Date
+  updated_at: Date
+  archived_at?: Date
+  metadata?: Record<string, any>
 }
 
-export interface ConversationWithMessages {
-  id: string;
-  sessionId: string;
-  userId: string;
-  title: string | null;
-  summary: string | null;
-  metadata: any;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  messages: ChatMessage[];
+export interface StoredMessage {
+  id: string
+  conversation_id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  metadata?: Record<string, any>
+  created_at: Date
 }
 
-export interface ConversationSummary {
-  id: string;
-  sessionId: string;
-  title: string | null;
-  summary: string | null;
-  messageCount: number;
-  lastMessageAt: Date;
-  createdAt: Date;
+export interface ConversationListItem {
+  id: string
+  title: string
+  summary?: string
+  messageCount: number
+  lastActivity: Date
+  sessionType: string
+  urgency: string
+  archived: boolean
 }
 
-export class ConversationStorage implements ConversationStorageInterface {
+export class ConversationStorage {
+  private client = createClient()
 
-  async createConversation(
-    sessionId: string,
-    userId: string,
-    context: Partial<ConversationContext>
-  ): Promise<string> {
-    try {
-      const db = await getAuthenticatedDrizzleClient();
-
-      // Get user's internal ID from their stack user ID
-      const userResult = await authenticatedQuery(
-        'SELECT id FROM users WHERE stack_user_id = auth.user_id()'
+  /**
+   * Create database tables if they don't exist
+   */
+  async initializeTables(): Promise<void> {
+    const conversationsTable = `
+      CREATE TABLE IF NOT EXISTS ai_conversations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT,
+        session_type TEXT NOT NULL DEFAULT 'general',
+        urgency TEXT NOT NULL DEFAULT 'low',
+        message_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        archived_at TIMESTAMPTZ,
+        metadata JSONB
       );
+    `
 
-      if (!userResult.rows || userResult.rows.length === 0) {
-        throw new Error('User not found');
+    const messagesTable = `
+      CREATE TABLE IF NOT EXISTS ai_messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+        role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+        content TEXT NOT NULL,
+        metadata JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `
+
+    const indexQueries = [
+      'CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_id ON ai_conversations(user_id);',
+      'CREATE INDEX IF NOT EXISTS idx_ai_conversations_updated_at ON ai_conversations(updated_at);',
+      'CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation_id ON ai_messages(conversation_id);',
+      'CREATE INDEX IF NOT EXISTS idx_ai_messages_created_at ON ai_messages(created_at);'
+    ]
+
+    try {
+      await this.client.query(conversationsTable)
+      await this.client.query(messagesTable)
+
+      for (const indexQuery of indexQueries) {
+        await this.client.query(indexQuery)
+      }
+    } catch (error) {
+      console.error('Error initializing conversation tables:', error)
+      throw new Error('Failed to initialize conversation storage')
+    }
+  }
+
+  /**
+   * Save a new conversation
+   */
+  async saveConversation(context: ConversationContext): Promise<void> {
+    const { conversationId, userContext, sessionMetadata, conversationHistory } = context
+
+    // Generate conversation title from first message or context
+    const title = this.generateConversationTitle(conversationHistory, userContext.role)
+
+    const query = `
+      INSERT INTO ai_conversations (
+        id, user_id, title, session_type, urgency,
+        message_count, metadata, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO UPDATE SET
+        message_count = EXCLUDED.message_count,
+        updated_at = EXCLUDED.updated_at,
+        metadata = EXCLUDED.metadata
+    `
+
+    const values = [
+      conversationId,
+      userContext.userId,
+      title,
+      sessionMetadata.topics.length > 0 ? this.inferSessionType(sessionMetadata.topics) : 'general',
+      sessionMetadata.mood === 'frustrated' ? 'high' : 'low',
+      sessionMetadata.messageCount,
+      JSON.stringify({
+        topics: sessionMetadata.topics,
+        mood: sessionMetadata.mood,
+        department: userContext.department,
+        role: userContext.role,
+        companySize: userContext.companySize
+      }),
+      sessionMetadata.startTime,
+      sessionMetadata.lastActivity
+    ]
+
+    try {
+      await this.client.query(query, values)
+    } catch (error) {
+      console.error('Error saving conversation:', error)
+      throw new Error('Failed to save conversation')
+    }
+  }
+
+  /**
+   * Save messages to database
+   */
+  async saveMessages(conversationId: string, messages: CoreMessage[]): Promise<void> {
+    if (messages.length === 0) return
+
+    const query = `
+      INSERT INTO ai_messages (id, conversation_id, role, content, metadata, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (id) DO NOTHING
+    `
+
+    try {
+      for (const message of messages) {
+        const messageId = crypto.randomUUID()
+        const values = [
+          messageId,
+          conversationId,
+          message.role,
+          message.content,
+          null, // metadata placeholder
+          new Date()
+        ]
+
+        await this.client.query(query, values)
       }
 
-      const internalUserId = userResult.rows[0].id;
-
-      const conversationData = {
-        sessionId,
-        userId: internalUserId,
-        title: null,
-        summary: null,
-        metadata: {
-          userRole: context.userRole || 'empleado',
-          department: context.department,
-          companyContext: context.companyContext,
-          totalMessages: 0,
-          lastMessageAt: new Date()
-        },
-        isActive: 'true' as const
-      };
-
-      const result = await db.insert(conversations).values(conversationData).returning({ id: conversations.id });
-
-      return result[0].id;
+      // Update conversation message count
+      await this.updateConversationMessageCount(conversationId)
     } catch (error) {
-      console.error('Error creating conversation:', error);
-      throw error;
+      console.error('Error saving messages:', error)
+      throw new Error('Failed to save messages')
     }
   }
 
-  async saveMessage(conversationId: string, message: ChatMessage): Promise<void> {
-    try {
-      const db = await getAuthenticatedDrizzleClient();
-
-      // Save the message
-      await db.insert(chatMessages).values({
-        conversationId,
-        messageId: message.id,
-        role: message.role,
-        content: message.content,
-        metadata: message.metadata || {},
-        timestamp: message.timestamp
-      });
-
-      // Update conversation metadata
-      await db
-        .update(conversations)
-        .set({
-          updatedAt: new Date(),
-          metadata: sql`metadata || jsonb_build_object(
-            'totalMessages', COALESCE((metadata->>'totalMessages')::int, 0) + 1,
-            'lastMessageAt', ${message.timestamp.toISOString()}
-          )`
-        })
-        .where(eq(conversations.id, conversationId));
-
-    } catch (error) {
-      console.error('Error saving message:', error);
-      throw error;
-    }
-  }
-
-  async getConversation(sessionId: string): Promise<ConversationWithMessages | null> {
-    try {
-      const db = await getAuthenticatedDrizzleClient();
-
-      // Get conversation with messages
-      const conversationResult = await db
-        .select()
-        .from(conversations)
-        .where(eq(conversations.sessionId, sessionId));
-
-      if (!conversationResult || conversationResult.length === 0) {
-        return null;
-      }
-
-      const conversation = conversationResult[0];
-
-      // Get messages for this conversation
-      const messagesResult = await db
-        .select()
-        .from(chatMessages)
-        .where(eq(chatMessages.conversationId, conversation.id))
-        .orderBy(chatMessages.timestamp);
-
-      const messages: ChatMessage[] = messagesResult.map(msg => ({
-        id: msg.messageId,
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content,
-        timestamp: msg.timestamp,
-        metadata: msg.metadata || undefined
-      }));
-
-      return {
-        id: conversation.id,
-        sessionId: conversation.sessionId,
-        userId: conversation.userId,
-        title: conversation.title,
-        summary: conversation.summary,
-        metadata: conversation.metadata,
-        isActive: conversation.isActive === 'true',
-        createdAt: conversation.createdAt,
-        updatedAt: conversation.updatedAt,
-        messages
-      };
-
-    } catch (error) {
-      console.error('Error getting conversation:', error);
-      throw error;
-    }
-  }
-
-  async getConversationHistory(userId: string, limit: number = 20): Promise<ConversationSummary[]> {
-    try {
-      const result = await authenticatedQuery(`
-        SELECT
-          c.id,
-          c.session_id,
-          c.title,
-          c.summary,
-          c.metadata->>'totalMessages' as message_count,
-          c.metadata->>'lastMessageAt' as last_message_at,
-          c.created_at
-        FROM conversations c
-        WHERE c.user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
-        ORDER BY c.updated_at DESC
-        LIMIT $1
-      `, [limit]);
-
-      return result.rows.map(row => ({
-        id: row.id,
-        sessionId: row.session_id,
-        title: row.title,
-        summary: row.summary,
-        messageCount: parseInt(row.message_count || '0'),
-        lastMessageAt: new Date(row.last_message_at || row.created_at),
-        createdAt: new Date(row.created_at)
-      }));
-
-    } catch (error) {
-      console.error('Error getting conversation history:', error);
-      throw error;
-    }
-  }
-
-  async updateConversationMetadata(sessionId: string, metadata: any): Promise<void> {
-    try {
-      const db = await getAuthenticatedDrizzleClient();
-
-      await db
-        .update(conversations)
-        .set({
-          metadata: sql`metadata || ${JSON.stringify(metadata)}`,
-          updatedAt: new Date()
-        })
-        .where(eq(conversations.sessionId, sessionId));
-
-    } catch (error) {
-      console.error('Error updating conversation metadata:', error);
-      throw error;
-    }
-  }
-
-  async deleteConversation(sessionId: string): Promise<void> {
-    try {
-      const db = await getAuthenticatedDrizzleClient();
-
-      await db
-        .delete(conversations)
-        .where(eq(conversations.sessionId, sessionId));
-
-    } catch (error) {
-      console.error('Error deleting conversation:', error);
-      throw error;
-    }
-  }
-
-  async getMessages(conversationId: string, limit: number = 50): Promise<ChatMessage[]> {
-    try {
-      const db = await getAuthenticatedDrizzleClient();
-
-      const messagesResult = await db
-        .select()
-        .from(chatMessages)
-        .where(eq(chatMessages.conversationId, conversationId))
-        .orderBy(desc(chatMessages.timestamp))
-        .limit(limit);
-
-      return messagesResult.reverse().map(msg => ({
-        id: msg.messageId,
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content,
-        timestamp: msg.timestamp,
-        metadata: msg.metadata || undefined
-      }));
-
-    } catch (error) {
-      console.error('Error getting messages:', error);
-      throw error;
-    }
-  }
-
-  async searchConversations(userId: string, query: string): Promise<ConversationSummary[]> {
-    try {
-      const result = await authenticatedQuery(`
-        SELECT DISTINCT
-          c.id,
-          c.session_id,
-          c.title,
-          c.summary,
-          c.metadata->>'totalMessages' as message_count,
-          c.metadata->>'lastMessageAt' as last_message_at,
-          c.created_at,
-          ts_rank(to_tsvector('spanish', COALESCE(c.title, '') || ' ' || COALESCE(c.summary, '')), plainto_tsquery('spanish', $2)) as rank
-        FROM conversations c
-        LEFT JOIN chat_messages cm ON c.id = cm.conversation_id
-        WHERE c.user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
-        AND (
-          to_tsvector('spanish', COALESCE(c.title, '') || ' ' || COALESCE(c.summary, '')) @@ plainto_tsquery('spanish', $2)
-          OR to_tsvector('spanish', cm.content) @@ plainto_tsquery('spanish', $2)
-        )
-        ORDER BY rank DESC, c.updated_at DESC
-        LIMIT 10
-      `, [userId, query]);
-
-      return result.rows.map(row => ({
-        id: row.id,
-        sessionId: row.session_id,
-        title: row.title,
-        summary: row.summary,
-        messageCount: parseInt(row.message_count || '0'),
-        lastMessageAt: new Date(row.last_message_at || row.created_at),
-        createdAt: new Date(row.created_at)
-      }));
-
-    } catch (error) {
-      console.error('Error searching conversations:', error);
-      throw error;
-    }
-  }
-
-  // Generate conversation title based on first few messages
-  async generateConversationTitle(sessionId: string): Promise<void> {
-    try {
-      const conversation = await this.getConversation(sessionId);
-      if (!conversation || conversation.title) {
-        return; // Already has a title or doesn't exist
-      }
-
-      // Get first few user messages
-      const userMessages = conversation.messages
-        .filter(msg => msg.role === 'user')
-        .slice(0, 3)
-        .map(msg => msg.content)
-        .join(' ');
-
-      if (!userMessages.trim()) {
-        return;
-      }
-
-      // Simple title generation based on content
-      let title = userMessages.substring(0, 60);
-      if (userMessages.length > 60) {
-        title += '...';
-      }
-
-      // Clean up the title
-      title = title.replace(/\n/g, ' ').trim();
-
-      const db = await getAuthenticatedDrizzleClient();
-      await db
-        .update(conversations)
-        .set({ title })
-        .where(eq(conversations.sessionId, sessionId));
-
-    } catch (error) {
-      console.error('Error generating conversation title:', error);
-      // Don't throw - this is not critical
-    }
-  }
-
-  // Export conversation to different formats
-  async exportConversation(sessionId: string, format: 'json' | 'markdown' = 'json'): Promise<string> {
-    try {
-      const conversation = await this.getConversation(sessionId);
-      if (!conversation) {
-        throw new Error('Conversation not found');
-      }
-
-      if (format === 'json') {
-        return JSON.stringify(conversation, null, 2);
-      }
-
-      if (format === 'markdown') {
-        let markdown = `# ${conversation.title || 'Conversación'}\n\n`;
-        markdown += `**Fecha**: ${conversation.createdAt.toLocaleDateString('es-ES')}\n`;
-        markdown += `**Mensajes**: ${conversation.messages.length}\n\n`;
-
-        conversation.messages.forEach(msg => {
-          const time = msg.timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-          const sender = msg.role === 'user' ? '👤 Usuario' : '🤖 Asistente';
-          markdown += `## ${sender} (${time})\n\n${msg.content}\n\n`;
-        });
-
-        return markdown;
-      }
-
-      throw new Error('Unsupported export format');
-
-    } catch (error) {
-      console.error('Error exporting conversation:', error);
-      throw error;
-    }
-  }
-
-  // Analytics methods
-  async getConversationStats(userId: string): Promise<{
-    totalConversations: number;
-    totalMessages: number;
-    averageMessagesPerConversation: number;
-    activeConversations: number;
+  /**
+   * Load conversation history
+   */
+  async loadConversation(conversationId: string, userId: string): Promise<{
+    conversation: StoredConversation | null
+    messages: StoredMessage[]
   }> {
     try {
-      const result = await authenticatedQuery(`
-        SELECT
-          COUNT(c.id) as total_conversations,
-          SUM(COALESCE((c.metadata->>'totalMessages')::int, 0)) as total_messages,
-          COUNT(CASE WHEN c.is_active = 'true' THEN 1 END) as active_conversations
-        FROM conversations c
-        WHERE c.user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
-      `, []);
+      // Load conversation metadata
+      const conversationQuery = `
+        SELECT * FROM ai_conversations
+        WHERE id = $1 AND user_id = $2 AND archived_at IS NULL
+      `
+      const conversationResult = await this.client.query(conversationQuery, [conversationId, userId])
+      const conversation = conversationResult.rows[0] || null
 
-      const stats = result.rows[0];
-      const totalConversations = parseInt(stats.total_conversations || '0');
-      const totalMessages = parseInt(stats.total_messages || '0');
+      if (!conversation) {
+        return { conversation: null, messages: [] }
+      }
+
+      // Load messages
+      const messagesQuery = `
+        SELECT * FROM ai_messages
+        WHERE conversation_id = $1
+        ORDER BY created_at ASC
+      `
+      const messagesResult = await this.client.query(messagesQuery, [conversationId])
 
       return {
-        totalConversations,
-        totalMessages,
-        averageMessagesPerConversation: totalConversations > 0 ? Math.round(totalMessages / totalConversations) : 0,
-        activeConversations: parseInt(stats.active_conversations || '0')
-      };
-
+        conversation,
+        messages: messagesResult.rows
+      }
     } catch (error) {
-      console.error('Error getting conversation stats:', error);
-      throw error;
+      console.error('Error loading conversation:', error)
+      throw new Error('Failed to load conversation')
     }
+  }
+
+  /**
+   * List conversations for a user
+   */
+  async listConversations(
+    userId: string,
+    options: {
+      limit?: number
+      offset?: number
+      includeArchived?: boolean
+      sessionType?: string
+    } = {}
+  ): Promise<ConversationListItem[]> {
+    const { limit = 20, offset = 0, includeArchived = false, sessionType } = options
+
+    let query = `
+      SELECT id, title, summary, message_count, updated_at as last_activity,
+             session_type, urgency, archived_at
+      FROM ai_conversations
+      WHERE user_id = $1
+    `
+
+    const params: any[] = [userId]
+    let paramIndex = 2
+
+    if (!includeArchived) {
+      query += ` AND archived_at IS NULL`
+    }
+
+    if (sessionType) {
+      query += ` AND session_type = $${paramIndex}`
+      params.push(sessionType)
+      paramIndex++
+    }
+
+    query += ` ORDER BY updated_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+    params.push(limit, offset)
+
+    try {
+      const result = await this.client.query(query, params)
+
+      return result.rows.map(row => ({
+        id: row.id,
+        title: row.title,
+        summary: row.summary,
+        messageCount: row.message_count,
+        lastActivity: new Date(row.last_activity),
+        sessionType: row.session_type,
+        urgency: row.urgency,
+        archived: !!row.archived_at
+      }))
+    } catch (error) {
+      console.error('Error listing conversations:', error)
+      throw new Error('Failed to list conversations')
+    }
+  }
+
+  /**
+   * Search conversations by content
+   */
+  async searchConversations(
+    userId: string,
+    searchTerm: string,
+    options: { limit?: number } = {}
+  ): Promise<ConversationListItem[]> {
+    const { limit = 10 } = options
+
+    const query = `
+      SELECT DISTINCT c.id, c.title, c.summary, c.message_count,
+             c.updated_at as last_activity, c.session_type, c.urgency, c.archived_at
+      FROM ai_conversations c
+      JOIN ai_messages m ON c.id = m.conversation_id
+      WHERE c.user_id = $1
+        AND c.archived_at IS NULL
+        AND (
+          c.title ILIKE $2
+          OR c.summary ILIKE $2
+          OR m.content ILIKE $2
+        )
+      ORDER BY c.updated_at DESC
+      LIMIT $3
+    `
+
+    try {
+      const result = await this.client.query(query, [
+        userId,
+        `%${searchTerm}%`,
+        limit
+      ])
+
+      return result.rows.map(row => ({
+        id: row.id,
+        title: row.title,
+        summary: row.summary,
+        messageCount: row.message_count,
+        lastActivity: new Date(row.last_activity),
+        sessionType: row.session_type,
+        urgency: row.urgency,
+        archived: !!row.archived_at
+      }))
+    } catch (error) {
+      console.error('Error searching conversations:', error)
+      throw new Error('Failed to search conversations')
+    }
+  }
+
+  /**
+   * Archive a conversation
+   */
+  async archiveConversation(conversationId: string, userId: string): Promise<void> {
+    const query = `
+      UPDATE ai_conversations
+      SET archived_at = NOW(), updated_at = NOW()
+      WHERE id = $1 AND user_id = $2
+    `
+
+    try {
+      await this.client.query(query, [conversationId, userId])
+    } catch (error) {
+      console.error('Error archiving conversation:', error)
+      throw new Error('Failed to archive conversation')
+    }
+  }
+
+  /**
+   * Delete a conversation and all its messages
+   */
+  async deleteConversation(conversationId: string, userId: string): Promise<void> {
+    const query = `
+      DELETE FROM ai_conversations
+      WHERE id = $1 AND user_id = $2
+    `
+
+    try {
+      await this.client.query(query, [conversationId, userId])
+    } catch (error) {
+      console.error('Error deleting conversation:', error)
+      throw new Error('Failed to delete conversation')
+    }
+  }
+
+  /**
+   * Update conversation summary
+   */
+  async updateConversationSummary(
+    conversationId: string,
+    summary: string
+  ): Promise<void> {
+    const query = `
+      UPDATE ai_conversations
+      SET summary = $1, updated_at = NOW()
+      WHERE id = $2
+    `
+
+    try {
+      await this.client.query(query, [summary, conversationId])
+    } catch (error) {
+      console.error('Error updating conversation summary:', error)
+      throw new Error('Failed to update conversation summary')
+    }
+  }
+
+  /**
+   * Get conversation analytics for a user
+   */
+  async getConversationAnalytics(userId: string): Promise<{
+    totalConversations: number
+    activeConversations: number
+    messageCount: number
+    sessionTypes: Record<string, number>
+    averageConversationLength: number
+  }> {
+    try {
+      const analyticsQuery = `
+        SELECT
+          COUNT(*) as total_conversations,
+          COUNT(*) FILTER (WHERE archived_at IS NULL) as active_conversations,
+          SUM(message_count) as total_messages,
+          AVG(message_count) as avg_conversation_length
+        FROM ai_conversations
+        WHERE user_id = $1
+      `
+
+      const sessionTypesQuery = `
+        SELECT session_type, COUNT(*) as count
+        FROM ai_conversations
+        WHERE user_id = $1 AND archived_at IS NULL
+        GROUP BY session_type
+      `
+
+      const [analyticsResult, sessionTypesResult] = await Promise.all([
+        this.client.query(analyticsQuery, [userId]),
+        this.client.query(sessionTypesQuery, [userId])
+      ])
+
+      const analytics = analyticsResult.rows[0]
+      const sessionTypes: Record<string, number> = {}
+
+      sessionTypesResult.rows.forEach(row => {
+        sessionTypes[row.session_type] = parseInt(row.count)
+      })
+
+      return {
+        totalConversations: parseInt(analytics.total_conversations) || 0,
+        activeConversations: parseInt(analytics.active_conversations) || 0,
+        messageCount: parseInt(analytics.total_messages) || 0,
+        sessionTypes,
+        averageConversationLength: parseFloat(analytics.avg_conversation_length) || 0
+      }
+    } catch (error) {
+      console.error('Error getting conversation analytics:', error)
+      throw new Error('Failed to get conversation analytics')
+    }
+  }
+
+  /**
+   * Cleanup old conversations (older than 30 days)
+   */
+  async cleanupOldConversations(): Promise<number> {
+    const query = `
+      DELETE FROM ai_conversations
+      WHERE archived_at IS NOT NULL
+        AND archived_at < NOW() - INTERVAL '30 days'
+    `
+
+    try {
+      const result = await this.client.query(query)
+      return result.rowCount || 0
+    } catch (error) {
+      console.error('Error cleaning up old conversations:', error)
+      return 0
+    }
+  }
+
+  /**
+   * Generate conversation title from messages and context
+   */
+  private generateConversationTitle(
+    messages: CoreMessage[],
+    userRole: string
+  ): string {
+    // Find the first meaningful user message
+    const firstUserMessage = messages.find(m => m.role === 'user')?.content
+
+    if (firstUserMessage) {
+      // Extract key topics for title
+      const content = firstUserMessage.toLowerCase()
+
+      if (content.includes('objetivo') || content.includes('okr')) {
+        return 'Definición de objetivos'
+      } else if (content.includes('progreso') || content.includes('seguimiento')) {
+        return 'Seguimiento de progreso'
+      } else if (content.includes('problema') || content.includes('bloqueo')) {
+        return 'Resolución de problemas'
+      } else if (content.includes('equipo') || content.includes('team')) {
+        return 'Gestión de equipo'
+      } else if (content.includes('estrategia')) {
+        return 'Planificación estratégica'
+      }
+
+      // Fallback: use first few words
+      const words = firstUserMessage.split(' ').slice(0, 4).join(' ')
+      return words.length > 3 ? `${words}...` : 'Nueva conversación'
+    }
+
+    // Default based on role
+    const roleTitles = {
+      corporativo: 'Estrategia corporativa',
+      gerente: 'Gestión de equipo',
+      empleado: 'Consulta OKR'
+    }
+
+    return roleTitles[userRole as keyof typeof roleTitles] || 'Nueva conversación'
+  }
+
+  /**
+   * Infer session type from topics
+   */
+  private inferSessionType(topics: string[]): 'strategy' | 'tracking' | 'problem_solving' | 'general' {
+    if (topics.includes('bloqueos') || topics.includes('problema')) {
+      return 'problem_solving'
+    } else if (topics.includes('progreso') || topics.includes('seguimiento')) {
+      return 'tracking'
+    } else if (topics.includes('objetivos') || topics.includes('estrategia')) {
+      return 'strategy'
+    }
+    return 'general'
+  }
+
+  /**
+   * Update conversation message count
+   */
+  private async updateConversationMessageCount(conversationId: string): Promise<void> {
+    const query = `
+      UPDATE ai_conversations
+      SET message_count = (
+        SELECT COUNT(*) FROM ai_messages WHERE conversation_id = $1
+      ),
+      updated_at = NOW()
+      WHERE id = $1
+    `
+
+    await this.client.query(query, [conversationId])
   }
 }
 
-// Singleton instance
-export const conversationStorage = new ConversationStorage();
+// Export singleton instance
+export const conversationStorage = new ConversationStorage()

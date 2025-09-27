@@ -1,771 +1,809 @@
-import { generateText, gateway } from "ai"
-import { performanceAnalytics, type PerformanceMetrics, type ModelPerformance } from "./performance-analytics"
+import { aiClient, AI_MODELS } from './gateway-client'
+import { performanceAnalytics, instrumentAIOperation } from './performance-analytics'
+import type { AIPerformanceMetrics } from './performance-analytics'
 
-// Benchmarking interfaces
+// Benchmark test case interfaces
+export interface BenchmarkTestCase {
+  id: string
+  name: string
+  description: string
+  category: 'text_generation' | 'chat_completion' | 'embedding' | 'analysis'
+  prompt: string
+  expectedOutputType: 'text' | 'json' | 'embedding' | 'structured'
+  expectedLatency: number // max acceptable latency in ms
+  qualityCriteria: QualityCriteria
+  metadata?: Record<string, any>
+}
+
+export interface QualityCriteria {
+  minLength?: number
+  maxLength?: number
+  mustContain?: string[]
+  mustNotContain?: string[]
+  jsonSchema?: object
+  relevanceKeywords?: string[]
+  coherenceThreshold?: number
+  accuracyThreshold?: number
+}
+
+export interface BenchmarkResult {
+  testCaseId: string
+  model: string
+  provider: string
+  success: boolean
+  latency: number
+  cost: number
+  qualityScore: number
+  outputText: string
+  tokensInput: number
+  tokensOutput: number
+  error?: string
+  timestamp: Date
+  metadata?: Record<string, any>
+}
+
+export interface ModelBenchmarkSummary {
+  model: string
+  provider: string
+  totalTests: number
+  successRate: number
+  averageLatency: number
+  medianLatency: number
+  averageQuality: number
+  totalCost: number
+  costPerToken: number
+  rank: number
+  strengths: string[]
+  weaknesses: string[]
+  recommendedUseCase: string
+}
+
 export interface BenchmarkSuite {
   id: string
   name: string
   description: string
   testCases: BenchmarkTestCase[]
-  industryStandards?: IndustryBenchmark[]
+  modelsToTest: string[]
   createdAt: Date
   updatedAt: Date
 }
 
-export interface BenchmarkTestCase {
-  id: string
-  name: string
-  prompt: string
-  expectedOutputCriteria: QualityCriteria[]
-  weight: number // Importance weight for overall score
-  category: 'clarity' | 'accuracy' | 'creativity' | 'speed' | 'cost'
-}
-
-export interface QualityCriteria {
-  type: 'length' | 'keywords' | 'sentiment' | 'structure' | 'relevance'
-  expected: any
-  weight: number
-  tolerance?: number
-}
-
-export interface IndustryBenchmark {
-  category: string
-  metric: string
-  average: number
-  percentile_50: number
-  percentile_75: number
-  percentile_90: number
-  percentile_95: number
-  unit: string
-  source: string
-  lastUpdated: Date
-}
-
-export interface BenchmarkResult {
-  modelId: string
-  suiteId: string
-  testCaseId: string
-  score: number
-  metrics: {
-    responseTime: number
-    tokenUsage: number
-    cost: number
-    qualityScore: number
-    errorOccurred: boolean
-  }
-  output: string
-  timestamp: Date
-}
-
-export interface ComparisonReport {
-  models: string[]
-  overallWinner: string
-  categoryWinners: Record<string, string>
-  detailedResults: BenchmarkResult[]
-  recommendations: string[]
-  industryComparison?: IndustryComparisonData
-}
-
-export interface IndustryComparisonData {
-  metric: string
-  ourPerformance: number
-  industryAverage: number
-  percentileRanking: number
-  gap: number
-  recommendation: string
-}
-
-// AI Gateway client
-const ai = gateway({
-  apiKey: process.env.AI_GATEWAY_API_KEY,
-})
-
-export class AIBenchmarkingSystem {
-  private static instance: AIBenchmarkingSystem
-  private benchmarkSuites: BenchmarkSuite[] = []
-  private benchmarkResults: BenchmarkResult[] = []
-  private industryBenchmarks: IndustryBenchmark[] = []
-
-  static getInstance(): AIBenchmarkingSystem {
-    if (!AIBenchmarkingSystem.instance) {
-      AIBenchmarkingSystem.instance = new AIBenchmarkingSystem()
+// Pre-defined test cases for comprehensive benchmarking
+export const DEFAULT_BENCHMARK_CASES: BenchmarkTestCase[] = [
+  {
+    id: 'okr_generation_basic',
+    name: 'Generación Básica de OKR',
+    description: 'Genera un OKR completo para una empresa de tecnología',
+    category: 'text_generation',
+    prompt: 'Genera un OKR completo para una empresa de tecnología que quiere mejorar su productividad en el Q4. Incluye 1 objetivo y 3 resultados clave medibles.',
+    expectedOutputType: 'structured',
+    expectedLatency: 5000,
+    qualityCriteria: {
+      minLength: 200,
+      maxLength: 800,
+      mustContain: ['objetivo', 'resultado clave', 'Q4'],
+      mustNotContain: ['lorem ipsum', 'placeholder'],
+      relevanceKeywords: ['productividad', 'tecnología', 'medible', 'trimestre']
     }
-    return AIBenchmarkingSystem.instance
+  },
+  {
+    id: 'business_analysis',
+    name: 'Análisis de Rendimiento Empresarial',
+    description: 'Analiza datos de rendimiento y proporciona insights',
+    category: 'analysis',
+    prompt: 'Analiza estos datos de rendimiento: Ventas Q3: 500K, Q2: 450K, Q1: 400K. Empleados: 50. Satisfacción cliente: 85%. Proporciona 3 insights clave y 2 recomendaciones.',
+    expectedOutputType: 'structured',
+    expectedLatency: 4000,
+    qualityCriteria: {
+      minLength: 300,
+      maxLength: 1000,
+      mustContain: ['insight', 'recomendación', 'análisis'],
+      relevanceKeywords: ['crecimiento', 'tendencia', 'optimización', 'estrategia'],
+      coherenceThreshold: 80
+    }
+  },
+  {
+    id: 'creative_suggestions',
+    name: 'Sugerencias Creativas',
+    description: 'Genera sugerencias creativas para innovación',
+    category: 'text_generation',
+    prompt: 'Genera 5 ideas creativas para mejorar la colaboración remota en equipos de desarrollo de software.',
+    expectedOutputType: 'text',
+    expectedLatency: 3000,
+    qualityCriteria: {
+      minLength: 400,
+      maxLength: 1200,
+      mustContain: ['colaboración', 'remoto', 'desarrollo'],
+      relevanceKeywords: ['innovación', 'comunicación', 'herramienta', 'proceso'],
+      coherenceThreshold: 75
+    }
+  },
+  {
+    id: 'complex_reasoning',
+    name: 'Razonamiento Complejo',
+    description: 'Resuelve un problema que requiere múltiples pasos de razonamiento',
+    category: 'analysis',
+    prompt: 'Una empresa tiene 3 departamentos. Ventas: 10 empleados, productividad 120%. Marketing: 8 empleados, productividad 95%. Desarrollo: 15 empleados, productividad 110%. Si pueden contratar 5 personas más y quieren maximizar el output total, ¿cómo deberían distribuirlas? Explica tu razonamiento paso a paso.',
+    expectedOutputType: 'structured',
+    expectedLatency: 6000,
+    qualityCriteria: {
+      minLength: 300,
+      maxLength: 1000,
+      mustContain: ['razonamiento', 'paso', 'distribución'],
+      relevanceKeywords: ['optimización', 'cálculo', 'estrategia', 'productividad'],
+      accuracyThreshold: 85
+    }
+  },
+  {
+    id: 'embedding_similarity',
+    name: 'Similaridad de Embeddings',
+    description: 'Genera embeddings para conceptos relacionados',
+    category: 'embedding',
+    prompt: 'objetivo estratégico empresarial',
+    expectedOutputType: 'embedding',
+    expectedLatency: 2000,
+    qualityCriteria: {
+      // For embeddings, quality is measured differently
+      relevanceKeywords: ['embedding', 'vector']
+    }
+  },
+  {
+    id: 'conversation_context',
+    name: 'Contexto Conversacional',
+    description: 'Mantiene contexto en conversación multi-turno',
+    category: 'chat_completion',
+    prompt: 'Usuario: ¿Cuáles son los beneficios de los OKRs? Asistente: Los OKRs ofrecen múltiples beneficios... Usuario: ¿Y cuáles son los principales desafíos?',
+    expectedOutputType: 'text',
+    expectedLatency: 4000,
+    qualityCriteria: {
+      minLength: 150,
+      maxLength: 600,
+      mustContain: ['desafío', 'OKR'],
+      relevanceKeywords: ['implementación', 'medición', 'alineación', 'seguimiento'],
+      coherenceThreshold: 85
+    }
   }
+]
+
+export class AIModelBenchmarking {
+  private benchmarkResults: BenchmarkResult[] = []
+  private benchmarkSuites: BenchmarkSuite[] = []
 
   constructor() {
-    this.initializeDefaultSuites()
-    this.loadIndustryBenchmarks()
-  }
-
-  // Create comprehensive benchmark suite for OKR-specific tasks
-  private initializeDefaultSuites(): void {
-    const okrBenchmarkSuite: BenchmarkSuite = {
-      id: 'okr-standard-v1',
-      name: 'OKR Management Standard Benchmark',
-      description: 'Comprehensive benchmark for OKR management AI capabilities',
-      testCases: [
-        {
-          id: 'objective-analysis',
-          name: 'Objective Performance Analysis',
-          prompt: 'Analiza el siguiente objetivo: "Aumentar la satisfacción del cliente en un 25% este trimestre". Progreso actual: 15%. Proporciona insights y recomendaciones.',
-          expectedOutputCriteria: [
-            {
-              type: 'length',
-              expected: { min: 200, max: 500 },
-              weight: 0.1
-            },
-            {
-              type: 'keywords',
-              expected: ['satisfacción', 'cliente', 'progreso', 'recomendaciones', 'estrategia'],
-              weight: 0.3
-            },
-            {
-              type: 'structure',
-              expected: 'structured_analysis',
-              weight: 0.2
-            },
-            {
-              type: 'relevance',
-              expected: 'high',
-              weight: 0.4
-            }
-          ],
-          weight: 0.25,
-          category: 'accuracy'
-        },
-        {
-          id: 'team-insights',
-          name: 'Team Performance Insights',
-          prompt: 'Un equipo de 8 personas tiene 12 objetivos activos, 3 completados y un progreso promedio del 65%. Genera insights para el gerente.',
-          expectedOutputCriteria: [
-            {
-              type: 'keywords',
-              expected: ['equipo', 'rendimiento', 'progreso', 'objetivos', 'liderazgo'],
-              weight: 0.4
-            },
-            {
-              type: 'length',
-              expected: { min: 150, max: 400 },
-              weight: 0.1
-            },
-            {
-              type: 'relevance',
-              expected: 'high',
-              weight: 0.5
-            }
-          ],
-          weight: 0.25,
-          category: 'clarity'
-        },
-        {
-          id: 'strategic-recommendations',
-          name: 'Strategic Recommendations',
-          prompt: 'Basándote en estos datos: 40% de objetivos retrasados, alta rotación en el departamento de ventas, y disminución del 10% en productividad. Proporciona recomendaciones estratégicas.',
-          expectedOutputCriteria: [
-            {
-              type: 'keywords',
-              expected: ['estrategia', 'recomendaciones', 'productividad', 'retención', 'mejora'],
-              weight: 0.4
-            },
-            {
-              type: 'structure',
-              expected: 'actionable_recommendations',
-              weight: 0.3
-            },
-            {
-              type: 'relevance',
-              expected: 'high',
-              weight: 0.3
-            }
-          ],
-          weight: 0.3,
-          category: 'creativity'
-        },
-        {
-          id: 'quick-status',
-          name: 'Quick Status Summary',
-          prompt: 'Proporciona un resumen rápido: 5 objetivos, 2 completados, 1 retrasado, 2 en progreso.',
-          expectedOutputCriteria: [
-            {
-              type: 'length',
-              expected: { min: 50, max: 150 },
-              weight: 0.3
-            },
-            {
-              type: 'keywords',
-              expected: ['resumen', 'objetivos', 'estado', 'progreso'],
-              weight: 0.4
-            },
-            {
-              type: 'relevance',
-              expected: 'high',
-              weight: 0.3
-            }
-          ],
-          weight: 0.2,
-          category: 'speed'
-        }
+    // Initialize with default benchmark suite
+    this.benchmarkSuites.push({
+      id: 'default_suite',
+      name: 'Suite de Benchmarking Completo',
+      description: 'Suite completo de pruebas para evaluar modelos de IA en diferentes categorías',
+      testCases: DEFAULT_BENCHMARK_CASES,
+      modelsToTest: [
+        'openai/gpt-4o',
+        'openai/gpt-4o-mini',
+        'anthropic/claude-3-haiku-20240307',
+        'anthropic/claude-3-sonnet-20240229'
       ],
       createdAt: new Date(),
       updatedAt: new Date()
+    })
+  }
+
+  /**
+   * Run a comprehensive benchmark across multiple models
+   */
+  public async runBenchmarkSuite(
+    suiteId: string,
+    options?: {
+      modelsToTest?: string[]
+      testCasesToRun?: string[]
+      parallel?: boolean
+      userId?: string
     }
-
-    this.benchmarkSuites.push(okrBenchmarkSuite)
-  }
-
-  // Load industry benchmarks (in production, fetch from external sources)
-  private loadIndustryBenchmarks(): void {
-    const industryData: IndustryBenchmark[] = [
-      {
-        category: 'AI Response Time',
-        metric: 'average_response_time_ms',
-        average: 2500,
-        percentile_50: 1800,
-        percentile_75: 3200,
-        percentile_90: 5000,
-        percentile_95: 7500,
-        unit: 'milliseconds',
-        source: 'AI Industry Report 2024',
-        lastUpdated: new Date('2024-01-01')
-      },
-      {
-        category: 'AI Cost Efficiency',
-        metric: 'cost_per_1k_tokens',
-        average: 0.002,
-        percentile_50: 0.0015,
-        percentile_75: 0.003,
-        percentile_90: 0.005,
-        percentile_95: 0.008,
-        unit: 'USD',
-        source: 'LLM Pricing Analysis Q4 2024',
-        lastUpdated: new Date('2024-10-01')
-      },
-      {
-        category: 'AI Quality Score',
-        metric: 'quality_score',
-        average: 0.78,
-        percentile_50: 0.75,
-        percentile_75: 0.85,
-        percentile_90: 0.92,
-        percentile_95: 0.95,
-        unit: 'score',
-        source: 'AI Quality Benchmarks 2024',
-        lastUpdated: new Date('2024-09-01')
-      },
-      {
-        category: 'Error Rate',
-        metric: 'error_rate',
-        average: 0.03,
-        percentile_50: 0.02,
-        percentile_75: 0.04,
-        percentile_90: 0.07,
-        percentile_95: 0.12,
-        unit: 'percentage',
-        source: 'AI Reliability Study 2024',
-        lastUpdated: new Date('2024-08-01')
-      }
-    ]
-
-    this.industryBenchmarks.push(...industryData)
-  }
-
-  // Run comprehensive benchmark against multiple models
-  async runBenchmark(models: string[], suiteId?: string): Promise<ComparisonReport> {
-    const suite = suiteId
-      ? this.benchmarkSuites.find(s => s.id === suiteId)
-      : this.benchmarkSuites[0] // Default to first suite
+  ): Promise<{
+    results: BenchmarkResult[]
+    summary: ModelBenchmarkSummary[]
+    executionTime: number
+    timestamp: Date
+  }> {
+    const startTime = Date.now()
+    const suite = this.benchmarkSuites.find(s => s.id === suiteId)
 
     if (!suite) {
-      throw new Error(`Benchmark suite ${suiteId} not found`)
+      throw new Error(`Benchmark suite not found: ${suiteId}`)
     }
 
-    console.log(`🔄 Iniciando benchmark "${suite.name}" para ${models.length} modelos...`)
+    const modelsToTest = options?.modelsToTest || suite.modelsToTest
+    const testCasesToRun = suite.testCases.filter(tc =>
+      !options?.testCasesToRun || options.testCasesToRun.includes(tc.id)
+    )
 
-    const allResults: BenchmarkResult[] = []
-    const modelScores: Record<string, number> = {}
-    const categoryScores: Record<string, Record<string, number>> = {}
+    console.log(`Running benchmark suite: ${suite.name}`)
+    console.log(`Models: ${modelsToTest.join(', ')}`)
+    console.log(`Test cases: ${testCasesToRun.length}`)
 
-    // Initialize category tracking
-    models.forEach(model => {
-      categoryScores[model] = {}
-    })
+    const results: BenchmarkResult[] = []
 
-    // Run each test case for each model
-    for (const testCase of suite.testCases) {
-      console.log(`📝 Ejecutando test case: ${testCase.name}`)
+    if (options?.parallel) {
+      // Run all combinations in parallel
+      const promises = modelsToTest.flatMap(model =>
+        testCasesToRun.map(testCase =>
+          this.runSingleBenchmark(testCase, model, options?.userId)
+        )
+      )
 
-      for (const model of models) {
-        try {
-          const result = await this.runSingleTest(model, testCase)
-          allResults.push(result)
-
-          // Track scores
-          if (!modelScores[model]) modelScores[model] = 0
-          modelScores[model] += result.score * testCase.weight
-
-          if (!categoryScores[model][testCase.category]) {
-            categoryScores[model][testCase.category] = 0
+      const allResults = await Promise.allSettled(promises)
+      allResults.forEach(result => {
+        if (result.status === 'fulfilled') {
+          results.push(result.value)
+        } else {
+          console.error('Benchmark failed:', result.reason)
+        }
+      })
+    } else {
+      // Run sequentially for more controlled execution
+      for (const model of modelsToTest) {
+        for (const testCase of testCasesToRun) {
+          try {
+            const result = await this.runSingleBenchmark(testCase, model, options?.userId)
+            results.push(result)
+          } catch (error) {
+            console.error(`Benchmark failed for ${model} on ${testCase.id}:`, error)
           }
-          categoryScores[model][testCase.category] += result.score * testCase.weight
-
-        } catch (error) {
-          console.error(`❌ Error en ${model} para ${testCase.name}:`, error)
-
-          // Record failure
-          const failureResult: BenchmarkResult = {
-            modelId: model,
-            suiteId: suite.id,
-            testCaseId: testCase.id,
-            score: 0,
-            metrics: {
-              responseTime: 30000,
-              tokenUsage: 0,
-              cost: 0,
-              qualityScore: 0,
-              errorOccurred: true
-            },
-            output: 'ERROR: Failed to generate response',
-            timestamp: new Date()
-          }
-
-          allResults.push(failureResult)
         }
       }
     }
 
     // Store results
-    this.benchmarkResults.push(...allResults)
+    this.benchmarkResults.push(...results)
 
-    // Determine winners
-    const overallWinner = Object.entries(modelScores).reduce((best, [model, score]) =>
-      score > (modelScores[best] || 0) ? model : best
-    , models[0])
+    // Generate summary
+    const summary = this.generateBenchmarkSummary(results, modelsToTest)
 
-    const categoryWinners: Record<string, string> = {}
-    const categories = [...new Set(suite.testCases.map(tc => tc.category))]
-
-    categories.forEach(category => {
-      const categoryWinner = models.reduce((best, model) =>
-        (categoryScores[model][category] || 0) > (categoryScores[best][category] || 0) ? model : best
-      )
-      categoryWinners[category] = categoryWinner
-    })
-
-    // Generate recommendations
-    const recommendations = this.generateRecommendations(allResults, modelScores)
-
-    // Compare with industry benchmarks
-    const industryComparison = await this.compareWithIndustry(allResults)
-
-    console.log(`✅ Benchmark completado. Ganador general: ${overallWinner}`)
+    const executionTime = Date.now() - startTime
 
     return {
-      models,
-      overallWinner,
-      categoryWinners,
-      detailedResults: allResults,
-      recommendations,
-      industryComparison
-    }
-  }
-
-  // Run single test case
-  private async runSingleTest(model: string, testCase: BenchmarkTestCase): Promise<BenchmarkResult> {
-    const startTime = new Date()
-
-    const { text, usage } = await generateText({
-      model: ai(model),
-      prompt: testCase.prompt,
-      maxTokens: 600
-    })
-
-    const endTime = new Date()
-    const responseTime = endTime.getTime() - startTime.getTime()
-
-    // Calculate cost
-    const estimatedCost = this.estimateModelCost(model, usage?.totalTokens || 200)
-
-    // Evaluate quality against criteria
-    const qualityScore = await this.evaluateQuality(text, testCase.expectedOutputCriteria)
-
-    // Calculate overall test score
-    const score = this.calculateTestScore(qualityScore, responseTime, estimatedCost)
-
-    // Track performance
-    await performanceAnalytics.trackOperation(
-      `benchmark-${testCase.id}`,
-      model,
-      startTime,
-      endTime,
-      {
-        input: usage?.promptTokens || 100,
-        output: usage?.completionTokens || 100
-      },
-      estimatedCost,
-      true,
-      qualityScore
-    )
-
-    return {
-      modelId: model,
-      suiteId: testCase.id.split('-')[0] || 'unknown',
-      testCaseId: testCase.id,
-      score,
-      metrics: {
-        responseTime,
-        tokenUsage: usage?.totalTokens || 200,
-        cost: estimatedCost,
-        qualityScore,
-        errorOccurred: false
-      },
-      output: text,
+      results,
+      summary,
+      executionTime,
       timestamp: new Date()
     }
   }
 
-  // Evaluate response quality against criteria
-  private async evaluateQuality(output: string, criteria: QualityCriteria[]): Promise<number> {
-    let totalScore = 0
-    let totalWeight = 0
+  /**
+   * Run a single benchmark test case against a specific model
+   */
+  public async runSingleBenchmark(
+    testCase: BenchmarkTestCase,
+    model: string,
+    userId?: string
+  ): Promise<BenchmarkResult> {
+    const provider = this.extractProvider(model)
+    const startTime = Date.now()
 
-    for (const criterion of criteria) {
-      let score = 0
+    try {
+      let result: any
+      let outputText = ''
+      let tokensInput = 0
+      let tokensOutput = 0
 
-      switch (criterion.type) {
-        case 'length':
-          const length = output.length
-          const min = criterion.expected.min || 0
-          const max = criterion.expected.max || Infinity
-          score = (length >= min && length <= max) ? 1 : 0.5
-          break
-
-        case 'keywords':
-          const keywords = criterion.expected as string[]
-          const lowerOutput = output.toLowerCase()
-          const foundKeywords = keywords.filter(keyword =>
-            lowerOutput.includes(keyword.toLowerCase())
+      // Execute the appropriate AI operation based on test case category
+      switch (testCase.category) {
+        case 'text_generation':
+          result = await instrumentAIOperation(
+            `benchmark_${testCase.id}`,
+            model,
+            provider,
+            () => aiClient.generateText(testCase.prompt, { model }),
+            userId,
+            { testCaseId: testCase.id, category: testCase.category }
           )
-          score = foundKeywords.length / keywords.length
+          outputText = result
+          tokensInput = (result as any).usage?.promptTokens || this.estimateTokens(testCase.prompt)
+          tokensOutput = (result as any).usage?.completionTokens || this.estimateTokens(outputText)
           break
 
-        case 'structure':
-          score = await this.evaluateStructure(output, criterion.expected)
+        case 'chat_completion':
+          const messages = this.parseConversationPrompt(testCase.prompt)
+          result = await instrumentAIOperation(
+            `benchmark_${testCase.id}`,
+            model,
+            provider,
+            () => aiClient.generateChatCompletion(messages, { model }),
+            userId,
+            { testCaseId: testCase.id, category: testCase.category }
+          )
+          outputText = result
+          tokensInput = (result as any).usage?.promptTokens || this.estimateTokens(testCase.prompt)
+          tokensOutput = (result as any).usage?.completionTokens || this.estimateTokens(outputText)
           break
 
-        case 'relevance':
-          score = await this.evaluateRelevance(output, criterion.expected)
+        case 'embedding':
+          result = await instrumentAIOperation(
+            `benchmark_${testCase.id}`,
+            model,
+            provider,
+            () => aiClient.generateEmbedding(testCase.prompt, { model }),
+            userId,
+            { testCaseId: testCase.id, category: testCase.category }
+          )
+          outputText = `embedding_vector_${result.length}_dimensions`
+          tokensInput = this.estimateTokens(testCase.prompt)
+          tokensOutput = 0 // Embeddings don't have output tokens
           break
 
-        case 'sentiment':
-          score = await this.evaluateSentiment(output, criterion.expected)
+        case 'analysis':
+          result = await instrumentAIOperation(
+            `benchmark_${testCase.id}`,
+            model,
+            provider,
+            () => aiClient.generateText(testCase.prompt, {
+              model,
+              temperature: 0.3 // Lower temperature for analysis tasks
+            }),
+            userId,
+            { testCaseId: testCase.id, category: testCase.category }
+          )
+          outputText = result
+          tokensInput = (result as any).usage?.promptTokens || this.estimateTokens(testCase.prompt)
+          tokensOutput = (result as any).usage?.completionTokens || this.estimateTokens(outputText)
           break
 
         default:
-          score = 0.5 // Default neutral score
+          throw new Error(`Unsupported test case category: ${testCase.category}`)
       }
 
-      totalScore += score * criterion.weight
-      totalWeight += criterion.weight
-    }
+      const endTime = Date.now()
+      const latency = endTime - startTime
 
-    return totalWeight > 0 ? totalScore / totalWeight : 0.5
-  }
+      // Calculate quality score
+      const qualityScore = this.calculateQualityScore(outputText, testCase.qualityCriteria, testCase.category)
 
-  // AI-powered structure evaluation
-  private async evaluateStructure(output: string, expected: string): Promise<number> {
-    try {
-      const prompt = `
-        Evalúa si el siguiente texto tiene una estructura ${expected}:
+      // Calculate cost (simplified - in real implementation would use actual usage data)
+      const cost = this.estimateCost(model, tokensInput, tokensOutput)
 
-        Texto: "${output}"
-
-        Criterios de estructura "${expected}":
-        - structured_analysis: Debe tener secciones claras (situación actual, análisis, recomendaciones)
-        - actionable_recommendations: Debe contener recomendaciones específicas y accionables
-        - summary_format: Debe ser un resumen conciso y bien organizado
-
-        Responde solo con un número del 0 al 1 (donde 1 es estructura perfecta).
-      `
-
-      const { text } = await generateText({
-        model: ai('openai/gpt-4o-mini'),
-        prompt,
-        maxTokens: 10
-      })
-
-      const score = parseFloat(text.trim())
-      return !isNaN(score) && score >= 0 && score <= 1 ? score : 0.5
-    } catch (error) {
-      console.warn('Structure evaluation failed:', error)
-      return 0.5
-    }
-  }
-
-  // AI-powered relevance evaluation
-  private async evaluateRelevance(output: string, expected: string): Promise<number> {
-    try {
-      const prompt = `
-        Evalúa qué tan relevante es esta respuesta para el contexto de gestión de OKRs:
-
-        Respuesta: "${output}"
-
-        Nivel esperado: ${expected}
-        - high: Muy relevante y útil para gestión de OKRs
-        - medium: Parcialmente relevante
-        - low: Poco relevante
-
-        Responde solo con un número del 0 al 1.
-      `
-
-      const { text } = await generateText({
-        model: ai('openai/gpt-4o-mini'),
-        prompt,
-        maxTokens: 10
-      })
-
-      const score = parseFloat(text.trim())
-      return !isNaN(score) && score >= 0 && score <= 1 ? score : 0.5
-    } catch (error) {
-      console.warn('Relevance evaluation failed:', error)
-      return 0.5
-    }
-  }
-
-  // Sentiment evaluation
-  private async evaluateSentiment(output: string, expected: string): Promise<number> {
-    // Simple sentiment check - in production, use more sophisticated sentiment analysis
-    const positiveWords = ['excelente', 'bueno', 'positivo', 'mejora', 'éxito', 'progreso']
-    const negativeWords = ['problema', 'malo', 'falla', 'error', 'retraso', 'crisis']
-
-    const lowerOutput = output.toLowerCase()
-    const positiveCount = positiveWords.filter(word => lowerOutput.includes(word)).length
-    const negativeCount = negativeWords.filter(word => lowerOutput.includes(word)).length
-
-    let score = 0.5 // Neutral default
-
-    if (expected === 'positive') {
-      score = positiveCount > negativeCount ? 0.8 : 0.3
-    } else if (expected === 'negative') {
-      score = negativeCount > positiveCount ? 0.8 : 0.3
-    } else if (expected === 'neutral') {
-      score = Math.abs(positiveCount - negativeCount) <= 1 ? 0.8 : 0.4
-    }
-
-    return score
-  }
-
-  // Calculate overall test score
-  private calculateTestScore(qualityScore: number, responseTime: number, cost: number): number {
-    // Normalize response time (penalty after 5 seconds)
-    const timeScore = Math.max(0, 1 - (responseTime / 5000))
-
-    // Normalize cost (penalty after $0.05 per request)
-    const costScore = Math.max(0, 1 - (cost / 0.05))
-
-    // Weighted combination
-    return (qualityScore * 0.6) + (timeScore * 0.25) + (costScore * 0.15)
-  }
-
-  // Generate recommendations based on results
-  private generateRecommendations(results: BenchmarkResult[], modelScores: Record<string, number>): string[] {
-    const recommendations: string[] = []
-
-    // Performance recommendations
-    const avgResponseTime = results.reduce((sum, r) => sum + r.metrics.responseTime, 0) / results.length
-    if (avgResponseTime > 3000) {
-      recommendations.push('Considere optimizar los tiempos de respuesta. El promedio actual supera los 3 segundos.')
-    }
-
-    // Cost optimization
-    const avgCost = results.reduce((sum, r) => sum + r.metrics.cost, 0) / results.length
-    if (avgCost > 0.03) {
-      recommendations.push('Los costos por operación son elevados. Evalúe usar modelos más eficientes para tareas rutinarias.')
-    }
-
-    // Quality improvement
-    const avgQuality = results.reduce((sum, r) => sum + r.metrics.qualityScore, 0) / results.length
-    if (avgQuality < 0.7) {
-      recommendations.push('La calidad promedio está por debajo del 70%. Revise los prompts y parámetros de los modelos.')
-    }
-
-    // Model-specific recommendations
-    const sortedModels = Object.entries(modelScores).sort(([,a], [,b]) => b - a)
-    const topModel = sortedModels[0]?.[0]
-    const bottomModel = sortedModels[sortedModels.length - 1]?.[0]
-
-    if (topModel && bottomModel && topModel !== bottomModel) {
-      recommendations.push(`El modelo ${topModel} muestra el mejor rendimiento general. Considere priorizarlo para operaciones críticas.`)
-
-      const topScore = modelScores[topModel]
-      const bottomScore = modelScores[bottomModel]
-      const improvement = ((topScore - bottomScore) / bottomScore) * 100
-
-      if (improvement > 20) {
-        recommendations.push(`Existe una diferencia significativa del ${improvement.toFixed(1)}% entre el mejor y peor modelo. Considere reorganizar la distribución de carga.`)
-      }
-    }
-
-    // Error rate recommendations
-    const errorRate = results.filter(r => r.metrics.errorOccurred).length / results.length
-    if (errorRate > 0.05) {
-      recommendations.push(`Tasa de error del ${(errorRate * 100).toFixed(1)}% requiere atención inmediata. Implemente mecanismos de failover.`)
-    }
-
-    return recommendations
-  }
-
-  // Compare performance with industry benchmarks
-  private async compareWithIndustry(results: BenchmarkResult[]): Promise<IndustryComparisonData[]> {
-    const comparisons: IndustryComparisonData[] = []
-
-    if (results.length === 0) return comparisons
-
-    // Response time comparison
-    const avgResponseTime = results.reduce((sum, r) => sum + r.metrics.responseTime, 0) / results.length
-    const responseTimeBenchmark = this.industryBenchmarks.find(b => b.metric === 'average_response_time_ms')
-
-    if (responseTimeBenchmark) {
-      const percentileRanking = this.calculatePercentileRanking(avgResponseTime, responseTimeBenchmark)
-      comparisons.push({
-        metric: 'Tiempo de Respuesta',
-        ourPerformance: avgResponseTime,
-        industryAverage: responseTimeBenchmark.average,
-        percentileRanking,
-        gap: avgResponseTime - responseTimeBenchmark.average,
-        recommendation: avgResponseTime > responseTimeBenchmark.average
-          ? 'Su tiempo de respuesta está por encima del promedio de la industria. Considere optimizaciones.'
-          : 'Su tiempo de respuesta está dentro de los estándares de la industria.'
-      })
-    }
-
-    // Cost comparison
-    const avgCost = results.reduce((sum, r) => sum + r.metrics.cost, 0) / results.length
-    const costBenchmark = this.industryBenchmarks.find(b => b.metric === 'cost_per_1k_tokens')
-
-    if (costBenchmark) {
-      const normalizedCost = (avgCost / (results.reduce((sum, r) => sum + r.metrics.tokenUsage, 0) / results.length)) * 1000
-      const percentileRanking = this.calculatePercentileRanking(normalizedCost, costBenchmark)
-
-      comparisons.push({
-        metric: 'Costo por 1K Tokens',
-        ourPerformance: normalizedCost,
-        industryAverage: costBenchmark.average,
-        percentileRanking,
-        gap: normalizedCost - costBenchmark.average,
-        recommendation: normalizedCost > costBenchmark.average
-          ? 'Sus costos están por encima del promedio de la industria. Evalúe optimizaciones de costo.'
-          : 'Sus costos están competitivos con los estándares de la industria.'
-      })
-    }
-
-    // Quality comparison
-    const avgQuality = results.reduce((sum, r) => sum + r.metrics.qualityScore, 0) / results.length
-    const qualityBenchmark = this.industryBenchmarks.find(b => b.metric === 'quality_score')
-
-    if (qualityBenchmark) {
-      const percentileRanking = this.calculatePercentileRanking(avgQuality, qualityBenchmark, true) // Higher is better
-      comparisons.push({
-        metric: 'Puntuación de Calidad',
-        ourPerformance: avgQuality,
-        industryAverage: qualityBenchmark.average,
-        percentileRanking,
-        gap: avgQuality - qualityBenchmark.average,
-        recommendation: avgQuality < qualityBenchmark.average
-          ? 'Su puntuación de calidad está por debajo del promedio de la industria. Revise los prompts y configuraciones.'
-          : 'Su puntuación de calidad cumple o supera los estándares de la industria.'
-      })
-    }
-
-    return comparisons
-  }
-
-  // Calculate percentile ranking
-  private calculatePercentileRanking(value: number, benchmark: IndustryBenchmark, higherIsBetter = false): number {
-    const percentiles = [
-      { percentile: 50, value: benchmark.percentile_50 },
-      { percentile: 75, value: benchmark.percentile_75 },
-      { percentile: 90, value: benchmark.percentile_90 },
-      { percentile: 95, value: benchmark.percentile_95 }
-    ]
-
-    if (higherIsBetter) {
-      // For metrics where higher values are better (quality, efficiency)
-      for (let i = percentiles.length - 1; i >= 0; i--) {
-        if (value >= percentiles[i].value) {
-          return percentiles[i].percentile
+      return {
+        testCaseId: testCase.id,
+        model,
+        provider,
+        success: true,
+        latency,
+        cost,
+        qualityScore,
+        outputText,
+        tokensInput,
+        tokensOutput,
+        timestamp: new Date(),
+        metadata: {
+          expectedLatency: testCase.expectedLatency,
+          meetsLatencyExpectation: latency <= testCase.expectedLatency,
+          testCategory: testCase.category
         }
       }
-      return value >= benchmark.average ? 50 : 25
-    } else {
-      // For metrics where lower values are better (response time, cost, error rate)
-      for (const { percentile, value: benchmarkValue } of percentiles) {
-        if (value <= benchmarkValue) {
-          return 100 - percentile // Invert for "lower is better"
+
+    } catch (error) {
+      const endTime = Date.now()
+      const latency = endTime - startTime
+
+      return {
+        testCaseId: testCase.id,
+        model,
+        provider,
+        success: false,
+        latency,
+        cost: 0,
+        qualityScore: 0,
+        outputText: '',
+        tokensInput: 0,
+        tokensOutput: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date()
+      }
+    }
+  }
+
+  /**
+   * Generate comprehensive benchmark summary
+   */
+  private generateBenchmarkSummary(
+    results: BenchmarkResult[],
+    modelsToTest: string[]
+  ): ModelBenchmarkSummary[] {
+    const summaries: ModelBenchmarkSummary[] = []
+
+    for (const model of modelsToTest) {
+      const modelResults = results.filter(r => r.model === model)
+
+      if (modelResults.length === 0) continue
+
+      const successfulResults = modelResults.filter(r => r.success)
+      const latencies = successfulResults.map(r => r.latency).sort((a, b) => a - b)
+      const qualities = successfulResults.map(r => r.qualityScore).filter(q => q > 0)
+      const costs = modelResults.map(r => r.cost)
+      const totalTokens = modelResults.reduce((sum, r) => sum + r.tokensInput + r.tokensOutput, 0)
+
+      const summary: ModelBenchmarkSummary = {
+        model,
+        provider: this.extractProvider(model),
+        totalTests: modelResults.length,
+        successRate: (successfulResults.length / modelResults.length) * 100,
+        averageLatency: latencies.length > 0 ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length : 0,
+        medianLatency: latencies.length > 0 ? latencies[Math.floor(latencies.length / 2)] : 0,
+        averageQuality: qualities.length > 0 ? qualities.reduce((sum, q) => sum + q, 0) / qualities.length : 0,
+        totalCost: costs.reduce((sum, c) => sum + c, 0),
+        costPerToken: totalTokens > 0 ? costs.reduce((sum, c) => sum + c, 0) / totalTokens : 0,
+        rank: 0, // Will be calculated after sorting
+        strengths: this.identifyModelStrengths(modelResults),
+        weaknesses: this.identifyModelWeaknesses(modelResults),
+        recommendedUseCase: this.recommendUseCase(modelResults)
+      }
+
+      summaries.push(summary)
+    }
+
+    // Rank models by overall performance
+    return this.rankModelsByPerformance(summaries)
+  }
+
+  /**
+   * Calculate quality score based on output and criteria
+   */
+  private calculateQualityScore(
+    output: string,
+    criteria: QualityCriteria,
+    category: string
+  ): number {
+    if (category === 'embedding') {
+      // For embeddings, basic validation
+      return output.includes('embedding_vector') ? 90 : 0
+    }
+
+    let score = 100
+    const deductions: string[] = []
+
+    // Length criteria
+    if (criteria.minLength && output.length < criteria.minLength) {
+      score -= 20
+      deductions.push('too_short')
+    }
+    if (criteria.maxLength && output.length > criteria.maxLength) {
+      score -= 10
+      deductions.push('too_long')
+    }
+
+    // Required content
+    if (criteria.mustContain) {
+      const missingCount = criteria.mustContain.filter(
+        phrase => !output.toLowerCase().includes(phrase.toLowerCase())
+      ).length
+      score -= missingCount * 15
+    }
+
+    // Forbidden content
+    if (criteria.mustNotContain) {
+      const forbiddenCount = criteria.mustNotContain.filter(
+        phrase => output.toLowerCase().includes(phrase.toLowerCase())
+      ).length
+      score -= forbiddenCount * 25
+    }
+
+    // Relevance keywords
+    if (criteria.relevanceKeywords) {
+      const foundKeywords = criteria.relevanceKeywords.filter(
+        keyword => output.toLowerCase().includes(keyword.toLowerCase())
+      ).length
+      const relevanceScore = (foundKeywords / criteria.relevanceKeywords.length) * 100
+      if (relevanceScore < 50) {
+        score -= 20
+      }
+    }
+
+    // Coherence (basic heuristic)
+    if (criteria.coherenceThreshold) {
+      const coherenceScore = this.calculateCoherenceScore(output)
+      if (coherenceScore < criteria.coherenceThreshold) {
+        score -= 15
+      }
+    }
+
+    return Math.max(0, Math.min(100, score))
+  }
+
+  /**
+   * Basic coherence scoring heuristic
+   */
+  private calculateCoherenceScore(text: string): number {
+    // Simple heuristics for coherence
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0)
+
+    if (sentences.length === 0) return 0
+
+    // Check for repetition
+    const uniqueSentences = new Set(sentences.map(s => s.trim().toLowerCase()))
+    const repetitionPenalty = (sentences.length - uniqueSentences.size) / sentences.length * 30
+
+    // Check for reasonable sentence length
+    const avgSentenceLength = sentences.reduce((sum, s) => sum + s.length, 0) / sentences.length
+    const lengthScore = avgSentenceLength > 10 && avgSentenceLength < 200 ? 20 : 0
+
+    // Check for logical flow (very basic)
+    const hasConnectives = text.toLowerCase().includes('por lo tanto') ||
+                          text.toLowerCase().includes('además') ||
+                          text.toLowerCase().includes('sin embargo') ||
+                          text.toLowerCase().includes('por ejemplo')
+    const connectiveScore = hasConnectives ? 10 : 0
+
+    return Math.max(0, 70 + lengthScore + connectiveScore - repetitionPenalty)
+  }
+
+  /**
+   * Identify model strengths based on benchmark results
+   */
+  private identifyModelStrengths(results: BenchmarkResult[]): string[] {
+    const strengths: string[] = []
+    const successfulResults = results.filter(r => r.success)
+
+    if (successfulResults.length === 0) return ['Ninguna fortaleza identificada']
+
+    const avgLatency = successfulResults.reduce((sum, r) => sum + r.latency, 0) / successfulResults.length
+    const avgQuality = successfulResults.reduce((sum, r) => sum + r.qualityScore, 0) / successfulResults.length
+    const avgCost = successfulResults.reduce((sum, r) => sum + r.cost, 0) / successfulResults.length
+
+    if (avgLatency < 2000) strengths.push('Respuesta muy rápida')
+    else if (avgLatency < 4000) strengths.push('Respuesta rápida')
+
+    if (avgQuality > 85) strengths.push('Alta calidad de output')
+    else if (avgQuality > 75) strengths.push('Buena calidad de output')
+
+    if (avgCost < 0.001) strengths.push('Muy económico')
+    else if (avgCost < 0.005) strengths.push('Económico')
+
+    if (results.every(r => r.success)) strengths.push('100% confiabilidad')
+    else if (results.filter(r => r.success).length / results.length > 0.95) strengths.push('Alta confiabilidad')
+
+    // Category-specific strengths
+    const categoryPerformance = this.analyzeCategroyPerformance(results)
+    Object.entries(categoryPerformance).forEach(([category, score]) => {
+      if (score > 85) {
+        strengths.push(`Excelente en ${category}`)
+      }
+    })
+
+    return strengths.length > 0 ? strengths : ['Rendimiento estándar']
+  }
+
+  /**
+   * Identify model weaknesses
+   */
+  private identifyModelWeaknesses(results: BenchmarkResult[]): string[] {
+    const weaknesses: string[] = []
+    const successfulResults = results.filter(r => r.success)
+
+    if (results.length === 0) return ['No hay datos suficientes']
+
+    const successRate = successfulResults.length / results.length
+    if (successRate < 0.9) weaknesses.push('Problemas de confiabilidad')
+
+    if (successfulResults.length > 0) {
+      const avgLatency = successfulResults.reduce((sum, r) => sum + r.latency, 0) / successfulResults.length
+      const avgQuality = successfulResults.reduce((sum, r) => sum + r.qualityScore, 0) / successfulResults.length
+      const avgCost = successfulResults.reduce((sum, r) => sum + r.cost, 0) / successfulResults.length
+
+      if (avgLatency > 8000) weaknesses.push('Latencia alta')
+      if (avgQuality < 60) weaknesses.push('Calidad de output mejorable')
+      if (avgCost > 0.01) weaknesses.push('Costo elevado')
+
+      // Check for specific latency expectations
+      const latencyMisses = results.filter(r =>
+        r.metadata?.expectedLatency && r.latency > r.metadata.expectedLatency
+      ).length
+      if (latencyMisses > results.length * 0.3) {
+        weaknesses.push('No cumple expectativas de latencia')
+      }
+    }
+
+    // Category-specific weaknesses
+    const categoryPerformance = this.analyzeCategroyPerformance(results)
+    Object.entries(categoryPerformance).forEach(([category, score]) => {
+      if (score < 60) {
+        weaknesses.push(`Débil en ${category}`)
+      }
+    })
+
+    return weaknesses.length > 0 ? weaknesses : ['Ninguna debilidad significativa']
+  }
+
+  /**
+   * Recommend use case based on benchmark results
+   */
+  private recommendUseCase(results: BenchmarkResult[]): string {
+    const categoryPerformance = this.analyzeCategroyPerformance(results)
+    const bestCategory = Object.entries(categoryPerformance)
+      .sort(([, a], [, b]) => b - a)[0]
+
+    const successfulResults = results.filter(r => r.success)
+    if (successfulResults.length === 0) return 'No recomendado para uso en producción'
+
+    const avgLatency = successfulResults.reduce((sum, r) => sum + r.latency, 0) / successfulResults.length
+    const avgCost = successfulResults.reduce((sum, r) => sum + r.cost, 0) / successfulResults.length
+
+    if (bestCategory) {
+      const [category, score] = bestCategory
+      if (score > 80) {
+        if (avgLatency < 3000 && avgCost < 0.005) {
+          return `Ideal para ${category} en tiempo real y alto volumen`
+        } else if (avgLatency < 5000) {
+          return `Recomendado para ${category} con respuesta rápida`
+        } else if (avgCost < 0.002) {
+          return `Económico para ${category} en lotes`
+        } else {
+          return `Adecuado para ${category} de alta calidad`
         }
       }
-      return value <= benchmark.average ? 50 : 25
-    }
-  }
-
-  // Cost estimation (simplified)
-  private estimateModelCost(model: string, tokens: number): number {
-    const costPerThousandTokens: Record<string, number> = {
-      'openai/gpt-4o': 0.015,
-      'openai/gpt-4o-mini': 0.0015,
-      'anthropic/claude-3-sonnet-20240229': 0.003,
-      'anthropic/claude-3-haiku-20240307': 0.0005,
-      'google/gemini-1.5-flash': 0.001,
-      'default': 0.002
     }
 
-    const cost = costPerThousandTokens[model] || costPerThousandTokens['default']
-    return (tokens / 1000) * cost
+    if (avgCost < 0.001) return 'Ideal para tareas de alto volumen con presupuesto limitado'
+    if (avgLatency < 2000) return 'Excelente para aplicaciones en tiempo real'
+
+    return 'Uso general con rendimiento balanceado'
   }
 
-  // Get benchmark results for a specific model
-  getBenchmarkResults(modelId?: string, suiteId?: string): BenchmarkResult[] {
-    let results = this.benchmarkResults
+  /**
+   * Analyze performance by category
+   */
+  private analyzeCategroyPerformance(results: BenchmarkResult[]): Record<string, number> {
+    const categories: Record<string, { scores: number[], count: number }> = {}
 
-    if (modelId) {
-      results = results.filter(r => r.modelId === modelId)
+    results.forEach(result => {
+      const category = result.metadata?.testCategory || 'unknown'
+      if (!categories[category]) {
+        categories[category] = { scores: [], count: 0 }
+      }
+
+      categories[category].count++
+      if (result.success && result.qualityScore > 0) {
+        categories[category].scores.push(result.qualityScore)
+      }
+    })
+
+    const performance: Record<string, number> = {}
+    Object.entries(categories).forEach(([category, data]) => {
+      if (data.scores.length > 0) {
+        performance[category] = data.scores.reduce((sum, score) => sum + score, 0) / data.scores.length
+      } else {
+        performance[category] = 0
+      }
+    })
+
+    return performance
+  }
+
+  /**
+   * Rank models by overall performance
+   */
+  private rankModelsByPerformance(summaries: ModelBenchmarkSummary[]): ModelBenchmarkSummary[] {
+    // Calculate overall score for ranking
+    const scored = summaries.map(summary => {
+      const successWeight = 0.3
+      const qualityWeight = 0.25
+      const latencyWeight = 0.2
+      const costWeight = 0.25
+
+      // Normalize scores (higher is better)
+      const successScore = summary.successRate
+      const qualityScore = summary.averageQuality
+      const latencyScore = Math.max(0, 100 - (summary.averageLatency / 100))
+      const costScore = Math.max(0, 100 - (summary.costPerToken * 100000))
+
+      const overallScore =
+        successScore * successWeight +
+        qualityScore * qualityWeight +
+        latencyScore * latencyWeight +
+        costScore * costWeight
+
+      return { ...summary, overallScore }
+    })
+
+    // Sort by overall score
+    scored.sort((a, b) => b.overallScore - a.overallScore)
+
+    // Assign ranks
+    return scored.map((summary, index) => ({
+      ...summary,
+      rank: index + 1
+    }))
+  }
+
+  // Helper methods
+
+  private extractProvider(model: string): string {
+    return model.split('/')[0] || 'unknown'
+  }
+
+  private estimateTokens(text: string): number {
+    // Rough estimation: ~4 characters per token for Spanish text
+    return Math.ceil(text.length / 4)
+  }
+
+  private estimateCost(model: string, inputTokens: number, outputTokens: number): number {
+    // Use the same cost calculation as in performance analytics
+    const costs = {
+      'openai/gpt-4o': { input: 2.5, output: 10.0 },
+      'openai/gpt-4o-mini': { input: 0.15, output: 0.6 },
+      'anthropic/claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+      'anthropic/claude-3-sonnet-20240229': { input: 3.0, output: 15.0 }
     }
 
-    if (suiteId) {
-      results = results.filter(r => r.suiteId === suiteId)
+    const modelCost = costs[model as keyof typeof costs]
+    if (!modelCost) return 0
+
+    return (inputTokens / 1000000) * modelCost.input + (outputTokens / 1000000) * modelCost.output
+  }
+
+  private parseConversationPrompt(prompt: string): Array<{ role: 'user' | 'assistant', content: string }> {
+    // Simple parser for conversation format
+    const parts = prompt.split(/Usuario:|Asistente:/)
+    const messages: Array<{ role: 'user' | 'assistant', content: string }> = []
+
+    for (let i = 1; i < parts.length; i++) {
+      const role = i % 2 === 1 ? 'user' as const : 'assistant' as const
+      const content = parts[i].trim()
+      if (content) {
+        messages.push({ role, content })
+      }
     }
 
-    return results.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    return messages.length > 0 ? messages : [{ role: 'user', content: prompt }]
   }
 
-  // Get available benchmark suites
-  getBenchmarkSuites(): BenchmarkSuite[] {
-    return this.benchmarkSuites
+  /**
+   * Get all benchmark results
+   */
+  public getBenchmarkResults(filters?: {
+    model?: string
+    testCaseId?: string
+    startDate?: Date
+    endDate?: Date
+  }): BenchmarkResult[] {
+    let filtered = [...this.benchmarkResults]
+
+    if (filters?.model) {
+      filtered = filtered.filter(r => r.model === filters.model)
+    }
+    if (filters?.testCaseId) {
+      filtered = filtered.filter(r => r.testCaseId === filters.testCaseId)
+    }
+    if (filters?.startDate) {
+      filtered = filtered.filter(r => r.timestamp >= filters.startDate!)
+    }
+    if (filters?.endDate) {
+      filtered = filtered.filter(r => r.timestamp <= filters.endDate!)
+    }
+
+    return filtered
   }
 
-  // Add custom benchmark suite
-  addBenchmarkSuite(suite: Omit<BenchmarkSuite, 'id' | 'createdAt' | 'updatedAt'>): string {
+  /**
+   * Get available benchmark suites
+   */
+  public getBenchmarkSuites(): BenchmarkSuite[] {
+    return [...this.benchmarkSuites]
+  }
+
+  /**
+   * Create a custom benchmark suite
+   */
+  public createBenchmarkSuite(suite: Omit<BenchmarkSuite, 'id' | 'createdAt' | 'updatedAt'>): string {
+    const id = `suite_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
     const newSuite: BenchmarkSuite = {
       ...suite,
-      id: `custom-${Date.now()}`,
+      id,
       createdAt: new Date(),
       updatedAt: new Date()
     }
 
     this.benchmarkSuites.push(newSuite)
-    return newSuite.id
-  }
-
-  // Update industry benchmarks
-  updateIndustryBenchmarks(benchmarks: IndustryBenchmark[]): void {
-    this.industryBenchmarks = benchmarks
-  }
-
-  // Get industry comparison data
-  getIndustryBenchmarks(): IndustryBenchmark[] {
-    return this.industryBenchmarks
+    return id
   }
 }
 
 // Export singleton instance
-export const aiBenchmarking = AIBenchmarkingSystem.getInstance()
+export const modelBenchmarking = new AIModelBenchmarking()

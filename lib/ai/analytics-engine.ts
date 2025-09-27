@@ -1,606 +1,612 @@
-import type { Objective, Initiative, Activity, UserRole } from "@/lib/types/okr"
+import { getDrizzleDb } from '@/lib/database/client'
+import type { Objective, Initiative, Activity, Profile, UserRole } from "@/lib/database/types"
+
+// Analytics interfaces following the API specification from Issue #65
+export interface AnalyticsTimeRange {
+  start: Date
+  end: Date
+}
+
+export interface AnalyticsRequest {
+  okrIds?: string[]
+  teamId?: string
+  timeRange: AnalyticsTimeRange
+  analysisType: 'performance' | 'predictive' | 'comparative' | 'comprehensive'
+  includeRecommendations?: boolean
+  benchmarkAgainst?: 'industry' | 'company' | 'team'
+}
+
+export interface Insight {
+  id: string
+  title: string
+  content: string
+  type: 'trend' | 'performance' | 'risk' | 'opportunity' | 'prediction'
+  priority: 'low' | 'medium' | 'high'
+  confidence: number // 0-100
+  impact: number // 0-100
+  category: string
+  metadata?: Record<string, any>
+}
+
+export interface Prediction {
+  id: string
+  objective_id: string
+  predicted_completion: Date
+  probability: number // 0-100
+  confidence: number // 0-100
+  risk_factors: string[]
+  required_actions: string[]
+}
+
+export interface Recommendation {
+  id: string
+  title: string
+  description: string
+  category: 'process' | 'resource' | 'timeline' | 'strategy'
+  priority: 'low' | 'medium' | 'high'
+  impact: number // 0-100
+  effort: 'low' | 'medium' | 'high'
+  target_okr_ids: string[]
+}
+
+export interface Benchmark {
+  metric: string
+  current_value: number
+  benchmark_value: number
+  comparison: 'above' | 'at' | 'below'
+  improvement_potential: number
+}
+
+export interface RiskFactor {
+  id: string
+  title: string
+  description: string
+  probability: number // 0-100
+  impact: number // 0-100
+  mitigation_suggestions: string[]
+  affected_okr_ids: string[]
+}
+
+export interface Trend {
+  metric: string
+  direction: 'increasing' | 'decreasing' | 'stable'
+  velocity: number
+  confidence: number // 0-100
+  timeframe: string
+}
+
+export interface AnalyticsResponse {
+  summary: string
+  insights: Insight[]
+  predictions: Prediction[]
+  recommendations: Recommendation[]
+  benchmarks: Benchmark[]
+  riskFactors: RiskFactor[]
+  trends: Trend[]
+  metadata: {
+    analysis_type: string
+    time_range: AnalyticsTimeRange
+    generated_at: Date
+    data_points_analyzed: number
+    confidence_score: number
+  }
+}
+
+// Core analytics data structures
+export interface OKRAnalyticsData {
+  objectives: Objective[]
+  initiatives: Initiative[]
+  activities: Activity[]
+  profiles: Profile[]
+  historical_progress: ProgressSnapshot[]
+}
+
+export interface ProgressSnapshot {
+  okr_id: string
+  okr_type: 'objective' | 'initiative' | 'activity'
+  progress: number
+  status: string
+  snapshot_date: Date
+}
+
+export interface PerformanceMetrics {
+  total_objectives: number
+  completed_objectives: number
+  in_progress_objectives: number
+  overdue_objectives: number
+  average_progress: number
+  completion_rate: number
+  velocity: number // progress per day
+  efficiency_score: number
+}
+
+export interface TeamPerformanceData {
+  team_id: string
+  department: string
+  metrics: PerformanceMetrics
+  trend_analysis: {
+    progress_trend: 'positive' | 'negative' | 'stable'
+    velocity_change: number
+    completion_rate_change: number
+  }
+}
 
 /**
- * Core analytics engine for OKR performance analysis
- * Provides statistical analysis, pattern recognition, and predictive insights
+ * Core Analytics Engine - Processes OKR data and generates insights
+ * Following NEON_STACK_AUTH_SETUP patterns for authentication
  */
-
-export interface AnalyticsMetrics {
-  // Performance Metrics
-  totalObjectives: number
-  completedObjectives: number
-  averageProgress: number
-  completionRate: number
-
-  // Timing Metrics
-  overdueObjectives: number
-  onTrackObjectives: number
-  atRiskObjectives: number
-
-  // Velocity Metrics
-  progressVelocity: number
-  estimatedCompletionDays: number
-
-  // Efficiency Metrics
-  resourceUtilization: number
-  teamEfficiency: number
-}
-
-export interface TrendAnalysis {
-  direction: 'increasing' | 'decreasing' | 'stable'
-  strength: number // 0-1
-  confidence: number // 0-1
-  changeRate: number // percentage change per period
-  seasonality?: 'weekly' | 'monthly' | 'quarterly'
-}
-
-export interface PredictiveInsight {
-  objective_id: string
-  completionProbability: number
-  estimatedCompletionDate: string
-  riskFactors: string[]
-  recommendedActions: string[]
-  confidence: number
-}
-
-export interface BenchmarkData {
-  industry: string
-  metric: string
-  value: number
-  percentile: number
-  source: string
-}
-
-export interface PerformancePattern {
-  type: 'success' | 'failure' | 'delay' | 'acceleration'
-  description: string
-  frequency: number
-  impact: 'high' | 'medium' | 'low'
-  conditions: Record<string, any>
-}
-
 export class AnalyticsEngine {
-  private objectives: Objective[]
-  private initiatives: Initiative[]
-  private activities: Activity[]
+  private supabase = createClient()
 
-  constructor(objectives: Objective[], initiatives: Initiative[] = [], activities: Activity[] = []) {
-    this.objectives = objectives
-    this.initiatives = initiatives
-    this.activities = activities
+  /**
+   * Retrieve comprehensive OKR data for analysis
+   */
+  async getAnalyticsData(request: AnalyticsRequest, userId: string): Promise<OKRAnalyticsData> {
+    const { timeRange, okrIds, teamId } = request
+
+    // Build query filters
+    let objectiveQuery = this.supabase
+      .from('objectives')
+      .select(`
+        *,
+        owner:profiles!inner(*)
+      `)
+      .gte('created_at', timeRange.start.toISOString())
+      .lte('created_at', timeRange.end.toISOString())
+
+    // Apply filters based on request
+    if (okrIds && okrIds.length > 0) {
+      objectiveQuery = objectiveQuery.in('id', okrIds)
+    }
+
+    if (teamId) {
+      objectiveQuery = objectiveQuery.eq('department', teamId)
+    }
+
+    const { data: objectives, error: objError } = await objectiveQuery
+    if (objError) throw new Error(`Failed to fetch objectives: ${objError.message}`)
+
+    // Get related initiatives
+    const objectiveIds = objectives?.map(obj => obj.id) || []
+    const { data: initiatives, error: initError } = await this.supabase
+      .from('initiatives')
+      .select(`
+        *,
+        owner:profiles!inner(*),
+        objective:objectives!inner(*)
+      `)
+      .in('objective_id', objectiveIds)
+
+    if (initError) throw new Error(`Failed to fetch initiatives: ${initError.message}`)
+
+    // Get related activities
+    const initiativeIds = initiatives?.map(init => init.id) || []
+    const { data: activities, error: actError } = await this.supabase
+      .from('activities')
+      .select(`
+        *,
+        owner:profiles!inner(*),
+        initiative:initiatives!inner(*)
+      `)
+      .in('initiative_id', initiativeIds)
+
+    if (actError) throw new Error(`Failed to fetch activities: ${actError.message}`)
+
+    // Get unique profiles
+    // Get unique owner IDs
+    const ownerIds = new Set<string>()
+    objectives?.forEach(obj => ownerIds.add(obj.owner_id))
+    initiatives?.forEach(init => ownerIds.add(init.owner_id))
+    activities?.forEach(act => ownerIds.add(act.owner_id))
+    const allOwnerIds = Array.from(ownerIds)
+
+    const { data: profiles, error: profileError } = await this.supabase
+      .from('profiles')
+      .select('*')
+      .in('id', allOwnerIds)
+
+    if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`)
+
+    // For now, we'll simulate historical progress data
+    // In a real implementation, this would come from a progress_snapshots table
+    const historical_progress = this.generateHistoricalProgressData(objectives || [], initiatives || [], activities || [])
+
+    return {
+      objectives: objectives || [],
+      initiatives: initiatives || [],
+      activities: activities || [],
+      profiles: profiles || [],
+      historical_progress
+    }
   }
 
   /**
-   * Calculate comprehensive performance metrics
+   * Calculate performance metrics for a dataset
    */
-  calculateMetrics(): AnalyticsMetrics {
-    const totalObjectives = this.objectives.length
-    const completedObjectives = this.objectives.filter(obj => obj.status === "completado").length
-    const averageProgress = totalObjectives > 0
-      ? Math.round(this.objectives.reduce((sum, obj) => sum + obj.progress, 0) / totalObjectives)
+  calculatePerformanceMetrics(data: OKRAnalyticsData): PerformanceMetrics {
+    const { objectives } = data
+
+    const total_objectives = objectives.length
+    const completed_objectives = objectives.filter(obj => obj.status === 'completado').length
+    const in_progress_objectives = objectives.filter(obj => obj.status === 'en_progreso').length
+
+    // Calculate overdue objectives
+    const today = new Date()
+    const overdue_objectives = objectives.filter(obj => {
+      const endDate = new Date(obj.end_date)
+      return endDate < today && obj.status !== 'completado'
+    }).length
+
+    const average_progress = total_objectives > 0
+      ? objectives.reduce((sum, obj) => sum + obj.progress, 0) / total_objectives
       : 0
 
-    const now = new Date()
-    const overdueObjectives = this.objectives.filter(obj => {
-      const endDate = new Date(obj.end_date)
-      return endDate < now && obj.status !== "completado"
-    }).length
+    const completion_rate = total_objectives > 0 ? (completed_objectives / total_objectives) * 100 : 0
 
-    const onTrackObjectives = this.objectives.filter(obj => {
-      const progress = obj.progress
-      const timeElapsed = this.calculateTimeElapsed(obj.start_date, obj.end_date, now.toISOString())
-      return progress >= timeElapsed * 0.8 // On track if progress ≥ 80% of time elapsed
-    }).length
+    // Calculate velocity (average progress per day)
+    const velocity = this.calculateProgressVelocity(data.historical_progress)
 
-    const atRiskObjectives = this.objectives.filter(obj => {
-      const progress = obj.progress
-      const timeElapsed = this.calculateTimeElapsed(obj.start_date, obj.end_date, now.toISOString())
-      return progress < timeElapsed * 0.6 && obj.status !== "completado" // At risk if progress < 60% of time elapsed
-    }).length
-
-    const progressVelocity = this.calculateProgressVelocity()
-    const estimatedCompletionDays = this.calculateEstimatedCompletion()
+    // Calculate efficiency score based on progress vs time elapsed
+    const efficiency_score = this.calculateEfficiencyScore(objectives)
 
     return {
-      totalObjectives,
-      completedObjectives,
-      averageProgress,
-      completionRate: totalObjectives > 0 ? Math.round((completedObjectives / totalObjectives) * 100) : 0,
-      overdueObjectives,
-      onTrackObjectives,
-      atRiskObjectives,
-      progressVelocity,
-      estimatedCompletionDays,
-      resourceUtilization: this.calculateResourceUtilization(),
-      teamEfficiency: this.calculateTeamEfficiency()
+      total_objectives,
+      completed_objectives,
+      in_progress_objectives,
+      overdue_objectives,
+      average_progress,
+      completion_rate,
+      velocity,
+      efficiency_score
     }
   }
 
   /**
-   * Analyze trends in performance data
+   * Perform comparative analysis between teams/departments
    */
-  analyzeTrends(periodDays: number = 30): TrendAnalysis {
-    const recentObjectives = this.objectives.filter(obj => {
-      const createdDate = new Date(obj.created_at)
-      const cutoffDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000)
-      return createdDate >= cutoffDate
-    })
+  async performComparativeAnalysis(request: AnalyticsRequest, userId: string): Promise<TeamPerformanceData[]> {
+    const data = await this.getAnalyticsData(request, userId)
 
-    if (recentObjectives.length < 2) {
+    // Group data by department
+    const departmentGroups = this.groupByDepartment(data)
+
+    return departmentGroups.map(group => {
+      const metrics = this.calculatePerformanceMetrics(group.data)
+      const trend_analysis = this.analyzeTrends(group.data.historical_progress)
+
       return {
-        direction: 'stable',
-        strength: 0,
-        confidence: 0,
-        changeRate: 0
+        team_id: group.department,
+        department: group.department,
+        metrics,
+        trend_analysis
       }
-    }
-
-    // Calculate progress trend
-    const progressPoints = recentObjectives.map((obj, index) => ({
-      x: index,
-      y: obj.progress
-    }))
-
-    const trend = this.calculateLinearRegression(progressPoints)
-
-    return {
-      direction: trend.slope > 0.1 ? 'increasing' : trend.slope < -0.1 ? 'decreasing' : 'stable',
-      strength: Math.abs(trend.slope),
-      confidence: trend.r2,
-      changeRate: trend.slope * 100,
-      seasonality: this.detectSeasonality(recentObjectives)
-    }
-  }
-
-  /**
-   * Generate predictive insights for objectives
-   */
-  generatePredictiveInsights(): PredictiveInsight[] {
-    return this.objectives
-      .filter(obj => obj.status !== "completado")
-      .map(obj => {
-        const completionProbability = this.calculateCompletionProbability(obj)
-        const estimatedDate = this.estimateCompletionDate(obj)
-        const riskFactors = this.identifyRiskFactors(obj)
-        const recommendations = this.generateRecommendations(obj, riskFactors)
-
-        return {
-          objective_id: obj.id,
-          completionProbability,
-          estimatedCompletionDate: estimatedDate,
-          riskFactors,
-          recommendedActions: recommendations,
-          confidence: this.calculatePredictionConfidence(obj)
-        }
-      })
-  }
-
-  /**
-   * Identify performance patterns
-   */
-  detectPerformancePatterns(): PerformancePattern[] {
-    const patterns: PerformancePattern[] = []
-
-    // Success patterns
-    const successfulObjectives = this.objectives.filter(obj =>
-      obj.status === "completado" && obj.progress === 100
-    )
-
-    if (successfulObjectives.length > 0) {
-      patterns.push({
-        type: 'success',
-        description: 'Objetivos completados exitosamente',
-        frequency: successfulObjectives.length / this.objectives.length,
-        impact: 'high',
-        conditions: this.analyzeSuccessConditions(successfulObjectives)
-      })
-    }
-
-    // Delay patterns
-    const delayedObjectives = this.objectives.filter(obj => {
-      const endDate = new Date(obj.end_date)
-      const now = new Date()
-      return endDate < now && obj.status !== "completado"
     })
-
-    if (delayedObjectives.length > 0) {
-      patterns.push({
-        type: 'delay',
-        description: 'Objetivos con retrasos frecuentes',
-        frequency: delayedObjectives.length / this.objectives.length,
-        impact: 'high',
-        conditions: this.analyzeDelayConditions(delayedObjectives)
-      })
-    }
-
-    // Acceleration patterns
-    const acceleratingObjectives = this.objectives.filter(obj => {
-      const timeElapsed = this.calculateTimeElapsed(obj.start_date, obj.end_date, new Date().toISOString())
-      return obj.progress > timeElapsed * 1.2 // Progress > 120% of expected
-    })
-
-    if (acceleratingObjectives.length > 0) {
-      patterns.push({
-        type: 'acceleration',
-        description: 'Objetivos con progreso acelerado',
-        frequency: acceleratingObjectives.length / this.objectives.length,
-        impact: 'medium',
-        conditions: this.analyzeAccelerationConditions(acceleratingObjectives)
-      })
-    }
-
-    return patterns
   }
 
   /**
-   * Compare performance against benchmarks
+   * Generate predictive analytics for goal achievement
    */
-  benchmarkPerformance(industry: string = 'technology'): BenchmarkData[] {
-    const metrics = this.calculateMetrics()
+  generatePredictions(data: OKRAnalyticsData): Prediction[] {
+    return data.objectives.map(objective => {
+      const velocity = this.calculateObjectiveVelocity(objective, data.historical_progress)
+      const remaining_progress = 100 - objective.progress
+      const days_remaining = Math.max(1, Math.ceil((new Date(objective.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
 
-    // Industry benchmark data (would typically come from external source)
-    const industryBenchmarks = this.getIndustryBenchmarks(industry)
+      // Calculate probability based on current velocity and time remaining
+      const required_velocity = remaining_progress / days_remaining
+      const probability = Math.min(100, Math.max(0, (velocity / required_velocity) * 100))
 
-    return [
-      {
-        industry,
-        metric: 'completion_rate',
-        value: metrics.completionRate,
-        percentile: this.calculatePercentile(metrics.completionRate, industryBenchmarks.completion_rate),
-        source: 'Industry Research'
-      },
-      {
-        industry,
-        metric: 'average_progress',
-        value: metrics.averageProgress,
-        percentile: this.calculatePercentile(metrics.averageProgress, industryBenchmarks.average_progress),
-        source: 'Industry Research'
-      },
-      {
-        industry,
-        metric: 'team_efficiency',
-        value: metrics.teamEfficiency,
-        percentile: this.calculatePercentile(metrics.teamEfficiency, industryBenchmarks.team_efficiency),
-        source: 'Industry Research'
+      // Identify risk factors
+      const risk_factors = this.identifyRiskFactors(objective, velocity, days_remaining)
+
+      // Generate required actions
+      const required_actions = this.generateRequiredActions(objective, velocity, required_velocity)
+
+      const predicted_completion = this.predictCompletionDate(objective, velocity)
+
+      return {
+        id: `pred_${objective.id}`,
+        objective_id: objective.id,
+        predicted_completion,
+        probability: Math.round(probability),
+        confidence: this.calculatePredictionConfidence(objective, data.historical_progress),
+        risk_factors,
+        required_actions
       }
-    ]
-  }
-
-  // Private helper methods
-
-  private calculateTimeElapsed(startDate: string, endDate: string, currentDate: string): number {
-    const start = new Date(startDate).getTime()
-    const end = new Date(endDate).getTime()
-    const current = new Date(currentDate).getTime()
-
-    const totalDuration = end - start
-    const elapsedDuration = current - start
-
-    return Math.max(0, Math.min(1, elapsedDuration / totalDuration))
-  }
-
-  private calculateProgressVelocity(): number {
-    const recentObjectives = this.objectives.filter(obj => {
-      const createdDate = new Date(obj.created_at)
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      return createdDate >= thirtyDaysAgo
     })
-
-    if (recentObjectives.length === 0) return 0
-
-    const totalProgress = recentObjectives.reduce((sum, obj) => sum + obj.progress, 0)
-    const totalDays = 30
-
-    return totalProgress / totalDays
   }
 
-  private calculateEstimatedCompletion(): number {
-    const incompleteObjectives = this.objectives.filter(obj => obj.status !== "completado")
+  /**
+   * Generate strategic recommendations
+   */
+  generateRecommendations(data: OKRAnalyticsData, metrics: PerformanceMetrics): Recommendation[] {
+    const recommendations: Recommendation[] = []
 
-    if (incompleteObjectives.length === 0) return 0
-
-    const avgRemainingProgress = incompleteObjectives.reduce((sum, obj) => sum + (100 - obj.progress), 0) / incompleteObjectives.length
-    const velocity = this.calculateProgressVelocity()
-
-    return velocity > 0 ? Math.round(avgRemainingProgress / velocity) : Infinity
-  }
-
-  private calculateResourceUtilization(): number {
-    // Simplified calculation based on objective distribution and team capacity
-    const activeObjectives = this.objectives.filter(obj => obj.status === "en_progreso").length
-    const totalCapacity = this.objectives.length * 1.2 // Assuming 20% buffer
-
-    return Math.min(100, Math.round((activeObjectives / totalCapacity) * 100))
-  }
-
-  private calculateTeamEfficiency(): number {
-    const metrics = this.calculateMetrics()
-    const velocityScore = Math.min(100, this.calculateProgressVelocity() * 10)
-    const completionScore = metrics.completionRate
-    const onTrackScore = this.objectives.length > 0 ? (metrics.onTrackObjectives / this.objectives.length) * 100 : 0
-
-    return Math.round((velocityScore + completionScore + onTrackScore) / 3)
-  }
-
-  private calculateLinearRegression(points: Array<{x: number, y: number}>): {slope: number, r2: number} {
-    const n = points.length
-    if (n < 2) return { slope: 0, r2: 0 }
-
-    const sumX = points.reduce((sum, p) => sum + p.x, 0)
-    const sumY = points.reduce((sum, p) => sum + p.y, 0)
-    const sumXY = points.reduce((sum, p) => sum + p.x * p.y, 0)
-    const sumXX = points.reduce((sum, p) => sum + p.x * p.x, 0)
-    const sumYY = points.reduce((sum, p) => sum + p.y * p.y, 0)
-
-    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
-    const meanY = sumY / n
-    const totalSumSquares = sumYY - n * meanY * meanY
-    const residualSumSquares = totalSumSquares - slope * slope * (sumXX - n * (sumX / n) * (sumX / n))
-    const r2 = 1 - (residualSumSquares / totalSumSquares)
-
-    return { slope, r2: Math.max(0, r2) }
-  }
-
-  private detectSeasonality(objectives: Objective[]): 'weekly' | 'monthly' | 'quarterly' | undefined {
-    // Simplified seasonality detection based on creation patterns
-    const dayOfWeekCounts = new Array(7).fill(0)
-    const monthCounts = new Array(12).fill(0)
-
-    objectives.forEach(obj => {
-      const date = new Date(obj.created_at)
-      dayOfWeekCounts[date.getDay()]++
-      monthCounts[date.getMonth()]++
-    })
-
-    const weeklyVariance = this.calculateVariance(dayOfWeekCounts)
-    const monthlyVariance = this.calculateVariance(monthCounts)
-
-    if (weeklyVariance > monthlyVariance && weeklyVariance > 2) return 'weekly'
-    if (monthlyVariance > 3) return 'monthly'
-
-    return undefined
-  }
-
-  private calculateVariance(values: number[]): number {
-    const mean = values.reduce((sum, val) => sum + val, 0) / values.length
-    const squaredDiffs = values.map(val => Math.pow(val - mean, 2))
-    return squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length
-  }
-
-  private calculateCompletionProbability(objective: Objective): number {
-    const timeElapsed = this.calculateTimeElapsed(objective.start_date, objective.end_date, new Date().toISOString())
-    const progressRatio = objective.progress / 100
-
-    // Base probability on progress vs time ratio
-    let probability = progressRatio / Math.max(timeElapsed, 0.1)
-
-    // Adjust based on historical performance
-    const historicalSuccess = this.objectives.filter(obj =>
-      obj.status === "completado" && obj.department === objective.department
-    ).length / Math.max(this.objectives.filter(obj => obj.department === objective.department).length, 1)
-
-    probability = (probability * 0.7) + (historicalSuccess * 0.3)
-
-    return Math.max(0, Math.min(1, probability))
-  }
-
-  private estimateCompletionDate(objective: Objective): string {
-    const currentProgress = objective.progress
-    const remainingProgress = 100 - currentProgress
-
-    if (remainingProgress <= 0) return objective.end_date
-
-    const velocity = this.calculateProgressVelocity()
-    if (velocity <= 0) return objective.end_date
-
-    const daysToComplete = remainingProgress / velocity
-    const estimatedDate = new Date(Date.now() + daysToComplete * 24 * 60 * 60 * 1000)
-
-    return estimatedDate.toISOString().split('T')[0]
-  }
-
-  private identifyRiskFactors(objective: Objective): string[] {
-    const risks: string[] = []
-
-    const timeElapsed = this.calculateTimeElapsed(objective.start_date, objective.end_date, new Date().toISOString())
-    const progressRatio = objective.progress / 100
-
-    if (progressRatio < timeElapsed * 0.6) {
-      risks.push("Progreso significativamente por debajo del cronograma")
+    // Low completion rate recommendations
+    if (metrics.completion_rate < 60) {
+      recommendations.push({
+        id: 'rec_completion_rate',
+        title: 'Mejorar Tasa de Finalización',
+        description: 'La tasa de finalización del ' + Math.round(metrics.completion_rate) + '% está por debajo del objetivo. Considere revisar la dificultad de los objetivos y proporcionar más apoyo a los equipos.',
+        category: 'strategy',
+        priority: 'high',
+        impact: 85,
+        effort: 'medium',
+        target_okr_ids: data.objectives.filter(obj => obj.progress < 50).map(obj => obj.id)
+      })
     }
 
-    const endDate = new Date(objective.end_date)
-    const daysToDeadline = (endDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-
-    if (daysToDeadline < 7 && objective.progress < 80) {
-      risks.push("Fecha límite próxima con progreso insuficiente")
+    // Low velocity recommendations
+    if (metrics.velocity < 1) {
+      recommendations.push({
+        id: 'rec_velocity',
+        title: 'Acelerar Progreso',
+        description: 'El progreso diario está por debajo del promedio. Implemente reuniones de seguimiento más frecuentes y elimine bloqueadores identificados.',
+        category: 'process',
+        priority: 'medium',
+        impact: 70,
+        effort: 'low',
+        target_okr_ids: data.objectives.filter(obj => obj.status === 'en_progreso').map(obj => obj.id)
+      })
     }
 
-    if (objective.progress === 0 && timeElapsed > 0.3) {
-      risks.push("Objetivo sin progreso iniciado")
+    // Overdue objectives recommendations
+    if (metrics.overdue_objectives > 0) {
+      recommendations.push({
+        id: 'rec_overdue',
+        title: 'Gestionar Objetivos Vencidos',
+        description: `Hay ${metrics.overdue_objectives} objetivos vencidos que requieren atención inmediata. Evalúe si necesitan extensión de tiempo o reasignación de recursos.`,
+        category: 'timeline',
+        priority: 'high',
+        impact: 90,
+        effort: 'high',
+        target_okr_ids: data.objectives.filter(obj => {
+          const endDate = new Date(obj.end_date)
+          return endDate < new Date() && obj.status !== 'completado'
+        }).map(obj => obj.id)
+      })
     }
 
-    const departmentObjectives = this.objectives.filter(obj => obj.department === objective.department)
-    const departmentDelayRate = departmentObjectives.filter(obj => {
-      const objEndDate = new Date(obj.end_date)
-      return objEndDate < new Date() && obj.status !== "completado"
-    }).length / Math.max(departmentObjectives.length, 1)
-
-    if (departmentDelayRate > 0.3) {
-      risks.push("Historial de retrasos en el departamento")
-    }
-
-    return risks
-  }
-
-  private generateRecommendations(objective: Objective, riskFactors: string[]): string[] {
-    const recommendations: string[] = []
-
-    if (riskFactors.includes("Progreso significativamente por debajo del cronograma")) {
-      recommendations.push("Revisar y redistribuir recursos para acelerar el progreso")
-      recommendations.push("Identificar y eliminar obstáculos específicos")
-    }
-
-    if (riskFactors.includes("Fecha límite próxima con progreso insuficiente")) {
-      recommendations.push("Considerar extensión de fecha límite o reducción de alcance")
-      recommendations.push("Asignar recursos adicionales prioritarios")
-    }
-
-    if (riskFactors.includes("Objetivo sin progreso iniciado")) {
-      recommendations.push("Programar sesión de kick-off urgente")
-      recommendations.push("Clarificar responsabilidades y primeros pasos")
-    }
-
-    if (recommendations.length === 0) {
-      recommendations.push("Mantener seguimiento regular del progreso")
-      recommendations.push("Documentar mejores prácticas para replicar el éxito")
+    // Resource allocation recommendations
+    const underperformingDepts = this.identifyUnderperformingDepartments(data)
+    if (underperformingDepts.length > 0) {
+      recommendations.push({
+        id: 'rec_resource_allocation',
+        title: 'Optimizar Asignación de Recursos',
+        description: `Los departamentos ${underperformingDepts.join(', ')} muestran bajo rendimiento. Considere reasignar recursos o proporcionar capacitación adicional.`,
+        category: 'resource',
+        priority: 'medium',
+        impact: 75,
+        effort: 'high',
+        target_okr_ids: data.objectives.filter(obj => underperformingDepts.includes(obj.department || '')).map(obj => obj.id)
+      })
     }
 
     return recommendations
   }
 
-  private calculatePredictionConfidence(objective: Objective): number {
-    const historicalData = this.objectives.filter(obj =>
-      obj.department === objective.department && obj.status === "completado"
-    )
+  // Helper methods
 
-    const sampleSize = historicalData.length
-    const timeConsistency = this.calculateTimeConsistency(historicalData)
-    const progressConsistency = this.calculateProgressConsistency([objective])
+  private generateHistoricalProgressData(objectives: Objective[], initiatives: Initiative[], activities: Activity[]): ProgressSnapshot[] {
+    const snapshots: ProgressSnapshot[] = []
+    const now = new Date()
 
-    let confidence = 0.5 // Base confidence
+    // Generate 30 days of simulated historical data
+    for (let i = 0; i < 30; i++) {
+      const snapshotDate = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000))
 
-    // Increase confidence with more historical data
-    confidence += Math.min(0.3, sampleSize * 0.05)
+      const allItems = objectives.concat(initiatives).concat(activities)
+      allItems.forEach(item => {
+        const daysSinceStart = Math.floor((snapshotDate.getTime() - new Date(item.start_date).getTime()) / (1000 * 60 * 60 * 24))
+        if (daysSinceStart >= 0) {
+          // Simulate gradual progress over time
+          const simulatedProgress = Math.min(item.progress, (daysSinceStart / 30) * item.progress)
 
-    // Adjust for consistency
-    confidence += timeConsistency * 0.2
-    confidence += progressConsistency * 0.2
-
-    return Math.max(0, Math.min(1, confidence))
-  }
-
-  private calculateTimeConsistency(objectives: Objective[]): number {
-    if (objectives.length < 2) return 0
-
-    const durations = objectives.map(obj => {
-      const start = new Date(obj.start_date).getTime()
-      const end = new Date(obj.end_date).getTime()
-      return (end - start) / (24 * 60 * 60 * 1000) // days
-    })
-
-    const mean = durations.reduce((sum, d) => sum + d, 0) / durations.length
-    const variance = durations.reduce((sum, d) => sum + Math.pow(d - mean, 2), 0) / durations.length
-    const coefficient = variance / Math.max(mean, 1)
-
-    return Math.max(0, 1 - coefficient / 10) // Lower coefficient = higher consistency
-  }
-
-  private calculateProgressConsistency(objectives: Objective[]): number {
-    if (objectives.length < 2) return 0.5
-
-    const progressRates = objectives.map(obj => {
-      const timeElapsed = this.calculateTimeElapsed(obj.start_date, obj.end_date, new Date().toISOString())
-      return timeElapsed > 0 ? obj.progress / (timeElapsed * 100) : 0
-    })
-
-    const mean = progressRates.reduce((sum, r) => sum + r, 0) / progressRates.length
-    const variance = progressRates.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / progressRates.length
-
-    return Math.max(0, 1 - variance)
-  }
-
-  private analyzeSuccessConditions(objectives: Objective[]): Record<string, any> {
-    return {
-      averageDuration: objectives.reduce((sum, obj) => {
-        const start = new Date(obj.start_date).getTime()
-        const end = new Date(obj.end_date).getTime()
-        return sum + (end - start) / (24 * 60 * 60 * 1000)
-      }, 0) / objectives.length,
-      commonDepartments: this.getMostCommon(objectives.map(obj => obj.department)),
-      timeToCompletion: objectives.reduce((sum, obj) => {
-        const created = new Date(obj.created_at).getTime()
-        const updated = new Date(obj.updated_at).getTime()
-        return sum + (updated - created) / (24 * 60 * 60 * 1000)
-      }, 0) / objectives.length
+          snapshots.push({
+            okr_id: item.id,
+            okr_type: 'objective_id' in item ? 'initiative' : 'initiative_id' in item ? 'activity' : 'objective',
+            progress: simulatedProgress,
+            status: item.status,
+            snapshot_date: snapshotDate
+          })
+        }
+      })
     }
+
+    return snapshots
   }
 
-  private analyzeDelayConditions(objectives: Objective[]): Record<string, any> {
-    return {
-      averageDelay: objectives.reduce((sum, obj) => {
-        const endDate = new Date(obj.end_date).getTime()
-        const now = Date.now()
-        return sum + Math.max(0, (now - endDate) / (24 * 60 * 60 * 1000))
-      }, 0) / objectives.length,
-      commonDepartments: this.getMostCommon(objectives.map(obj => obj.department)),
-      averageProgress: objectives.reduce((sum, obj) => sum + obj.progress, 0) / objectives.length
-    }
-  }
+  private calculateProgressVelocity(historical_progress: ProgressSnapshot[]): number {
+    // Calculate average daily progress across all OKRs
+    const okrVelocities = new Map<string, number>()
 
-  private analyzeAccelerationConditions(objectives: Objective[]): Record<string, any> {
-    return {
-      averageAcceleration: objectives.reduce((sum, obj) => {
-        const timeElapsed = this.calculateTimeElapsed(obj.start_date, obj.end_date, new Date().toISOString())
-        return sum + (obj.progress / 100 - timeElapsed)
-      }, 0) / objectives.length,
-      commonDepartments: this.getMostCommon(objectives.map(obj => obj.department)),
-      resourceFactors: 'high_engagement' // Simplified
-    }
-  }
+    historical_progress.forEach(snapshot => {
+      if (!okrVelocities.has(snapshot.okr_id)) {
+        const okrSnapshots = historical_progress.filter(s => s.okr_id === snapshot.okr_id)
+          .sort((a, b) => a.snapshot_date.getTime() - b.snapshot_date.getTime())
 
-  private getMostCommon<T>(array: (T | null)[]): T | null {
-    const counts = new Map<T, number>()
-    let maxCount = 0
-    let result: T | null = null
+        if (okrSnapshots.length >= 2) {
+          const firstSnapshot = okrSnapshots[0]
+          const lastSnapshot = okrSnapshots[okrSnapshots.length - 1]
+          const daysDiff = (lastSnapshot.snapshot_date.getTime() - firstSnapshot.snapshot_date.getTime()) / (1000 * 60 * 60 * 24)
+          const progressDiff = lastSnapshot.progress - firstSnapshot.progress
 
-    array.forEach(item => {
-      if (item !== null) {
-        const count = (counts.get(item) || 0) + 1
-        counts.set(item, count)
-        if (count > maxCount) {
-          maxCount = count
-          result = item
+          okrVelocities.set(snapshot.okr_id, daysDiff > 0 ? progressDiff / daysDiff : 0)
         }
       }
     })
 
-    return result
+    const velocities = Array.from(okrVelocities.values())
+    return velocities.length > 0 ? velocities.reduce((sum, v) => sum + v, 0) / velocities.length : 0
   }
 
-  private getIndustryBenchmarks(industry: string): Record<string, number[]> {
-    // Simplified industry benchmarks - in production, this would come from external data sources
-    const benchmarks: Record<string, Record<string, number[]>> = {
-      technology: {
-        completion_rate: [75, 80, 85, 90, 95],
-        average_progress: [65, 70, 75, 80, 85],
-        team_efficiency: [70, 75, 80, 85, 90]
-      },
-      finance: {
-        completion_rate: [70, 75, 80, 85, 90],
-        average_progress: [60, 65, 70, 75, 80],
-        team_efficiency: [65, 70, 75, 80, 85]
-      },
-      healthcare: {
-        completion_rate: [65, 70, 75, 80, 85],
-        average_progress: [55, 60, 65, 70, 75],
-        team_efficiency: [60, 65, 70, 75, 80]
-      }
-    }
+  private calculateEfficiencyScore(objectives: Objective[]): number {
+    let totalEfficiency = 0
+    let validObjectives = 0
 
-    return benchmarks[industry] || benchmarks.technology
+    objectives.forEach(objective => {
+      const startDate = new Date(objective.start_date)
+      const endDate = new Date(objective.end_date)
+      const now = new Date()
+
+      const totalDuration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      const elapsed = Math.min(totalDuration, (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
+      if (totalDuration > 0 && elapsed > 0) {
+        const expectedProgress = (elapsed / totalDuration) * 100
+        const actualProgress = objective.progress
+        const efficiency = actualProgress > 0 ? (actualProgress / expectedProgress) * 100 : 0
+
+        totalEfficiency += Math.min(150, efficiency) // Cap at 150% to avoid skewing
+        validObjectives++
+      }
+    })
+
+    return validObjectives > 0 ? totalEfficiency / validObjectives : 50
   }
 
-  private calculatePercentile(value: number, benchmarkArray: number[]): number {
-    const sortedBenchmarks = [...benchmarkArray].sort((a, b) => a - b)
-    let percentile = 0
+  private groupByDepartment(data: OKRAnalyticsData): Array<{ department: string; data: OKRAnalyticsData }> {
+    const departments = new Set(data.objectives.map(obj => obj.department || 'General'))
 
-    for (let i = 0; i < sortedBenchmarks.length; i++) {
-      if (value >= sortedBenchmarks[i]) {
-        percentile = ((i + 1) / sortedBenchmarks.length) * 100
+    return Array.from(departments).map(department => ({
+      department,
+      data: {
+        objectives: data.objectives.filter(obj => (obj.department || 'General') === department),
+        initiatives: data.initiatives.filter(init =>
+          data.objectives.some(obj => obj.id === init.objective_id && (obj.department || 'General') === department)
+        ),
+        activities: data.activities.filter(act =>
+          data.initiatives.some(init => init.id === act.initiative_id &&
+            data.objectives.some(obj => obj.id === init.objective_id && (obj.department || 'General') === department)
+          )
+        ),
+        profiles: data.profiles,
+        historical_progress: data.historical_progress.filter(hp =>
+          data.objectives.some(obj => obj.id === hp.okr_id && (obj.department || 'General') === department) ||
+          data.initiatives.some(init => init.id === hp.okr_id &&
+            data.objectives.some(obj => obj.id === init.objective_id && (obj.department || 'General') === department)
+          ) ||
+          data.activities.some(act => act.id === hp.okr_id &&
+            data.initiatives.some(init => init.id === act.initiative_id &&
+              data.objectives.some(obj => obj.id === init.objective_id && (obj.department || 'General') === department)
+            )
+          )
+        )
       }
+    }))
+  }
+
+  private analyzeTrends(historical_progress: ProgressSnapshot[]): TeamPerformanceData['trend_analysis'] {
+    // Simple trend analysis - compare first half vs second half of time period
+    const sortedProgress = historical_progress.sort((a, b) => a.snapshot_date.getTime() - b.snapshot_date.getTime())
+    const midpoint = Math.floor(sortedProgress.length / 2)
+
+    const firstHalf = sortedProgress.slice(0, midpoint)
+    const secondHalf = sortedProgress.slice(midpoint)
+
+    const firstHalfAvg = firstHalf.length > 0 ? firstHalf.reduce((sum, s) => sum + s.progress, 0) / firstHalf.length : 0
+    const secondHalfAvg = secondHalf.length > 0 ? secondHalf.reduce((sum, s) => sum + s.progress, 0) / secondHalf.length : 0
+
+    const progress_trend = secondHalfAvg > firstHalfAvg + 5 ? 'positive' :
+                         secondHalfAvg < firstHalfAvg - 5 ? 'negative' : 'stable'
+
+    return {
+      progress_trend,
+      velocity_change: secondHalfAvg - firstHalfAvg,
+      completion_rate_change: 0 // Simplified for now
+    }
+  }
+
+  private calculateObjectiveVelocity(objective: Objective, historical_progress: ProgressSnapshot[]): number {
+    const objectiveProgress = historical_progress
+      .filter(hp => hp.okr_id === objective.id)
+      .sort((a, b) => a.snapshot_date.getTime() - b.snapshot_date.getTime())
+
+    if (objectiveProgress.length < 2) return 0
+
+    const recent = objectiveProgress.slice(-7) // Last 7 days
+    if (recent.length < 2) return 0
+
+    const daysDiff = (recent[recent.length - 1].snapshot_date.getTime() - recent[0].snapshot_date.getTime()) / (1000 * 60 * 60 * 24)
+    const progressDiff = recent[recent.length - 1].progress - recent[0].progress
+
+    return daysDiff > 0 ? progressDiff / daysDiff : 0
+  }
+
+  private identifyRiskFactors(objective: Objective, velocity: number, days_remaining: number): string[] {
+    const risks: string[] = []
+
+    if (velocity < 0.5) {
+      risks.push('Progreso muy lento - requiere intervención inmediata')
     }
 
-    return Math.round(percentile)
+    if (days_remaining < 7 && objective.progress < 80) {
+      risks.push('Tiempo insuficiente para completar con progreso actual')
+    }
+
+    if (objective.progress < 20 && days_remaining < (new Date(objective.end_date).getTime() - new Date(objective.start_date).getTime()) / (1000 * 60 * 60 * 24) / 2) {
+      risks.push('Progreso insuficiente en la primera mitad del período')
+    }
+
+    return risks
+  }
+
+  private generateRequiredActions(objective: Objective, current_velocity: number, required_velocity: number): string[] {
+    const actions: string[] = []
+
+    if (current_velocity < required_velocity) {
+      actions.push(`Aumentar velocidad de progreso de ${current_velocity.toFixed(1)} a ${required_velocity.toFixed(1)} puntos por día`)
+    }
+
+    if (objective.progress < 50) {
+      actions.push('Revisar bloqueadores y proporcionar recursos adicionales')
+    }
+
+    actions.push('Implementar seguimiento semanal con métricas específicas')
+
+    return actions
+  }
+
+  private predictCompletionDate(objective: Objective, velocity: number): Date {
+    const remaining_progress = 100 - objective.progress
+    const days_to_complete = velocity > 0 ? remaining_progress / velocity : 999
+
+    return new Date(Date.now() + (days_to_complete * 24 * 60 * 60 * 1000))
+  }
+
+  private calculatePredictionConfidence(objective: Objective, historical_progress: ProgressSnapshot[]): number {
+    const objectiveProgress = historical_progress.filter(hp => hp.okr_id === objective.id)
+
+    // More historical data = higher confidence
+    const dataConfidence = Math.min(100, (objectiveProgress.length / 30) * 100)
+
+    // Consistent progress = higher confidence
+    const progressValues = objectiveProgress.map(hp => hp.progress).sort((a, b) => a - b)
+    const variance = this.calculateVariance(progressValues)
+    const consistencyConfidence = Math.max(0, 100 - variance)
+
+    return Math.round((dataConfidence + consistencyConfidence) / 2)
+  }
+
+  private calculateVariance(values: number[]): number {
+    if (values.length === 0) return 100
+
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length
+    const squaredDiffs = values.map(val => Math.pow(val - mean, 2))
+    return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / values.length
+  }
+
+  private identifyUnderperformingDepartments(data: OKRAnalyticsData): string[] {
+    const departmentGroups = this.groupByDepartment(data)
+    const underperforming: string[] = []
+
+    departmentGroups.forEach(group => {
+      const metrics = this.calculatePerformanceMetrics(group.data)
+      if (metrics.completion_rate < 50 || metrics.average_progress < 60) {
+        underperforming.push(group.department)
+      }
+    })
+
+    return underperforming
   }
 }

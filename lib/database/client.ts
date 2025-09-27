@@ -11,6 +11,7 @@ import { getPoolConfig, healthCheckConfig } from './pool-config';
 import { performanceMonitoring } from '../performance/query-optimization';
 import { poolMetricsCollector, performanceScheduler } from '../performance/connection-metrics';
 import { stackServerApp } from '@/stack';
+import { validateDatabaseConfig, validateEnvironment } from '@/lib/validation/environment';
 
 
 // Get production-optimized database configuration
@@ -22,6 +23,11 @@ let drizzleDb: ReturnType<typeof drizzle> | null = null;
 
 export function getPool(): Pool {
   if (!pool) {
+    // Validate database configuration before creating pool
+    if (!validateDatabaseConfig()) {
+      throw new Error('Database configuration validation failed');
+    }
+
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is not set');
     }
@@ -367,7 +373,14 @@ export async function getAuthenticatedDb() {
     throw new Error('Not authenticated');
   }
 
-  return neon(process.env.DATABASE_AUTHENTICATED_URL!, {
+  // Use DATABASE_URL if DATABASE_AUTHENTICATED_URL is not set
+  const databaseUrl = process.env.DATABASE_AUTHENTICATED_URL || process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    throw new Error('Neither DATABASE_AUTHENTICATED_URL nor DATABASE_URL environment variable is set');
+  }
+
+  return neon(databaseUrl, {
     authToken: authToken
   });
 }
@@ -385,11 +398,13 @@ export async function getAuthenticatedDrizzleClient() {
       throw new Error('No auth token available');
     }
 
-    if (!process.env.DATABASE_AUTHENTICATED_URL) {
-      throw new Error('DATABASE_AUTHENTICATED_URL environment variable is not set');
+    const databaseUrl = process.env.DATABASE_AUTHENTICATED_URL || process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error('Neither DATABASE_AUTHENTICATED_URL nor DATABASE_URL environment variable is set');
     }
-    
-    const sql = neon(process.env.DATABASE_AUTHENTICATED_URL, {
+
+    const sql = neon(databaseUrl, {
       authToken: authToken
     });
     
@@ -406,11 +421,13 @@ export function getClientDrizzle(authToken: string) {
     throw new Error('Auth token is required');
   }
 
-  if (!process.env.NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL) {
-    throw new Error('NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL environment variable is not set');
+  const databaseUrl = process.env.NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL || process.env.NEXT_PUBLIC_DATABASE_URL;
+
+  if (!databaseUrl) {
+    throw new Error('Neither NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL nor NEXT_PUBLIC_DATABASE_URL environment variable is set');
   }
-  
-  const sql = neon(process.env.NEXT_PUBLIC_DATABASE_AUTHENTICATED_URL, {
+
+  const sql = neon(databaseUrl, {
     authToken: authToken
   });
   
@@ -435,7 +452,13 @@ export async function authenticatedQuery<T = any>(
       throw new Error('No auth token available');
     }
 
-    const sql = neon(process.env.DATABASE_AUTHENTICATED_URL!, {
+    const databaseUrl = process.env.DATABASE_AUTHENTICATED_URL || process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error('Neither DATABASE_AUTHENTICATED_URL nor DATABASE_URL environment variable is set');
+    }
+
+    const sql = neon(databaseUrl, {
       authToken: authToken
     });
     
@@ -479,7 +502,13 @@ export async function authenticatedTransaction<T>(
       throw new Error('No auth token available');
     }
 
-    const sql = neon(process.env.DATABASE_AUTHENTICATED_URL!, {
+    const databaseUrl = process.env.DATABASE_AUTHENTICATED_URL || process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error('Neither DATABASE_AUTHENTICATED_URL nor DATABASE_URL environment variable is set');
+    }
+
+    const sql = neon(databaseUrl, {
       authToken: authToken
     });
     
@@ -507,11 +536,14 @@ export async function authenticatedTransaction<T>(
       if (user) {
         const authToken = (await user.getAuthJson())?.accessToken;
         if (authToken) {
-          const sql = neon(process.env.DATABASE_AUTHENTICATED_URL!, {
-            authToken: authToken
-          });
-          await sql('ROLLBACK');
-          dbLogger.logTransaction('authenticated_transaction', 'rollback', `auth-tx-${Date.now()}`);
+          const databaseUrl = process.env.DATABASE_AUTHENTICATED_URL || process.env.DATABASE_URL;
+          if (databaseUrl) {
+            const sql = neon(databaseUrl, {
+              authToken: authToken
+            });
+            await sql('ROLLBACK');
+            dbLogger.logTransaction('authenticated_transaction', 'rollback', `auth-tx-${Date.now()}`);
+          }
         }
       }
     } catch (rollbackError) {

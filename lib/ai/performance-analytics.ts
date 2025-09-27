@@ -1,622 +1,626 @@
-import { generateText, gateway } from "ai"
-import type { Objective, Initiative, Activity, UserRole } from "@/lib/types/okr"
+import { aiClient } from './gateway-client'
+import type { AIRequestContext } from './gateway-client'
 
-// Performance analytics interfaces
-export interface PerformanceMetrics {
-  totalRequests: number
-  averageResponseTime: number
-  tokenUsage: {
-    input: number
-    output: number
-    total: number
-  }
-  costMetrics: {
-    totalCost: number
-    costPerRequest: number
-    costPerToken: number
-  }
-  qualityScore: number
-  errorRate: number
-  timestamp: Date
-}
-
-export interface ModelPerformance {
-  modelId: string
+// Performance metrics interfaces
+export interface AIPerformanceMetrics {
+  requestId: string
+  operation: string
+  model: string
   provider: string
-  metrics: PerformanceMetrics
-  benchmarkScore: number
-  reliabilityScore: number
+  startTime: Date
+  endTime: Date
+  duration: number
+  tokensInput: number
+  tokensOutput: number
+  cost: number
+  success: boolean
+  error?: string
+  qualityScore?: number
+  userId?: string
+  metadata?: Record<string, any>
 }
 
-export interface AnalyticsQuery {
+export interface PerformanceStats {
+  totalRequests: number
+  successRate: number
+  averageLatency: number
+  medianLatency: number
+  p95Latency: number
+  p99Latency: number
+  totalCost: number
+  averageCost: number
+  costPerToken: number
+  qualityScore: number
   timeRange: {
     start: Date
     end: Date
   }
-  models?: string[]
-  operations?: string[]
-  departments?: string[]
-  aggregation: 'hourly' | 'daily' | 'weekly' | 'monthly'
 }
 
-export interface PerformanceInsight {
-  id: string
-  type: 'cost_optimization' | 'performance_degradation' | 'quality_improvement' | 'anomaly_detection'
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  title: string
-  description: string
-  recommendation: string
-  impact: {
-    cost?: number
-    performance?: number
-    quality?: number
-  }
-  detectedAt: Date
-  resolvedAt?: Date
+export interface ModelPerformance {
+  model: string
+  provider: string
+  stats: PerformanceStats
+  comparativeRank: number
+  recommendations: string[]
 }
 
-export interface ABTestConfig {
-  testId: string
-  name: string
-  description: string
-  variants: {
-    name: string
-    model: string
-    prompt?: string
-    parameters?: Record<string, any>
-    trafficPercentage: number
-  }[]
-  metrics: string[]
-  startDate: Date
-  endDate: Date
-  status: 'draft' | 'running' | 'completed' | 'paused'
+export interface OperationPerformance {
+  operation: string
+  models: ModelPerformance[]
+  bestModel: string
+  worstModel: string
+  improvementSuggestions: string[]
 }
 
-export interface ABTestResult {
-  testId: string
-  variant: string
-  metrics: {
-    responseTime: number
-    tokenUsage: number
-    qualityScore: number
-    cost: number
-    userSatisfaction?: number
-  }
-  sampleSize: number
-  confidenceLevel: number
-  statisticalSignificance: boolean
-}
+// Cost calculation constants (based on Vercel AI Gateway pricing)
+const MODEL_COSTS = {
+  'openai/gpt-4o': { input: 2.5, output: 10.0 }, // per 1M tokens
+  'openai/gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'anthropic/claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+  'anthropic/claude-3-sonnet-20240229': { input: 3.0, output: 15.0 },
+  'openai/text-embedding-3-small': { input: 0.02, output: 0 },
+  'openai/text-embedding-ada-002': { input: 0.1, output: 0 }
+} as const
 
-// AI Gateway client for analytics
-const ai = gateway({
-  apiKey: process.env.AI_GATEWAY_API_KEY,
-})
+export class AIPerformanceAnalytics {
+  private metrics: AIPerformanceMetrics[] = []
+  private readonly maxMetricsInMemory = 10000
 
-// Performance tracking storage (in production, use proper database)
-const performanceData: PerformanceMetrics[] = []
-const modelPerformance: ModelPerformance[] = []
-const performanceInsights: PerformanceInsight[] = []
-const abTests: ABTestConfig[] = []
-const abTestResults: ABTestResult[] = []
-
-export class PerformanceAnalytics {
-  private static instance: PerformanceAnalytics
-  private metricsBuffer: PerformanceMetrics[] = []
-  private alertThresholds = {
-    responseTime: 5000, // 5 seconds
-    errorRate: 0.05, // 5%
-    costIncrease: 0.2, // 20% increase
-    qualityScore: 0.7 // below 70%
+  constructor() {
+    // In a real implementation, this would connect to a database
+    // For now, we'll use in-memory storage with persistence hooks
   }
 
-  static getInstance(): PerformanceAnalytics {
-    if (!PerformanceAnalytics.instance) {
-      PerformanceAnalytics.instance = new PerformanceAnalytics()
+  /**
+   * Record performance metrics for an AI operation
+   */
+  public recordMetrics(metrics: Omit<AIPerformanceMetrics, 'requestId' | 'cost'>): string {
+    const requestId = this.generateRequestId()
+    const cost = this.calculateCost(metrics.model, metrics.tokensInput, metrics.tokensOutput)
+
+    const fullMetrics: AIPerformanceMetrics = {
+      ...metrics,
+      requestId,
+      cost
     }
-    return PerformanceAnalytics.instance
+
+    this.metrics.push(fullMetrics)
+
+    // Keep only the most recent metrics in memory
+    if (this.metrics.length > this.maxMetricsInMemory) {
+      this.metrics = this.metrics.slice(-this.maxMetricsInMemory)
+    }
+
+    return requestId
   }
 
-  // Track performance metrics for AI operations
-  async trackOperation(
-    operationId: string,
-    model: string,
+  /**
+   * Get performance statistics for a given time range
+   */
+  public getPerformanceStats(
     startTime: Date,
     endTime: Date,
-    tokenUsage: { input: number; output: number },
-    cost: number,
-    success: boolean,
-    qualityScore?: number
-  ): Promise<void> {
-    const responseTime = endTime.getTime() - startTime.getTime()
-    const totalTokens = tokenUsage.input + tokenUsage.output
-
-    const metrics: PerformanceMetrics = {
-      totalRequests: 1,
-      averageResponseTime: responseTime,
-      tokenUsage: {
-        input: tokenUsage.input,
-        output: tokenUsage.output,
-        total: totalTokens
-      },
-      costMetrics: {
-        totalCost: cost,
-        costPerRequest: cost,
-        costPerToken: totalTokens > 0 ? cost / totalTokens : 0
-      },
-      qualityScore: qualityScore || 0.8, // Default quality score
-      errorRate: success ? 0 : 1,
-      timestamp: new Date()
+    filters?: {
+      operation?: string
+      model?: string
+      provider?: string
+      userId?: string
     }
-
-    this.metricsBuffer.push(metrics)
-
-    // Check for anomalies and alerts
-    await this.checkPerformanceAnomalies(metrics, model)
-
-    // Flush buffer if it gets too large
-    if (this.metricsBuffer.length > 100) {
-      await this.flushMetrics()
-    }
-  }
-
-  // Aggregate metrics by time period
-  async getAggregatedMetrics(query: AnalyticsQuery): Promise<PerformanceMetrics[]> {
-    const { timeRange, aggregation } = query
-
-    // Filter metrics by time range
-    const filteredMetrics = performanceData.filter(
-      metric => metric.timestamp >= timeRange.start && metric.timestamp <= timeRange.end
-    )
+  ): PerformanceStats {
+    const filteredMetrics = this.filterMetrics(startTime, endTime, filters)
 
     if (filteredMetrics.length === 0) {
-      return []
+      return this.getEmptyStats(startTime, endTime)
     }
 
-    // Group by time period
-    const grouped = this.groupMetricsByPeriod(filteredMetrics, aggregation)
-
-    // Aggregate each group
-    return Object.values(grouped).map(group => this.aggregateMetrics(group))
-  }
-
-  // Calculate cost optimization recommendations
-  async analyzeCostOptimization(): Promise<PerformanceInsight[]> {
-    const insights: PerformanceInsight[] = []
-    const recentMetrics = performanceData.slice(-100) // Last 100 operations
-
-    if (recentMetrics.length === 0) return insights
-
-    const avgCost = recentMetrics.reduce((sum, m) => sum + m.costMetrics.totalCost, 0) / recentMetrics.length
-    const avgQuality = recentMetrics.reduce((sum, m) => sum + m.qualityScore, 0) / recentMetrics.length
-
-    // Analyze cost efficiency
-    const costEfficiency = avgQuality / avgCost
-
-    if (costEfficiency < 10) { // Arbitrary threshold for demonstration
-      insights.push({
-        id: `cost-opt-${Date.now()}`,
-        type: 'cost_optimization',
-        severity: 'medium',
-        title: 'Oportunidad de Optimización de Costos',
-        description: `La relación calidad/costo actual es ${costEfficiency.toFixed(2)}, indicando potencial para optimización.`,
-        recommendation: 'Considere usar modelos más eficientes como gpt-4o-mini para operaciones que no requieren máxima calidad.',
-        impact: {
-          cost: avgCost * 0.3, // Potential 30% cost reduction
-          performance: -0.05, // Slight performance trade-off
-          quality: -0.02 // Minimal quality impact
-        },
-        detectedAt: new Date()
-      })
-    }
-
-    return insights
-  }
-
-  // Detect performance anomalies
-  private async checkPerformanceAnomalies(metrics: PerformanceMetrics, model: string): Promise<void> {
-    const insights: PerformanceInsight[] = []
-
-    // Response time anomaly
-    if (metrics.averageResponseTime > this.alertThresholds.responseTime) {
-      insights.push({
-        id: `anomaly-rt-${Date.now()}`,
-        type: 'performance_degradation',
-        severity: 'high',
-        title: 'Tiempo de Respuesta Elevado',
-        description: `El modelo ${model} tardó ${metrics.averageResponseTime}ms en responder, superando el umbral de ${this.alertThresholds.responseTime}ms.`,
-        recommendation: 'Verifique la carga del modelo y considere implementar failover a modelos alternativos.',
-        impact: {
-          performance: metrics.averageResponseTime / this.alertThresholds.responseTime
-        },
-        detectedAt: new Date()
-      })
-    }
-
-    // Quality score anomaly
-    if (metrics.qualityScore < this.alertThresholds.qualityScore) {
-      insights.push({
-        id: `anomaly-quality-${Date.now()}`,
-        type: 'quality_improvement',
-        severity: 'medium',
-        title: 'Calidad de Respuesta Degradada',
-        description: `La calidad promedio ha bajado a ${(metrics.qualityScore * 100).toFixed(1)}%, por debajo del umbral del 70%.`,
-        recommendation: 'Revise los prompts y considere ajustar los parámetros del modelo o cambiar a un modelo de mayor capacidad.',
-        impact: {
-          quality: this.alertThresholds.qualityScore - metrics.qualityScore
-        },
-        detectedAt: new Date()
-      })
-    }
-
-    // Error rate anomaly
-    if (metrics.errorRate > this.alertThresholds.errorRate) {
-      insights.push({
-        id: `anomaly-error-${Date.now()}`,
-        type: 'anomaly_detection',
-        severity: 'critical',
-        title: 'Tasa de Error Elevada',
-        description: `La tasa de error ha alcanzado ${(metrics.errorRate * 100).toFixed(1)}%, superando el umbral del 5%.`,
-        recommendation: 'Implemente mecanismos de retry y failover inmediatamente. Revise la conectividad y estado de los proveedores.',
-        impact: {
-          performance: metrics.errorRate * 10 // High impact multiplier
-        },
-        detectedAt: new Date()
-      })
-    }
-
-    // Store insights
-    performanceInsights.push(...insights)
-  }
-
-  // Initialize A/B test
-  async createABTest(config: ABTestConfig): Promise<string> {
-    // Validate traffic percentages sum to 100
-    const totalTraffic = config.variants.reduce((sum, v) => sum + v.trafficPercentage, 0)
-    if (Math.abs(totalTraffic - 100) > 0.01) {
-      throw new Error('Los porcentajes de tráfico deben sumar 100%')
-    }
-
-    abTests.push(config)
-    return config.testId
-  }
-
-  // Record A/B test result
-  async recordABTestResult(testId: string, variant: string, result: Omit<ABTestResult, 'testId' | 'variant'>): Promise<void> {
-    abTestResults.push({
-      testId,
-      variant,
-      ...result
-    })
-  }
-
-  // Analyze A/B test results
-  async analyzeABTest(testId: string): Promise<{
-    winner?: string
-    results: ABTestResult[]
-    confidence: number
-    recommendation: string
-  }> {
-    const results = abTestResults.filter(r => r.testId === testId)
-
-    if (results.length < 2) {
-      return {
-        results,
-        confidence: 0,
-        recommendation: 'Necesita más datos para análisis estadístico.'
-      }
-    }
-
-    // Simple statistical analysis (in production, use proper statistical tests)
-    const variants = [...new Set(results.map(r => r.variant))]
-    const variantStats = variants.map(variant => {
-      const variantResults = results.filter(r => r.variant === variant)
-      const avgQuality = variantResults.reduce((sum, r) => sum + r.metrics.qualityScore, 0) / variantResults.length
-      const avgCost = variantResults.reduce((sum, r) => sum + r.metrics.cost, 0) / variantResults.length
-      const avgResponseTime = variantResults.reduce((sum, r) => sum + r.metrics.responseTime, 0) / variantResults.length
-
-      return {
-        variant,
-        avgQuality,
-        avgCost,
-        avgResponseTime,
-        sampleSize: variantResults.length,
-        efficiency: avgQuality / avgCost
-      }
-    })
-
-    // Find winner based on efficiency (quality/cost ratio)
-    const winner = variantStats.reduce((best, current) =>
-      current.efficiency > best.efficiency ? current : best
-    )
+    const durations = filteredMetrics.map(m => m.duration).sort((a, b) => a - b)
+    const costs = filteredMetrics.map(m => m.cost)
+    const totalTokens = filteredMetrics.reduce((sum, m) => sum + m.tokensInput + m.tokensOutput, 0)
+    const qualityScores = filteredMetrics
+      .filter(m => m.qualityScore !== undefined)
+      .map(m => m.qualityScore!)
 
     return {
-      winner: winner.variant,
-      results,
-      confidence: Math.min(0.95, winner.sampleSize / 100), // Simplified confidence calculation
-      recommendation: `La variante "${winner.variant}" muestra la mejor eficiencia con ${(winner.efficiency * 100).toFixed(1)}% de calidad por costo.`
+      totalRequests: filteredMetrics.length,
+      successRate: (filteredMetrics.filter(m => m.success).length / filteredMetrics.length) * 100,
+      averageLatency: durations.reduce((sum, d) => sum + d, 0) / durations.length,
+      medianLatency: durations[Math.floor(durations.length / 2)],
+      p95Latency: durations[Math.floor(durations.length * 0.95)],
+      p99Latency: durations[Math.floor(durations.length * 0.99)],
+      totalCost: costs.reduce((sum, c) => sum + c, 0),
+      averageCost: costs.reduce((sum, c) => sum + c, 0) / costs.length,
+      costPerToken: totalTokens > 0 ? costs.reduce((sum, c) => sum + c, 0) / totalTokens : 0,
+      qualityScore: qualityScores.length > 0 ? qualityScores.reduce((sum, q) => sum + q, 0) / qualityScores.length : 0,
+      timeRange: { start: startTime, end: endTime }
     }
   }
 
-  // Quality scoring for AI responses
-  async calculateQualityScore(response: string, expectedContext: any, userFeedback?: number): Promise<number> {
-    let score = 0.5 // Base score
+  /**
+   * Get performance comparison across models for a specific operation
+   */
+  public getModelComparison(
+    operation: string,
+    startTime: Date,
+    endTime: Date
+  ): OperationPerformance {
+    const operationMetrics = this.filterMetrics(startTime, endTime, { operation })
 
-    // Length appropriateness (not too short, not too long)
-    const length = response.length
-    if (length > 50 && length < 2000) {
-      score += 0.1
-    }
+    // Group by model
+    const modelGroups = this.groupByModel(operationMetrics)
 
-    // Contains relevant keywords from context
-    if (expectedContext && typeof expectedContext === 'object') {
-      const contextWords = Object.values(expectedContext).join(' ').toLowerCase()
-      const responseWords = response.toLowerCase()
-      const relevantWords = ['objetivo', 'progreso', 'meta', 'resultado', 'avance', 'completar']
+    const modelPerformances: ModelPerformance[] = Object.entries(modelGroups).map(([model, metrics]) => {
+      const stats = this.calculateStatsForMetrics(metrics, startTime, endTime)
+      const provider = this.extractProvider(model)
 
-      const relevanceScore = relevantWords.filter(word =>
-        contextWords.includes(word) && responseWords.includes(word)
-      ).length / relevantWords.length
-
-      score += relevanceScore * 0.2
-    }
-
-    // User feedback integration
-    if (userFeedback !== undefined) {
-      score = (score * 0.7) + (userFeedback * 0.3) // Weight user feedback at 30%
-    }
-
-    // AI-based quality assessment
-    try {
-      const qualityPrompt = `
-        Evalúa la calidad de esta respuesta de IA en una escala de 0 a 1:
-
-        Respuesta: "${response}"
-
-        Criterios:
-        - Claridad y coherencia
-        - Relevancia al contexto
-        - Utilidad práctica
-        - Tono profesional
-
-        Responde solo con un número decimal entre 0 y 1.
-      `
-
-      const { text } = await generateText({
-        model: ai('openai/gpt-4o-mini'),
-        prompt: qualityPrompt,
-        maxTokens: 10
-      })
-
-      const aiScore = parseFloat(text.trim())
-      if (!isNaN(aiScore) && aiScore >= 0 && aiScore <= 1) {
-        score = (score * 0.6) + (aiScore * 0.4) // Weight AI assessment at 40%
+      return {
+        model,
+        provider,
+        stats,
+        comparativeRank: 0, // Will be calculated after sorting
+        recommendations: this.generateModelRecommendations(model, stats)
       }
-    } catch (error) {
-      console.warn('Failed to get AI quality assessment:', error)
-    }
+    })
 
-    return Math.max(0, Math.min(1, score))
+    // Rank models by overall performance score
+    const rankedModels = this.rankModels(modelPerformances)
+
+    return {
+      operation,
+      models: rankedModels,
+      bestModel: rankedModels[0]?.model || '',
+      worstModel: rankedModels[rankedModels.length - 1]?.model || '',
+      improvementSuggestions: this.generateImprovementSuggestions(rankedModels)
+    }
   }
 
-  // Benchmark models against each other
-  async benchmarkModels(models: string[], testPrompts: string[]): Promise<ModelPerformance[]> {
-    const results: ModelPerformance[] = []
+  /**
+   * Detect performance anomalies
+   */
+  public detectAnomalies(
+    lookbackHours: number = 24,
+    thresholds?: {
+      latencyMultiplier?: number
+      errorRateThreshold?: number
+      costMultiplier?: number
+    }
+  ): Array<{
+    type: 'latency' | 'error_rate' | 'cost' | 'quality'
+    severity: 'low' | 'medium' | 'high' | 'critical'
+    description: string
+    affectedOperations: string[]
+    recommendation: string
+    detectedAt: Date
+  }> {
+    const endTime = new Date()
+    const startTime = new Date(endTime.getTime() - lookbackHours * 60 * 60 * 1000)
+    const baselineStart = new Date(startTime.getTime() - lookbackHours * 60 * 60 * 1000)
 
-    for (const model of models) {
-      const modelMetrics: PerformanceMetrics[] = []
+    const currentMetrics = this.filterMetrics(startTime, endTime)
+    const baselineMetrics = this.filterMetrics(baselineStart, startTime)
 
-      for (const prompt of testPrompts) {
-        const startTime = new Date()
+    const anomalies: Array<any> = []
 
-        try {
-          const { text, usage } = await generateText({
-            model: ai(model),
-            prompt,
-            maxTokens: 200
-          })
+    // Latency anomalies
+    const currentLatency = this.getAverageLatency(currentMetrics)
+    const baselineLatency = this.getAverageLatency(baselineMetrics)
+    const latencyMultiplier = thresholds?.latencyMultiplier || 2.0
 
-          const endTime = new Date()
-          const responseTime = endTime.getTime() - startTime.getTime()
+    if (currentLatency > baselineLatency * latencyMultiplier) {
+      anomalies.push({
+        type: 'latency' as const,
+        severity: currentLatency > baselineLatency * 3 ? 'critical' as const : 'high' as const,
+        description: `Latencia promedio ${((currentLatency / baselineLatency - 1) * 100).toFixed(1)}% mayor que el baseline`,
+        affectedOperations: this.getSlowOperations(currentMetrics),
+        recommendation: 'Revisar modelos utilizados y considerar optimización de prompts',
+        detectedAt: new Date()
+      })
+    }
 
-          // Estimate cost (simplified - in production, use actual pricing)
-          const estimatedCost = this.estimateModelCost(model, usage?.totalTokens || 100)
+    // Error rate anomalies
+    const currentErrorRate = this.getErrorRate(currentMetrics)
+    const baselineErrorRate = this.getErrorRate(baselineMetrics)
+    const errorThreshold = thresholds?.errorRateThreshold || 5.0
 
-          // Calculate quality score
-          const qualityScore = await this.calculateQualityScore(text, { prompt })
+    if (currentErrorRate > Math.max(baselineErrorRate * 2, errorThreshold)) {
+      anomalies.push({
+        type: 'error_rate' as const,
+        severity: currentErrorRate > 20 ? 'critical' as const : 'high' as const,
+        description: `Tasa de error del ${currentErrorRate.toFixed(1)}% detectada`,
+        affectedOperations: this.getErrorProneOperations(currentMetrics),
+        recommendation: 'Verificar conectividad con providers y revisar configuración de fallbacks',
+        detectedAt: new Date()
+      })
+    }
 
-          const metrics: PerformanceMetrics = {
-            totalRequests: 1,
-            averageResponseTime: responseTime,
-            tokenUsage: {
-              input: usage?.promptTokens || 50,
-              output: usage?.completionTokens || 50,
-              total: usage?.totalTokens || 100
-            },
-            costMetrics: {
-              totalCost: estimatedCost,
-              costPerRequest: estimatedCost,
-              costPerToken: estimatedCost / (usage?.totalTokens || 100)
-            },
-            qualityScore,
-            errorRate: 0,
-            timestamp: new Date()
+    // Cost anomalies
+    const currentCost = this.getTotalCost(currentMetrics)
+    const baselineCost = this.getTotalCost(baselineMetrics)
+    const costMultiplier = thresholds?.costMultiplier || 2.5
+
+    if (currentCost > baselineCost * costMultiplier) {
+      anomalies.push({
+        type: 'cost' as const,
+        severity: currentCost > baselineCost * 5 ? 'critical' as const : 'medium' as const,
+        description: `Costo ${((currentCost / baselineCost - 1) * 100).toFixed(1)}% mayor que el baseline`,
+        affectedOperations: this.getExpensiveOperations(currentMetrics),
+        recommendation: 'Considerar usar modelos más económicos o optimizar el número de tokens',
+        detectedAt: new Date()
+      })
+    }
+
+    return anomalies
+  }
+
+  /**
+   * Generate optimization recommendations
+   */
+  public generateOptimizationRecommendations(
+    timeRange: { start: Date; end: Date },
+    targetMetric: 'cost' | 'latency' | 'quality' = 'cost'
+  ): Array<{
+    type: 'model_switch' | 'parameter_tuning' | 'caching' | 'batching'
+    description: string
+    expectedImpact: string
+    implementation: string
+    priority: 'low' | 'medium' | 'high'
+  }> {
+    const metrics = this.filterMetrics(timeRange.start, timeRange.end)
+    const recommendations: Array<any> = []
+
+    // Model switching recommendations
+    const operationGroups = this.groupByOperation(metrics)
+
+    for (const [operation, operationMetrics] of Object.entries(operationGroups)) {
+      const modelComparison = this.getModelComparison(operation, timeRange.start, timeRange.end)
+
+      if (modelComparison.models.length > 1) {
+        const bestModel = modelComparison.models[0]
+        const currentModel = this.getMostUsedModel(operationMetrics)
+
+        if (bestModel.model !== currentModel) {
+          let impact = ''
+          let priority: 'low' | 'medium' | 'high' = 'medium'
+
+          if (targetMetric === 'cost') {
+            const currentStats = modelComparison.models.find(m => m.model === currentModel)?.stats
+            if (currentStats && bestModel.stats.averageCost < currentStats.averageCost * 0.7) {
+              impact = `Reducción estimada de costo: ${((1 - bestModel.stats.averageCost / currentStats.averageCost) * 100).toFixed(1)}%`
+              priority = 'high'
+            }
           }
 
-          modelMetrics.push(metrics)
-        } catch (error) {
-          console.error(`Benchmark failed for model ${model}:`, error)
-
-          const failureMetrics: PerformanceMetrics = {
-            totalRequests: 1,
-            averageResponseTime: 30000, // Penalty for failure
-            tokenUsage: { input: 0, output: 0, total: 0 },
-            costMetrics: { totalCost: 0, costPerRequest: 0, costPerToken: 0 },
-            qualityScore: 0,
-            errorRate: 1,
-            timestamp: new Date()
+          if (impact) {
+            recommendations.push({
+              type: 'model_switch' as const,
+              description: `Cambiar de ${currentModel} a ${bestModel.model} para operación ${operation}`,
+              expectedImpact: impact,
+              implementation: `Actualizar configuración de modelo en la operación ${operation}`,
+              priority
+            })
           }
-
-          modelMetrics.push(failureMetrics)
         }
       }
+    }
 
-      // Aggregate metrics for this model
-      const aggregated = this.aggregateMetrics(modelMetrics)
-
-      // Calculate benchmark and reliability scores
-      const benchmarkScore = this.calculateBenchmarkScore(aggregated)
-      const reliabilityScore = 1 - aggregated.errorRate
-
-      results.push({
-        modelId: model,
-        provider: this.extractProvider(model),
-        metrics: aggregated,
-        benchmarkScore,
-        reliabilityScore
+    // Caching recommendations
+    const repetitiveRequests = this.findRepetitiveRequests(metrics)
+    if (repetitiveRequests.length > 0) {
+      recommendations.push({
+        type: 'caching' as const,
+        description: 'Implementar cache para requests repetitivos',
+        expectedImpact: `Reducción potencial de ${repetitiveRequests.length} requests duplicados`,
+        implementation: 'Añadir layer de cache con TTL apropiado',
+        priority: repetitiveRequests.length > 50 ? 'high' as const : 'medium' as const
       })
     }
 
-    modelPerformance.push(...results)
-    return results
+    return recommendations
   }
 
-  // Get current performance insights
-  getPerformanceInsights(severity?: 'low' | 'medium' | 'high' | 'critical'): PerformanceInsight[] {
-    let insights = performanceInsights
-      .filter(insight => !insight.resolvedAt)
-      .sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime())
+  // Private helper methods
 
-    if (severity) {
-      insights = insights.filter(insight => insight.severity === severity)
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
+  }
+
+  private calculateCost(model: string, inputTokens: number, outputTokens: number): number {
+    const modelCost = MODEL_COSTS[model as keyof typeof MODEL_COSTS]
+    if (!modelCost) return 0
+
+    const inputCost = (inputTokens / 1000000) * modelCost.input
+    const outputCost = (outputTokens / 1000000) * modelCost.output
+
+    return inputCost + outputCost
+  }
+
+  private filterMetrics(
+    startTime: Date,
+    endTime: Date,
+    filters?: {
+      operation?: string
+      model?: string
+      provider?: string
+      userId?: string
     }
-
-    return insights.slice(0, 20) // Return top 20 insights
-  }
-
-  // Resolve performance insight
-  async resolveInsight(insightId: string): Promise<boolean> {
-    const insight = performanceInsights.find(i => i.id === insightId)
-    if (insight) {
-      insight.resolvedAt = new Date()
+  ): AIPerformanceMetrics[] {
+    return this.metrics.filter(metric => {
+      if (metric.startTime < startTime || metric.startTime > endTime) return false
+      if (filters?.operation && metric.operation !== filters.operation) return false
+      if (filters?.model && metric.model !== filters.model) return false
+      if (filters?.provider && metric.provider !== filters.provider) return false
+      if (filters?.userId && metric.userId !== filters.userId) return false
       return true
-    }
-    return false
-  }
-
-  // Helper methods
-  private groupMetricsByPeriod(metrics: PerformanceMetrics[], period: string): Record<string, PerformanceMetrics[]> {
-    const grouped: Record<string, PerformanceMetrics[]> = {}
-
-    metrics.forEach(metric => {
-      let key: string
-      const date = new Date(metric.timestamp)
-
-      switch (period) {
-        case 'hourly':
-          key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`
-          break
-        case 'daily':
-          key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-          break
-        case 'weekly':
-          const week = Math.floor(date.getTime() / (7 * 24 * 60 * 60 * 1000))
-          key = `week-${week}`
-          break
-        case 'monthly':
-          key = `${date.getFullYear()}-${date.getMonth()}`
-          break
-        default:
-          key = 'all'
-      }
-
-      if (!grouped[key]) {
-        grouped[key] = []
-      }
-      grouped[key].push(metric)
     })
-
-    return grouped
   }
 
-  private aggregateMetrics(metrics: PerformanceMetrics[]): PerformanceMetrics {
-    if (metrics.length === 0) {
-      return {
-        totalRequests: 0,
-        averageResponseTime: 0,
-        tokenUsage: { input: 0, output: 0, total: 0 },
-        costMetrics: { totalCost: 0, costPerRequest: 0, costPerToken: 0 },
-        qualityScore: 0,
-        errorRate: 0,
-        timestamp: new Date()
-      }
+  private getEmptyStats(startTime: Date, endTime: Date): PerformanceStats {
+    return {
+      totalRequests: 0,
+      successRate: 0,
+      averageLatency: 0,
+      medianLatency: 0,
+      p95Latency: 0,
+      p99Latency: 0,
+      totalCost: 0,
+      averageCost: 0,
+      costPerToken: 0,
+      qualityScore: 0,
+      timeRange: { start: startTime, end: endTime }
     }
+  }
 
-    const totalRequests = metrics.reduce((sum, m) => sum + m.totalRequests, 0)
-    const totalResponseTime = metrics.reduce((sum, m) => sum + (m.averageResponseTime * m.totalRequests), 0)
-    const totalInputTokens = metrics.reduce((sum, m) => sum + m.tokenUsage.input, 0)
-    const totalOutputTokens = metrics.reduce((sum, m) => sum + m.tokenUsage.output, 0)
-    const totalCost = metrics.reduce((sum, m) => sum + m.costMetrics.totalCost, 0)
-    const totalQualityScore = metrics.reduce((sum, m) => sum + (m.qualityScore * m.totalRequests), 0)
-    const totalErrors = metrics.reduce((sum, m) => sum + (m.errorRate * m.totalRequests), 0)
+  private groupByModel(metrics: AIPerformanceMetrics[]): Record<string, AIPerformanceMetrics[]> {
+    return metrics.reduce((groups, metric) => {
+      if (!groups[metric.model]) {
+        groups[metric.model] = []
+      }
+      groups[metric.model].push(metric)
+      return groups
+    }, {} as Record<string, AIPerformanceMetrics[]>)
+  }
 
-    const totalTokens = totalInputTokens + totalOutputTokens
+  private groupByOperation(metrics: AIPerformanceMetrics[]): Record<string, AIPerformanceMetrics[]> {
+    return metrics.reduce((groups, metric) => {
+      if (!groups[metric.operation]) {
+        groups[metric.operation] = []
+      }
+      groups[metric.operation].push(metric)
+      return groups
+    }, {} as Record<string, AIPerformanceMetrics[]>)
+  }
+
+  private calculateStatsForMetrics(metrics: AIPerformanceMetrics[], startTime: Date, endTime: Date): PerformanceStats {
+    if (metrics.length === 0) return this.getEmptyStats(startTime, endTime)
+
+    const durations = metrics.map(m => m.duration).sort((a, b) => a - b)
+    const costs = metrics.map(m => m.cost)
+    const totalTokens = metrics.reduce((sum, m) => sum + m.tokensInput + m.tokensOutput, 0)
+    const qualityScores = metrics
+      .filter(m => m.qualityScore !== undefined)
+      .map(m => m.qualityScore!)
 
     return {
-      totalRequests,
-      averageResponseTime: totalRequests > 0 ? totalResponseTime / totalRequests : 0,
-      tokenUsage: {
-        input: totalInputTokens,
-        output: totalOutputTokens,
-        total: totalTokens
-      },
-      costMetrics: {
-        totalCost,
-        costPerRequest: totalRequests > 0 ? totalCost / totalRequests : 0,
-        costPerToken: totalTokens > 0 ? totalCost / totalTokens : 0
-      },
-      qualityScore: totalRequests > 0 ? totalQualityScore / totalRequests : 0,
-      errorRate: totalRequests > 0 ? totalErrors / totalRequests : 0,
-      timestamp: new Date()
+      totalRequests: metrics.length,
+      successRate: (metrics.filter(m => m.success).length / metrics.length) * 100,
+      averageLatency: durations.reduce((sum, d) => sum + d, 0) / durations.length,
+      medianLatency: durations[Math.floor(durations.length / 2)],
+      p95Latency: durations[Math.floor(durations.length * 0.95)],
+      p99Latency: durations[Math.floor(durations.length * 0.99)],
+      totalCost: costs.reduce((sum, c) => sum + c, 0),
+      averageCost: costs.reduce((sum, c) => sum + c, 0) / costs.length,
+      costPerToken: totalTokens > 0 ? costs.reduce((sum, c) => sum + c, 0) / totalTokens : 0,
+      qualityScore: qualityScores.length > 0 ? qualityScores.reduce((sum, q) => sum + q, 0) / qualityScores.length : 0,
+      timeRange: { start: startTime, end: endTime }
     }
-  }
-
-  private calculateBenchmarkScore(metrics: PerformanceMetrics): number {
-    // Normalize and weight different factors
-    const responseTimeScore = Math.max(0, 1 - (metrics.averageResponseTime / 10000)) // Penalty after 10s
-    const costScore = Math.max(0, 1 - (metrics.costMetrics.costPerRequest / 0.10)) // Penalty after $0.10 per request
-    const qualityScore = metrics.qualityScore
-    const reliabilityScore = 1 - metrics.errorRate
-
-    // Weighted average
-    return (responseTimeScore * 0.25) + (costScore * 0.25) + (qualityScore * 0.35) + (reliabilityScore * 0.15)
   }
 
   private extractProvider(model: string): string {
-    const parts = model.split('/')
-    return parts.length > 1 ? parts[0] : 'unknown'
+    return model.split('/')[0] || 'unknown'
   }
 
-  private estimateModelCost(model: string, tokens: number): number {
-    // Simplified cost estimation (in production, use actual pricing APIs)
-    const costPerThousandTokens: Record<string, number> = {
-      'openai/gpt-4o': 0.015,
-      'openai/gpt-4o-mini': 0.0015,
-      'anthropic/claude-3-sonnet-20240229': 0.003,
-      'anthropic/claude-3-haiku-20240307': 0.0005,
-      'google/gemini-1.5-flash': 0.001,
-      'default': 0.002
+  private generateModelRecommendations(model: string, stats: PerformanceStats): string[] {
+    const recommendations: string[] = []
+
+    if (stats.successRate < 95) {
+      recommendations.push('Considerar configurar fallback adicionales para mejorar confiabilidad')
     }
 
-    const cost = costPerThousandTokens[model] || costPerThousandTokens['default']
-    return (tokens / 1000) * cost
+    if (stats.averageLatency > 5000) {
+      recommendations.push('Evaluar modelos más rápidos para casos de uso en tiempo real')
+    }
+
+    if (stats.costPerToken > 0.00001) {
+      recommendations.push('Considerar modelos más económicos para operaciones de alto volumen')
+    }
+
+    if (stats.qualityScore > 0 && stats.qualityScore < 70) {
+      recommendations.push('Revisar y optimizar prompts para mejorar calidad de respuestas')
+    }
+
+    return recommendations
   }
 
-  private async flushMetrics(): Promise<void> {
-    // In production, flush to database
-    performanceData.push(...this.metricsBuffer)
-    this.metricsBuffer = []
+  private rankModels(models: ModelPerformance[]): ModelPerformance[] {
+    // Score based on weighted combination of metrics
+    const scored = models.map(model => {
+      const successWeight = 0.3
+      const latencyWeight = 0.25
+      const costWeight = 0.25
+      const qualityWeight = 0.2
+
+      // Normalize scores (higher is better)
+      const successScore = model.stats.successRate
+      const latencyScore = Math.max(0, 100 - (model.stats.averageLatency / 100))
+      const costScore = Math.max(0, 100 - (model.stats.averageCost * 10000))
+      const qualityScore = model.stats.qualityScore || 50
+
+      const overallScore =
+        successScore * successWeight +
+        latencyScore * latencyWeight +
+        costScore * costWeight +
+        qualityScore * qualityWeight
+
+      return { ...model, overallScore }
+    })
+
+    // Sort by overall score (descending)
+    scored.sort((a, b) => b.overallScore - a.overallScore)
+
+    // Assign ranks
+    return scored.map((model, index) => ({
+      ...model,
+      comparativeRank: index + 1
+    }))
+  }
+
+  private generateImprovementSuggestions(models: ModelPerformance[]): string[] {
+    const suggestions: string[] = []
+
+    if (models.length === 0) return suggestions
+
+    const bestModel = models[0]
+    const worstModel = models[models.length - 1]
+
+    if (bestModel.stats.successRate > worstModel.stats.successRate + 10) {
+      suggestions.push('Migrar requests del modelo menos confiable al más confiable')
+    }
+
+    if (bestModel.stats.averageCost < worstModel.stats.averageCost * 0.5) {
+      suggestions.push('Evaluar migración a modelo más económico para reducir costos')
+    }
+
+    if (models.some(m => m.stats.averageLatency > 10000)) {
+      suggestions.push('Implementar timeout más agresivo para modelos lentos')
+    }
+
+    return suggestions
+  }
+
+  private getAverageLatency(metrics: AIPerformanceMetrics[]): number {
+    if (metrics.length === 0) return 0
+    return metrics.reduce((sum, m) => sum + m.duration, 0) / metrics.length
+  }
+
+  private getErrorRate(metrics: AIPerformanceMetrics[]): number {
+    if (metrics.length === 0) return 0
+    return (metrics.filter(m => !m.success).length / metrics.length) * 100
+  }
+
+  private getTotalCost(metrics: AIPerformanceMetrics[]): number {
+    return metrics.reduce((sum, m) => sum + m.cost, 0)
+  }
+
+  private getSlowOperations(metrics: AIPerformanceMetrics[]): string[] {
+    const operationLatencies = this.groupByOperation(metrics)
+    return Object.entries(operationLatencies)
+      .filter(([_, opMetrics]) => this.getAverageLatency(opMetrics) > 5000)
+      .map(([operation, _]) => operation)
+  }
+
+  private getErrorProneOperations(metrics: AIPerformanceMetrics[]): string[] {
+    const operationGroups = this.groupByOperation(metrics)
+    return Object.entries(operationGroups)
+      .filter(([_, opMetrics]) => this.getErrorRate(opMetrics) > 10)
+      .map(([operation, _]) => operation)
+  }
+
+  private getExpensiveOperations(metrics: AIPerformanceMetrics[]): string[] {
+    const operationGroups = this.groupByOperation(metrics)
+    return Object.entries(operationGroups)
+      .filter(([_, opMetrics]) => this.getTotalCost(opMetrics) > 1.0)
+      .map(([operation, _]) => operation)
+  }
+
+  private getMostUsedModel(metrics: AIPerformanceMetrics[]): string {
+    const modelCounts = metrics.reduce((counts, metric) => {
+      counts[metric.model] = (counts[metric.model] || 0) + 1
+      return counts
+    }, {} as Record<string, number>)
+
+    return Object.entries(modelCounts)
+      .sort(([, a], [, b]) => b - a)[0]?.[0] || ''
+  }
+
+  private findRepetitiveRequests(metrics: AIPerformanceMetrics[]): AIPerformanceMetrics[] {
+    // Simple implementation: find requests with very similar metadata
+    const seen = new Set<string>()
+    const repetitive: AIPerformanceMetrics[] = []
+
+    for (const metric of metrics) {
+      const key = `${metric.operation}-${metric.model}-${JSON.stringify(metric.metadata)}`
+      if (seen.has(key)) {
+        repetitive.push(metric)
+      } else {
+        seen.add(key)
+      }
+    }
+
+    return repetitive
   }
 }
 
 // Export singleton instance
-export const performanceAnalytics = PerformanceAnalytics.getInstance()
+export const performanceAnalytics = new AIPerformanceAnalytics()
+
+// Instrumentation helper for tracking AI operations
+export function instrumentAIOperation<T>(
+  operation: string,
+  model: string,
+  provider: string,
+  aiFunction: () => Promise<T>,
+  userId?: string,
+  metadata?: Record<string, any>
+): Promise<T & { requestId: string }> {
+  const startTime = new Date()
+
+  return aiFunction()
+    .then(result => {
+      const endTime = new Date()
+      const duration = endTime.getTime() - startTime.getTime()
+
+      // Extract token usage from result if available
+      const tokensInput = (result as any)?.usage?.promptTokens || 0
+      const tokensOutput = (result as any)?.usage?.completionTokens || 0
+
+      const requestId = performanceAnalytics.recordMetrics({
+        operation,
+        model,
+        provider,
+        startTime,
+        endTime,
+        duration,
+        tokensInput,
+        tokensOutput,
+        success: true,
+        userId,
+        metadata
+      })
+
+      return { ...result, requestId }
+    })
+    .catch(error => {
+      const endTime = new Date()
+      const duration = endTime.getTime() - startTime.getTime()
+
+      const requestId = performanceAnalytics.recordMetrics({
+        operation,
+        model,
+        provider,
+        startTime,
+        endTime,
+        duration,
+        tokensInput: 0,
+        tokensOutput: 0,
+        success: false,
+        error: error.message,
+        userId,
+        metadata
+      })
+
+      // Re-throw with requestId for debugging
+      const enhancedError = new Error(error.message)
+      ;(enhancedError as any).requestId = requestId
+      throw enhancedError
+    })
+}
