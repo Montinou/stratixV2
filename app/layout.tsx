@@ -1,9 +1,9 @@
 import type React from "react"
+import { StackProvider, StackTheme } from "@stackframe/stack"
+import { stackClientApp } from "@/stack"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { StackProvider, StackTheme } from "@stackframe/stack"
-import { stackClientApp } from "@/stack"
 import "./globals.css"
 
 // Force dynamic rendering to avoid authentication issues during static generation
