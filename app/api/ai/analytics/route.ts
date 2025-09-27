@@ -207,7 +207,7 @@ async function handleCostAnalytics(
     },
     trends: generateCostTrends(startTime, endTime, filters),
     optimization: {
-      potentialSavings: calculatePotentialSavings(startTime, endTime, filters),
+      potentialSavings: await calculatePotentialSavings(startTime, endTime, filters),
       recommendations: await metricsCollector.generateOptimizationRecommendations(
         { start: startTime, end: endTime },
         'cost'
@@ -682,7 +682,7 @@ function generateCostTrends(startTime: Date, endTime: Date, filters: any) {
   }
 }
 
-function calculatePotentialSavings(startTime: Date, endTime: Date, filters: any) {
+async function calculatePotentialSavings(startTime: Date, endTime: Date, filters: any) {
   try {
     // Calculate real potential savings based on analytics data
     const realSavings = await metricsCollector.calculatePotentialSavings(startTime, endTime, filters)
