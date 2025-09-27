@@ -2,9 +2,10 @@
 name: frontend-onboarding-ai
 status: backlog
 created: 2025-09-27T05:55:57Z
+updated: 2025-09-27T19:45:00Z
 progress: 0%
 prd: .claude/prds/frontend-onboarding-ai.md
-github: [Will be updated when synced to GitHub]
+github: https://github.com/Montinou/stratixV2/issues/68
 ---
 
 # Epic: Frontend de Onboarding con IA
@@ -246,3 +247,20 @@ High-level task categories (≤8 total tasks):
 - Component reusability reduces development risk
 - Existing design system minimizes design iteration
 - Feature flags enable safe incremental rollout
+
+## Tasks Created
+
+- [ ] [#69](https://github.com/Montinou/stratixV2/issues/69) - Wizard Foundation & Navigation (parallel: false) - Foundation
+- [ ] [#70](https://github.com/Montinou/stratixV2/issues/70) - Core Form Steps Implementation (parallel: true) - Frontend
+- [ ] [#71](https://github.com/Montinou/stratixV2/issues/71) - API Endpoints & Backend Integration (parallel: true) - Backend
+- [ ] [#72](https://github.com/Montinou/stratixV2/issues/72) - AI Chat Integration with shadcn Components (parallel: true) - AI/UI
+- [ ] [#73](https://github.com/Montinou/stratixV2/issues/73) - Smart Form Components with shadcn Enhancement (parallel: true) - AI/UI
+- [ ] [#74](https://github.com/Montinou/stratixV2/issues/74) - Visual Polish & Animation with shadcn (parallel: true) - Polish
+- [ ] [#75](https://github.com/Montinou/stratixV2/issues/75) - shadcn Theme Integration & Accessibility (parallel: true) - A11y
+- [ ] [#76](https://github.com/Montinou/stratixV2/issues/76) - Testing & Documentation for shadcn Components (parallel: false) - Testing
+
+**Total tasks:** 8
+**Parallel tasks:** 6 (tasks 002-007 can run in parallel after dependencies)
+**Sequential tasks:** 2 (001 foundation, 008 final testing)
+**Estimated total effort:** 110-126 hours
+**shadcn/ui focus:** All tasks emphasize shadcn component usage and styling patterns
