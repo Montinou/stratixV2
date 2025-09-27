@@ -136,8 +136,8 @@ async function handleOverviewAnalytics(
       totalCost: stats.totalCost,
       qualityScore: stats.qualityScore
     },
-    trends: generateTrendData(startTime, endTime, filters),
-    topOperations: getTopOperationsByVolume(startTime, endTime, filters),
+    trends: await generateTrendData(startTime, endTime, filters),
+    topOperations: await getTopOperationsByVolume(startTime, endTime, filters),
     activeAnomalies: anomalies.filter(a => a.severity === 'high' || a.severity === 'critical'),
     healthScore: calculateOverallHealthScore(stats, anomalies)
   }
@@ -172,8 +172,8 @@ async function handlePerformanceAnalytics(
     overall: stats,
     latencyDistribution: calculateLatencyDistribution(startTime, endTime, filters),
     operationBreakdown: operationPerformances,
-    modelComparison: generateModelComparisonData(startTime, endTime, filters),
-    timeSeriesData: generatePerformanceTimeSeries(startTime, endTime, filters)
+    modelComparison: await generateModelComparisonData(startTime, endTime, filters),
+    timeSeriesData: await generatePerformanceTimeSeries(startTime, endTime, filters)
   }
 
   return NextResponse.json({
@@ -201,11 +201,11 @@ async function handleCostAnalytics(
       projectedMonthlyCost: projectMonthlyCost(stats.totalCost, startTime, endTime)
     },
     breakdown: {
-      byModel: generateCostByModel(startTime, endTime, filters),
-      byOperation: generateCostByOperation(startTime, endTime, filters),
-      byProvider: generateCostByProvider(startTime, endTime, filters)
+      byModel: await generateCostByModel(startTime, endTime, filters),
+      byOperation: await generateCostByOperation(startTime, endTime, filters),
+      byProvider: await generateCostByProvider(startTime, endTime, filters)
     },
-    trends: generateCostTrends(startTime, endTime, filters),
+    trends: await generateCostTrends(startTime, endTime, filters),
     optimization: {
       potentialSavings: await calculatePotentialSavings(startTime, endTime, filters),
       recommendations: await metricsCollector.generateOptimizationRecommendations(
@@ -518,7 +518,7 @@ function parseTimeRange(timeRange: string): { startTime: Date; endTime: Date } {
   return { startTime, endTime }
 }
 
-function generateTrendData(startTime: Date, endTime: Date, filters: any) {
+async function generateTrendData(startTime: Date, endTime: Date, filters: any) {
   try {
     // Get real performance data from analytics system
     const realMetrics = await metricsCollector.getTimeSeriesData(startTime, endTime, filters)
@@ -549,7 +549,7 @@ function generateTrendData(startTime: Date, endTime: Date, filters: any) {
   }
 }
 
-function getTopOperationsByVolume(startTime: Date, endTime: Date, filters: any) {
+async function getTopOperationsByVolume(startTime: Date, endTime: Date, filters: any) {
   try {
     // Get real operation data from analytics system
     const realOperations = await metricsCollector.getTopOperations(startTime, endTime, filters)
@@ -598,7 +598,7 @@ function calculateLatencyDistribution(startTime: Date, endTime: Date, filters: a
   }
 }
 
-function generateModelComparisonData(startTime: Date, endTime: Date, filters: any) {
+async function generateModelComparisonData(startTime: Date, endTime: Date, filters: any) {
   try {
     // Get real model comparison data from analytics system
     const realModelData = await metricsCollector.getModelComparison(startTime, endTime, filters)
@@ -615,9 +615,9 @@ function generateModelComparisonData(startTime: Date, endTime: Date, filters: an
   }
 }
 
-function generatePerformanceTimeSeries(startTime: Date, endTime: Date, filters: any) {
+async function generatePerformanceTimeSeries(startTime: Date, endTime: Date, filters: any) {
   // Mock implementation - replace with actual time series data
-  return generateTrendData(startTime, endTime, filters)
+  return await generateTrendData(startTime, endTime, filters)
 }
 
 function projectMonthlyCost(totalCost: number, startTime: Date, endTime: Date): number {
@@ -626,7 +626,7 @@ function projectMonthlyCost(totalCost: number, startTime: Date, endTime: Date): 
   return (totalCost / durationHours) * hoursInMonth
 }
 
-function generateCostByModel(startTime: Date, endTime: Date, filters: any) {
+async function generateCostByModel(startTime: Date, endTime: Date, filters: any) {
   try {
     // Get real cost data from analytics system
     const realCostData = await metricsCollector.getCostByModel(startTime, endTime, filters)
@@ -640,7 +640,7 @@ function generateCostByModel(startTime: Date, endTime: Date, filters: any) {
   }
 }
 
-function generateCostByOperation(startTime: Date, endTime: Date, filters: any) {
+async function generateCostByOperation(startTime: Date, endTime: Date, filters: any) {
   try {
     // Get real cost data by operation from analytics system
     const realCostData = await metricsCollector.getCostByOperation(startTime, endTime, filters)
@@ -654,7 +654,7 @@ function generateCostByOperation(startTime: Date, endTime: Date, filters: any) {
   }
 }
 
-function generateCostByProvider(startTime: Date, endTime: Date, filters: any) {
+async function generateCostByProvider(startTime: Date, endTime: Date, filters: any) {
   try {
     // Get real cost data by provider from analytics system
     const realCostData = await metricsCollector.getCostByProvider(startTime, endTime, filters)
@@ -668,10 +668,10 @@ function generateCostByProvider(startTime: Date, endTime: Date, filters: any) {
   }
 }
 
-function generateCostTrends(startTime: Date, endTime: Date, filters: any) {
+async function generateCostTrends(startTime: Date, endTime: Date, filters: any) {
   try {
     // Use real trend data from analytics system
-    const trendData = generateTrendData(startTime, endTime, filters)
+    const trendData = await generateTrendData(startTime, endTime, filters)
     return trendData.map(trend => ({
       timestamp: trend.timestamp,
       cost: trend.cost || 0
