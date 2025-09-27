@@ -6,8 +6,9 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ChatMessage } from './chat-message'
 import { ConversationUI } from './conversation-ui'
+import { useChatAI } from '@/lib/hooks/use-chat'
+import type { ChatContext } from '@/lib/hooks/use-chat'
 
 interface FloatingChatProps {
   isOpen: boolean
@@ -15,32 +16,14 @@ interface FloatingChatProps {
   position?: 'bottom-right' | 'bottom-left'
   theme?: 'light' | 'dark' | 'auto'
   unreadCount?: number
+  initialContext?: ChatContext
   className?: string
 }
 
 interface ChatState {
   isMinimized: boolean
   showSettings: boolean
-  messages: ChatMessage[]
   currentConversationId?: string
-  isTyping: boolean
-}
-
-interface ChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-  isStreaming?: boolean
-  attachments?: ChatAttachment[]
-}
-
-interface ChatAttachment {
-  id: string
-  name: string
-  type: 'image' | 'document' | 'text'
-  url: string
-  size: number
 }
 
 export function FloatingChat({
@@ -49,13 +32,33 @@ export function FloatingChat({
   position = 'bottom-right',
   theme = 'auto',
   unreadCount = 0,
+  initialContext,
   className
 }: FloatingChatProps) {
   const [chatState, setChatState] = React.useState<ChatState>({
     isMinimized: false,
     showSettings: false,
-    messages: [],
-    isTyping: false
+    currentConversationId: crypto.randomUUID()
+  })
+
+  // Use the real chat AI hook
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    error,
+    sendMessage,
+    addReaction,
+    editMessage,
+    deleteMessage,
+    clearConversation
+  } = useChatAI({
+    conversationId: chatState.currentConversationId,
+    initialContext,
+    onError: (error) => {
+      console.error('Chat error:', error)
+      // You could show a toast notification here
+    }
   })
 
   // Position classes based on position prop
@@ -98,36 +101,8 @@ export function FloatingChat({
     setChatState(prev => ({ ...prev, showSettings: !prev.showSettings }))
   }
 
-  const handleNewMessage = (content: string) => {
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content,
-      timestamp: new Date()
-    }
-
-    setChatState(prev => ({
-      ...prev,
-      messages: [...prev.messages, userMessage],
-      isTyping: true
-    }))
-
-    // Simulate AI response (will be replaced with actual AI API call)
-    setTimeout(() => {
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Entiendo tu consulta: "${content}". Estoy aquí para ayudarte con tus OKRs y objetivos estratégicos.`,
-        timestamp: new Date(),
-        isStreaming: false
-      }
-
-      setChatState(prev => ({
-        ...prev,
-        messages: [...prev.messages, assistantMessage],
-        isTyping: false
-      }))
-    }, 2000)
+  const handleNewMessage = (content: string, attachments?: File[]) => {
+    sendMessage(content, attachments)
   }
 
   if (!isOpen) {
@@ -175,7 +150,7 @@ export function FloatingChat({
           <CardTitle className="text-sm font-semibold">
             Asistente IA
           </CardTitle>
-          {chatState.isTyping && (
+          {(isLoading || isStreaming) && (
             <Badge variant="secondary" className="text-xs">
               Escribiendo...
             </Badge>
@@ -220,9 +195,12 @@ export function FloatingChat({
           {/* Chat Content */}
           <CardContent className="flex-1 p-0 overflow-hidden">
             <ConversationUI
-              messages={chatState.messages}
-              isTyping={chatState.isTyping}
+              messages={messages}
+              isTyping={isLoading || isStreaming}
               onNewMessage={handleNewMessage}
+              onMessageReaction={addReaction}
+              onMessageEdit={editMessage}
+              onMessageDelete={deleteMessage}
               showSettings={chatState.showSettings}
               conversationId={chatState.currentConversationId}
             />
@@ -260,4 +238,4 @@ export function FloatingChat({
   )
 }
 
-export type { FloatingChatProps, ChatMessage, ChatAttachment }
+export type { FloatingChatProps }

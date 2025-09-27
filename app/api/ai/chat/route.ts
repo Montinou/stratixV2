@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server"
-import { aiClient } from "@/lib/ai/gateway-client"
 import { stackServerApp } from "@/stack"
-import { streamText } from 'ai'
+import { streamText, generateText } from 'ai'
+import { gateway } from '@ai-sdk/gateway'
 import type { CoreMessage } from 'ai'
 
 export const runtime = 'edge'
@@ -46,6 +46,11 @@ interface ChatRequest {
     companySize?: 'startup' | 'pyme' | 'empresa' | 'corporacion'
   }
 }
+
+// Initialize AI Gateway
+const ai = gateway({
+  apiKey: process.env.AI_GATEWAY_API_KEY,
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -103,34 +108,20 @@ export async function POST(request: NextRequest) {
       ...validMessages
     ]
 
-    // Generar respuesta streaming usando el cliente AI Gateway
-    const result = await aiClient.generateStreamingText(
-      "", // El prompt se pasa a través de los mensajes
-      {
-        model: 'openai/gpt-4o-mini', // Modelo optimizado para coste
-        maxTokens: 1500,
-        temperature: 0.7,
-        providerOptions: {
-          order: ['openai', 'anthropic'], // Failover order
-          timeout: 30000
-        }
-      }
-    )
-
-    // Nota: La función generateStreamingText actual no soporta mensajes
-    // Necesitamos usar directamente streamText del AI SDK
-    const gateway = aiClient.gateway || null
-    if (!gateway) {
-      throw new Error('AI Gateway no está disponible')
-    }
-
-    const model = gateway('openai/gpt-4o-mini')
+    // Usar el modelo AI Gateway con failover
+    const model = ai('openai/gpt-4o-mini')
 
     const streamResult = streamText({
       model,
       messages: conversationMessages,
       maxTokens: 1500,
       temperature: 0.7,
+      providerOptions: {
+        gateway: {
+          order: ['openai', 'anthropic'], // Failover order
+          timeout: 30000
+        }
+      },
       onFinish: async (result) => {
         // Log de métricas para monitoreo
         console.log('Chat completion:', {
@@ -148,7 +139,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Retornar stream response
-    return streamResult.toAIStreamResponse()
+    return streamResult.toDataStreamResponse()
 
   } catch (error) {
     console.error("Error en chat AI:", error)

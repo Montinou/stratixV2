@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ChatMessage } from './chat-message'
+import { TypingIndicator } from './typing-indicator'
 import { toast } from 'sonner'
 
 interface ChatMessage {
@@ -300,18 +301,11 @@ export function ConversationUI({
             ))
           )}
 
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="flex items-center space-x-2 p-3 bg-muted/80 rounded-lg">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-                <span className="text-xs text-muted-foreground">IA está escribiendo...</span>
-              </div>
-            </div>
-          )}
+          <TypingIndicator
+            isVisible={isTyping}
+            message="IA está escribiendo..."
+            showAvatar={true}
+          />
 
           <div ref={messagesEndRef} />
         </div>
