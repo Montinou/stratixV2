@@ -3,6 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 import {
   LineChart,
   Line,
@@ -143,9 +146,26 @@ export function UsageMetrics({ profile, timeRange = "7days", className }: UsageM
   if (loading) {
     return (
       <div className={`space-y-6 ${className}`}>
-        <div className="animate-pulse">
-          <div className="h-8 bg-muted rounded w-1/2 mb-4"></div>
-          <div className="h-96 bg-muted rounded"></div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-[240px]" />
+              <Skeleton className="h-4 w-[320px]" />
+            </div>
+            <Skeleton className="h-9 w-[160px]" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-[180px]" />
+                <Skeleton className="h-4 w-[220px]" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-[300px] w-full" />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     )
@@ -154,15 +174,15 @@ export function UsageMetrics({ profile, timeRange = "7days", className }: UsageM
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+        <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">Análisis de Uso de IA</h2>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground lg:text-base">
             Métricas detalladas de consumo y patrones de uso
           </p>
         </div>
         <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -394,20 +414,35 @@ export function UsageMetrics({ profile, timeRange = "7days", className }: UsageM
                   Solicitudes por endpoint de API
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {data.endpointUsage.map((endpoint, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{endpoint.endpoint}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {endpoint.requests} solicitudes • {endpoint.averageLatency}ms promedio
-                      </p>
+              <CardContent className="space-y-3">
+                {data.endpointUsage.length > 0 ? (
+                  data.endpointUsage.map((endpoint, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{endpoint.endpoint}</p>
+                          <Badge variant="outline" className="text-xs">
+                            {endpoint.averageLatency}ms
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {endpoint.requests.toLocaleString()} solicitudes
+                        </p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <p className="font-semibold">{formatCurrency(endpoint.cost)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(endpoint.cost / endpoint.requests)}/req
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{formatCurrency(endpoint.cost)}</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Activity className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                    <p>No hay datos de endpoints disponibles</p>
                   </div>
-                ))}
+                )}
               </CardContent>
             </Card>
           </div>
@@ -426,23 +461,62 @@ export function UsageMetrics({ profile, timeRange = "7days", className }: UsageM
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {data.userBreakdown.map((user, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium">{user.userName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {user.requests} solicitudes • Último uso: {new Date(user.lastUsed).toLocaleDateString('es-ES')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">{formatCurrency(user.cost)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {((user.cost / data.userBreakdown.reduce((sum, u) => sum + u.cost, 0)) * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="font-medium">Usuario</TableHead>
+                      <TableHead className="text-center">Solicitudes</TableHead>
+                      <TableHead className="text-center">Costo</TableHead>
+                      <TableHead className="text-center">% del Total</TableHead>
+                      <TableHead className="text-right">Último Uso</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.userBreakdown.length > 0 ? (
+                      data.userBreakdown.map((user, index) => {
+                        const totalCost = data.userBreakdown.reduce((sum, u) => sum + u.cost, 0)
+                        const percentage = totalCost > 0 ? (user.cost / totalCost) * 100 : 0
+                        return (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">
+                              <div className="space-y-1">
+                                <p>{user.userName}</p>
+                                <Badge variant="outline" className="text-xs">
+                                  ID: {user.userId.slice(0, 8)}...
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center font-mono">
+                              {user.requests.toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-center font-mono">
+                              {formatCurrency(user.cost)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={percentage > 20 ? "default" : "secondary"}>
+                                {percentage.toFixed(1)}%
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right text-sm text-muted-foreground">
+                              {new Date(user.lastUsed).toLocaleDateString('es-ES', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No hay datos de usuarios disponibles
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

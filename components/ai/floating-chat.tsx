@@ -6,8 +6,11 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { ConversationUI } from './conversation-ui'
 import { useChatAI } from '@/lib/hooks/use-chat'
+import { useAuth } from '@/lib/hooks/use-auth'
 import type { ChatContext } from '@/lib/hooks/use-chat'
 
 interface FloatingChatProps {
@@ -35,11 +38,20 @@ export function FloatingChat({
   initialContext,
   className
 }: FloatingChatProps) {
+  const { user, profile, isAuthenticated, loading } = useAuth()
   const [chatState, setChatState] = React.useState<ChatState>({
     isMinimized: false,
     showSettings: false,
-    currentConversationId: crypto.randomUUID()
+    currentConversationId: `${user?.id || 'anonymous'}-${crypto.randomUUID()}`
   })
+
+  // Enhanced context with user profile data
+  const enhancedContext: ChatContext = React.useMemo(() => ({
+    ...initialContext,
+    department: profile?.department,
+    role: profile?.roleType,
+    companySize: 'empresa' // Default, could be derived from company data
+  }), [initialContext, profile])
 
   // Use the real chat AI hook
   const {
@@ -54,7 +66,7 @@ export function FloatingChat({
     clearConversation
   } = useChatAI({
     conversationId: chatState.currentConversationId,
-    initialContext,
+    initialContext: enhancedContext,
     onError: (error) => {
       console.error('Chat error:', error)
       // You could show a toast notification here
@@ -102,64 +114,81 @@ export function FloatingChat({
   }
 
   const handleNewMessage = (content: string, attachments?: File[]) => {
+    if (!isAuthenticated) {
+      console.warn('User not authenticated, cannot send message')
+      return
+    }
     sendMessage(content, attachments)
   }
 
+  // Render trigger button when closed
+  const triggerButton = (
+    <Button
+      size="lg"
+      className={cn(
+        'fixed z-50 rounded-full shadow-lg hover:scale-105 transition-all duration-200',
+        // Responsive sizing
+        'h-12 w-12 sm:h-14 sm:w-14',
+        positionClasses[position],
+        'bg-primary text-primary-foreground hover:bg-primary/90',
+        // Better mobile positioning
+        'bottom-4 right-4 sm:bottom-4 sm:right-4',
+        className
+      )}
+      aria-label="Abrir chat de IA"
+    >
+      <MessageCircle className="h-6 w-6" />
+      {unreadCount > 0 && (
+        <Badge
+          variant="destructive"
+          className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs"
+        >
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </Badge>
+      )}
+    </Button>
+  )
+
+  // Use state to track mobile/desktop for proper rendering
+  const [isMobile, setIsMobile] = React.useState(false)
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   if (!isOpen) {
     return (
-      <Button
-        onClick={onToggle}
-        size="lg"
-        className={cn(
-          'fixed z-50 rounded-full shadow-lg hover:scale-105 transition-all duration-200',
-          // Responsive sizing
-          'h-12 w-12 sm:h-14 sm:w-14',
-          positionClasses[position],
-          'bg-primary text-primary-foreground hover:bg-primary/90',
-          // Better mobile positioning
-          'bottom-4 right-4 sm:bottom-4 sm:right-4',
-          className
-        )}
-        aria-label="Abrir chat de IA"
-      >
-        <MessageCircle className="h-6 w-6" />
-        {unreadCount > 0 && (
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs"
-          >
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
-        )}
-      </Button>
+      <>{isMobile ? (
+        <Sheet open={isOpen} onOpenChange={onToggle}>
+          <SheetTrigger asChild>
+            {triggerButton}
+          </SheetTrigger>
+        </Sheet>
+      ) : (
+        <Dialog open={isOpen} onOpenChange={onToggle}>
+          <DialogTrigger asChild>
+            {triggerButton}
+          </DialogTrigger>
+        </Dialog>
+      )}</>
     )
   }
 
-  return (
-    <Card
-      className={cn(
-        'fixed z-50 flex flex-col shadow-2xl transition-all duration-300 ease-in-out',
-        positionClasses[position],
-        themeClasses,
-        // Mobile responsive sizing
-        chatState.isMinimized
-          ? 'h-14 w-80 sm:w-80'
-          : 'h-[85vh] w-[calc(100vw-1rem)] sm:h-[600px] sm:w-96',
-        'max-h-[90vh] max-w-[calc(100vw-0.5rem)] sm:max-w-none',
-        // Mobile specific adjustments
-        'sm:bottom-4 sm:right-4',
-        // On mobile, take full width with small margins
-        'mobile:left-2 mobile:right-2 mobile:bottom-2',
-        className
-      )}
-    >
+  const chatContent = (
+    <div className="flex flex-col h-full">
       {/* Chat Header */}
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 border-b">
+      <div className="flex flex-row items-center justify-between space-y-0 p-4 border-b">
         <div className="flex items-center space-x-2">
           <MessageCircle className="h-5 w-5 text-primary" />
-          <CardTitle className="text-sm font-semibold">
-            Asistente IA
-          </CardTitle>
+          <h3 className="text-sm font-semibold">
+            {profile?.fullName ? `Asistente IA - ${profile.fullName.split(' ')[0]}` : 'Asistente IA'}
+          </h3>
           {(isLoading || isStreaming) && (
             <Badge variant="secondary" className="text-xs">
               Escribiendo...
@@ -198,26 +227,46 @@ export function FloatingChat({
             <X className="h-4 w-4" />
           </Button>
         </div>
-      </CardHeader>
+      </div>
 
       {!chatState.isMinimized && (
         <>
           {/* Chat Content */}
-          <CardContent className="flex-1 p-0 overflow-hidden">
-            <ConversationUI
-              messages={messages}
-              isTyping={isLoading || isStreaming}
-              onNewMessage={handleNewMessage}
-              onMessageReaction={addReaction}
-              onMessageEdit={editMessage}
-              onMessageDelete={deleteMessage}
-              showSettings={chatState.showSettings}
-              conversationId={chatState.currentConversationId}
-            />
-          </CardContent>
+          <div className="flex-1 overflow-hidden">
+            {!isAuthenticated ? (
+              <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                <p className="text-muted-foreground text-sm mb-4">
+                  Inicia sesión para usar el asistente de IA
+                </p>
+                <Button
+                  onClick={() => window.location.href = '/auth/login'}
+                  size="sm"
+                >
+                  Iniciar Sesión
+                </Button>
+              </div>
+            ) : loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-sm text-muted-foreground">
+                  Cargando...
+                </div>
+              </div>
+            ) : (
+              <ConversationUI
+                messages={messages}
+                isTyping={isLoading || isStreaming}
+                onNewMessage={handleNewMessage}
+                onMessageReaction={addReaction}
+                onMessageEdit={editMessage}
+                onMessageDelete={deleteMessage}
+                showSettings={chatState.showSettings}
+                conversationId={chatState.currentConversationId}
+              />
+            )}
+          </div>
 
           {/* Quick Actions Footer */}
-          <CardFooter className="p-2 border-t bg-muted/30">
+          <div className="p-2 border-t bg-muted/30">
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center space-x-2">
                 <Button
@@ -238,14 +287,57 @@ export function FloatingChat({
               </div>
 
               <div className="text-xs text-muted-foreground">
-                Ctrl+K para abrir
+                {isAuthenticated ? 'Ctrl+K para abrir' : 'Inicia sesión para chatear'}
               </div>
             </div>
-          </CardFooter>
+          </div>
         </>
       )}
-    </Card>
+    </div>
   )
+
+  return (
+    <>{isMobile ? (
+      <Sheet open={isOpen} onOpenChange={onToggle}>
+        <SheetTrigger asChild>
+          {triggerButton}
+        </SheetTrigger>
+        <SheetContent
+          side="bottom"
+          className={cn(
+            'h-[85vh] max-h-[85vh]',
+            themeClasses
+          )}
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Chat IA</SheetTitle>
+          </SheetHeader>
+          {chatContent}
+        </SheetContent>
+      </Sheet>
+    ) : (
+      <Dialog open={isOpen} onOpenChange={onToggle}>
+        <DialogTrigger asChild>
+          {triggerButton}
+        </DialogTrigger>
+        <DialogContent
+          className={cn(
+            'flex flex-col shadow-2xl transition-all duration-300 ease-in-out p-0',
+            themeClasses,
+            // Desktop sizing
+            chatState.isMinimized
+              ? 'h-14 w-80'
+              : 'h-[600px] w-96',
+            'max-h-[90vh] max-w-[calc(100vw-0.5rem)]'
+          )}
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>Chat IA</DialogTitle>
+          </DialogHeader>
+          {chatContent}
+        </DialogContent>
+      </Dialog>
+    )}</>
 }
 
 export type { FloatingChatProps }

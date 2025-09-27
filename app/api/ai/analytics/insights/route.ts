@@ -1,91 +1,64 @@
 import { NextRequest, NextResponse } from "next/server"
 import { stackServerApp } from "@/stack"
+import { generateAnalyticsInsights } from "@/lib/ai/insights-generator"
+import type { AnalyticsRequest } from "@/lib/ai/analytics-engine"
 
-// AI Analytics Insights API endpoint
+// AI Analytics Insights API endpoint following AI Gateway patterns
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
+    // Check authentication following NEON_STACK_AUTH_SETUP patterns
     const user = await stackServerApp.getUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { searchParams } = new URL(request.url)
-    const timeRange = searchParams.get("timeRange") || "6months"
+    const timeRangeParam = searchParams.get("timeRange") || "6months"
     const category = searchParams.get("category") || "all"
+    const analysisType = (searchParams.get("analysisType") as any) || "performance"
+    const teamId = searchParams.get("teamId") || undefined
+    const includeRecommendations = searchParams.get("includeRecommendations") === "true"
+    const benchmarkAgainst = (searchParams.get("benchmarkAgainst") as any) || "company"
 
-    // In a real implementation, this would use the AI Gateway to generate insights
-    // For now, we'll return sample AI-generated insights
-    const insights = [
-      {
-        id: "performance-trend",
-        title: "Tendencia de Rendimiento Positiva",
-        content: "El análisis predictivo indica una mejora del 15% en el rendimiento general durante los próximos 30 días. Los factores clave incluyen la optimización de procesos recientes y el aumento en la colaboración entre equipos.",
-        type: "prediction",
-        priority: "high",
-        impact: 85,
-        confidence: 92,
-        timestamp: new Date(),
-        category: "performance",
-        recommendations: [
-          "Mantener el ritmo actual de optimización de procesos",
-          "Implementar más sesiones de colaboración inter-equipos",
-          "Documentar las mejores prácticas emergentes"
-        ]
-      },
-      {
-        id: "team-optimization",
-        title: "Oportunidad de Optimización en Equipo de Marketing",
-        content: "El equipo de Marketing muestra alta innovación (95%) pero eficiencia moderada (78%). Implementar procesos ágiles podría aumentar la eficiencia en un 20% sin comprometer la creatividad.",
-        type: "opportunity",
-        priority: "medium",
-        impact: 78,
-        confidence: 88,
-        timestamp: new Date(),
-        category: "team",
-        recommendations: [
-          "Implementar metodologías ágiles adaptadas al trabajo creativo",
-          "Establecer sprints de 2 semanas para campañas",
-          "Crear templates para procesos repetitivos"
-        ]
-      },
-      {
-        id: "objective-alignment",
-        title: "Desalineación Detectada en Objetivos Q4",
-        content: "Se ha detectado una desalineación del 12% entre los objetivos departamentales y la estrategia corporativa. Es recomendable realizar una revisión estratégica antes del cierre de Q3.",
-        type: "alert",
-        priority: "high",
-        impact: 75,
-        confidence: 95,
-        timestamp: new Date(),
-        category: "objectives",
-        recommendations: [
-          "Programar sesión de alineación estratégica",
-          "Revisar y actualizar objetivos departamentales",
-          "Establecer métricas de seguimiento más frecuentes"
-        ]
-      }
-    ]
+    // Parse time range
+    const timeRange = parseTimeRange(timeRangeParam)
 
-    // Filter by category if specified
+    // Build analytics request
+    const analyticsRequest: AnalyticsRequest = {
+      timeRange,
+      analysisType,
+      teamId,
+      includeRecommendations,
+      benchmarkAgainst
+    }
+
+    // Generate insights using the comprehensive analytics engine
+    const result = await generateAnalyticsInsights(analyticsRequest, user.id)
+
+    // Filter insights by category if specified
     const filteredInsights = category === "all"
-      ? insights
-      : insights.filter(insight => insight.category === category)
+      ? result.insights
+      : result.insights.filter(insight => insight.category === category)
 
     return NextResponse.json({
+      ...result,
       insights: filteredInsights,
       metadata: {
-        timeRange,
+        ...result.metadata,
+        timeRange: timeRangeParam,
         category,
-        generatedAt: new Date(),
-        totalInsights: filteredInsights.length
+        filteredInsights: filteredInsights.length,
+        userId: user.id
       }
     })
 
   } catch (error) {
     console.error("Error generating AI insights:", error)
     return NextResponse.json(
-      { error: "Failed to generate insights" },
+      {
+        error: "Failed to generate insights",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     )
   }
@@ -93,45 +66,97 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
+    // Check authentication following NEON_STACK_AUTH_SETUP patterns
     const user = await stackServerApp.getUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const body = await request.json()
-    const { prompt, context, timeRange } = body
+    const {
+      okrIds,
+      teamId,
+      timeRange: timeRangeRequest,
+      analysisType = 'comprehensive',
+      includeRecommendations = true,
+      benchmarkAgainst = 'company'
+    } = body
 
-    // In a real implementation, this would call the AI Gateway
-    // to generate custom insights based on the user's prompt
+    // Parse time range from request
+    const timeRange = timeRangeRequest ? {
+      start: new Date(timeRangeRequest.start),
+      end: new Date(timeRangeRequest.end)
+    } : parseTimeRange('6months')
 
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    const customInsight = {
-      id: "custom-" + Date.now(),
-      title: "Insight Personalizado",
-      content: `Basado en tu consulta "${prompt}", he analizado los datos de ${timeRange} y encontrado que: Los patrones actuales sugieren una oportunidad de mejora en las áreas específicas que mencionaste. Te recomiendo implementar un enfoque gradual para maximizar el impacto.`,
-      type: "recommendation",
-      priority: "medium",
-      impact: Math.floor(Math.random() * 30) + 70, // 70-100
-      confidence: Math.floor(Math.random() * 20) + 80, // 80-100
-      timestamp: new Date(),
-      category: "custom",
-      recommendations: [
-        "Implementar cambios de forma gradual",
-        "Monitorear métricas clave semanalmente",
-        "Revisar resultados en 30 días"
-      ]
+    // Build comprehensive analytics request
+    const analyticsRequest: AnalyticsRequest = {
+      okrIds,
+      teamId,
+      timeRange,
+      analysisType,
+      includeRecommendations,
+      benchmarkAgainst
     }
 
-    return NextResponse.json({ insight: customInsight })
+    // Generate comprehensive insights using the analytics engine
+    const result = await generateAnalyticsInsights(analyticsRequest, user.id)
+
+    return NextResponse.json({
+      ...result,
+      metadata: {
+        ...result.metadata,
+        request: analyticsRequest,
+        userId: user.id,
+        generated_at: new Date()
+      }
+    })
 
   } catch (error) {
-    console.error("Error generating custom insight:", error)
+    console.error("Error generating comprehensive insights:", error)
+
+    // Return structured error response
     return NextResponse.json(
-      { error: "Failed to generate custom insight" },
+      {
+        error: "Failed to generate comprehensive insights",
+        details: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date()
+      },
       { status: 500 }
     )
   }
+}
+
+/**
+ * Helper function to parse time range from string parameter
+ */
+function parseTimeRange(timeRangeParam: string): { start: Date; end: Date } {
+  const now = new Date()
+  const end = new Date(now)
+  let start: Date
+
+  switch (timeRangeParam) {
+    case '1month':
+      start = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+      break
+    case '3months':
+      start = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+      break
+    case '6months':
+      start = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+      break
+    case '1year':
+      start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+      break
+    case 'ytd': // Year to date
+      start = new Date(now.getFullYear(), 0, 1)
+      break
+    case 'custom':
+      // For custom ranges, default to 6 months (should be provided in request body)
+      start = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+      break
+    default:
+      start = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+  }
+
+  return { start, end }
 }

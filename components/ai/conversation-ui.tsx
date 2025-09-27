@@ -55,7 +55,7 @@ interface ConversationUIProps {
   className?: string
 }
 
-// Use the ChatSettings type from the settings component
+type ConversationSettings = ChatSettingsType
 
 export function ConversationUI({
   messages = [],
@@ -254,24 +254,24 @@ export function ConversationUI({
       )}
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1">
+        <div className="p-4">
           {filteredMessages.length === 0 && !isTyping ? (
-            <div className="flex flex-col items-center justify-center h-48 text-center">
-              <div className="text-muted-foreground text-sm mb-4">
+            <div className="flex flex-col items-center justify-center h-48 text-center px-4">
+              <div className="text-muted-foreground text-sm mb-6 leading-relaxed">
                 ¡Hola! Soy tu asistente de IA para OKRs.
                 <br />
                 ¿En qué puedo ayudarte hoy?
               </div>
 
-              <div className="grid grid-cols-1 gap-2 w-full max-w-sm">
+              <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
                 {suggestionQuestions.map((question, index) => (
                   <Button
                     key={index}
                     variant="outline"
                     size="sm"
                     onClick={() => setInputValue(question)}
-                    className="text-xs h-8 justify-start"
+                    className="text-xs h-10 justify-start text-left whitespace-normal px-4"
                   >
                     {question}
                   </Button>
@@ -279,26 +279,32 @@ export function ConversationUI({
               </div>
             </div>
           ) : (
-            filteredMessages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                isStreaming={message.isStreaming}
-                showActions={true}
-                showAvatar={true}
-                onReaction={onMessageReaction}
-                onCopy={(content) => toast.success('Copiado al portapapeles')}
-                onEdit={onMessageEdit}
-                onDelete={onMessageDelete}
-              />
-            ))
+            <div className="space-y-4">
+              {filteredMessages.map((message) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isStreaming={message.isStreaming}
+                  showActions={true}
+                  showAvatar={true}
+                  onReaction={onMessageReaction}
+                  onCopy={(content) => toast.success('Copiado al portapapeles')}
+                  onEdit={onMessageEdit}
+                  onDelete={onMessageDelete}
+                />
+              ))}
+            </div>
           )}
 
-          <TypingIndicator
-            isVisible={isTyping}
-            message="IA está escribiendo..."
-            showAvatar={true}
-          />
+          {isTyping && (
+            <div className="mt-4">
+              <TypingIndicator
+                isVisible={isTyping}
+                message="IA está escribiendo..."
+                showAvatar={true}
+              />
+            </div>
+          )}
 
           <div ref={messagesEndRef} />
         </div>
@@ -319,17 +325,17 @@ export function ConversationUI({
 
       {/* Attachments Preview (compact) */}
       {attachments.length > 0 && !showFileUpload && (
-        <div className="p-2 border-t bg-muted/30">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-wrap gap-1">
+        <div className="p-3 border-t bg-muted/30">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-2 min-w-0">
               {attachments.slice(0, 3).map((item) => (
-                <div key={item.id} className="flex items-center space-x-1 bg-background rounded px-2 py-1 text-xs">
-                  <Paperclip className="h-3 w-3" />
-                  <span className="truncate max-w-16">{item.file.name}</span>
+                <div key={item.id} className="flex items-center gap-2 bg-background rounded-md px-2 py-1 text-xs border">
+                  <Paperclip className="h-3 w-3 shrink-0" />
+                  <span className="truncate max-w-20">{item.file.name}</span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-3 w-3 p-0"
+                    className="h-4 w-4 p-0 hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => handleFileRemove(item.id)}
                   >
                     ×
@@ -340,7 +346,7 @@ export function ConversationUI({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs"
+                  className="h-7 px-3 text-xs"
                   onClick={() => setShowFileUpload(true)}
                 >
                   +{attachments.length - 3} más
@@ -351,7 +357,7 @@ export function ConversationUI({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs"
+              className="h-7 px-3 text-xs shrink-0"
               onClick={() => setShowFileUpload(!showFileUpload)}
             >
               {showFileUpload ? 'Ocultar' : 'Ver todo'}
@@ -363,8 +369,8 @@ export function ConversationUI({
       <Separator />
 
       {/* Message Input */}
-      <div className="p-3 space-y-2">
-        <div className="flex items-end space-x-2">
+      <div className="p-4 space-y-3 border-t bg-background">
+        <div className="flex items-end gap-3">
           <div className="flex-1 relative">
             <Textarea
               ref={textareaRef}
@@ -375,31 +381,33 @@ export function ConversationUI({
               }}
               onKeyDown={handleKeyPress}
               placeholder={placeholder}
-              className="min-h-[40px] max-h-32 resize-none pr-16 sm:pr-20 text-sm"
+              className="min-h-[44px] max-h-32 resize-none pr-20 text-sm border-muted-foreground/20 focus:border-primary"
               disabled={isTyping}
               maxLength={maxLength}
             />
 
-            <div className="absolute bottom-2 right-2 flex items-center space-x-1">
+            <div className="absolute bottom-2 right-2 flex items-center gap-1">
               {allowAttachments && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-7 w-7 hover:bg-muted"
                   onClick={() => setShowFileUpload(!showFileUpload)}
                   disabled={isTyping}
+                  aria-label="Adjuntar archivo"
                 >
-                  <Paperclip className="h-3 w-3" />
+                  <Paperclip className="h-4 w-4" />
                 </Button>
               )}
 
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 hidden sm:inline-flex"
+                className="h-7 w-7 hover:bg-muted hidden sm:inline-flex"
                 disabled={isTyping}
+                aria-label="Emojis"
               >
-                <Smile className="h-3 w-3" />
+                <Smile className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -408,22 +416,27 @@ export function ConversationUI({
             onClick={handleSendMessage}
             disabled={(!inputValue.trim() && attachments.length === 0) || isTyping}
             size="icon"
-            className="h-10 w-10 shrink-0"
+            className="h-11 w-11 shrink-0"
+            aria-label="Enviar mensaje"
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>
-            {isComposing && `${inputValue.length}/${maxLength}`}
-          </span>
-          <span className="hidden sm:block">
-            Presiona Enter para enviar, Shift+Enter para nueva línea
-          </span>
-          <span className="sm:hidden">
-            Enter para enviar
-          </span>
+        <div className="flex justify-between items-center text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            {isComposing && (
+              <span className="tabular-nums">{inputValue.length}/{maxLength}</span>
+            )}
+          </div>
+          <div className="text-right">
+            <span className="hidden sm:block">
+              Enter para enviar • Shift+Enter para nueva línea
+            </span>
+            <span className="sm:hidden">
+              Enter para enviar
+            </span>
+          </div>
         </div>
       </div>
     </div>

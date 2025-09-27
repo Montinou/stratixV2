@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart } from "recharts"
 import {
   Brain,
@@ -23,7 +27,10 @@ import {
   BarChart3,
   PieChart,
   Eye,
-  Filter
+  Filter,
+  Info,
+  Star,
+  Clock
 } from "lucide-react"
 import { InsightsCard } from "./insights-card"
 import type { Profile } from "@/lib/database/services"
@@ -286,86 +293,203 @@ export function InsightsDashboard({ profile, timeRange = "6months", onTimeRangeC
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center space-x-2">
-            <Brain className="h-8 w-8 animate-pulse text-primary" />
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            <span className="text-lg font-medium">Generando insights con IA...</span>
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Skeleton className="h-12 w-12 rounded-lg" />
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-96" />
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-24" />
           </div>
         </div>
+
+        {/* Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <Skeleton className="h-4 w-32" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Tabs Skeleton */}
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-full" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-40" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-48" />
+                      </div>
+                      <Skeleton className="h-8 w-16" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <Alert>
+          <Brain className="h-4 w-4" />
+          <AlertDescription>
+            Generando insights personalizados con IA. Esto puede tomar unos momentos...
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Brain className="h-6 w-6 text-primary" />
+    <div className="space-y-6">
+      {/* Enhanced Header */}
+      <div className="border-b pb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl">
+              <Brain className="h-8 w-8 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                AI Analytics & Insights
+              </h1>
+              <p className="text-muted-foreground max-w-2xl">
+                Dashboard inteligente con análisis predictivo, recomendaciones personalizadas y monitoreo en tiempo real
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-xs">
+                  <Zap className="h-3 w-3 mr-1" />
+                  IA Activa
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  <Activity className="h-3 w-3 mr-1" />
+                  Tiempo Real
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  <Star className="h-3 w-3 mr-1" />
+                  {aiInsights.filter(i => i.confidence > 90).length} Insights de Alta Confianza
+                </Badge>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">AI Analytics & Insights</h1>
-            <p className="text-muted-foreground">
-              Dashboard inteligente con análisis predictivo y recomendaciones personalizadas
-            </p>
+          <div className="flex items-center gap-3">
+            <Select value={timeRange} onValueChange={onTimeRangeChange}>
+              <SelectTrigger className="w-48">
+                <Calendar className="mr-2 h-4 w-4" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1month">Último mes</SelectItem>
+                <SelectItem value="3months">Últimos 3 meses</SelectItem>
+                <SelectItem value="6months">Últimos 6 meses</SelectItem>
+                <SelectItem value="1year">Último año</SelectItem>
+              </SelectContent>
+            </Select>
+            <Separator orientation="vertical" className="h-6" />
+            <Button variant="outline" onClick={() => fetchAIInsights()} disabled={refreshing}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Actualizando..." : "Actualizar IA"}
+            </Button>
+            <Button variant="outline" onClick={() => exportReport("json")}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <Select value={timeRange} onValueChange={onTimeRangeChange}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1month">Último mes</SelectItem>
-              <SelectItem value="3months">Últimos 3 meses</SelectItem>
-              <SelectItem value="6months">Últimos 6 meses</SelectItem>
-              <SelectItem value="1year">Último año</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={() => fetchAIInsights()} disabled={refreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Actualizar IA
-          </Button>
-          <Button variant="outline" onClick={() => exportReport("json")}>
-            <Download className="mr-2 h-4 w-4" />
-            Exportar
-          </Button>
         </div>
       </div>
 
-      {/* AI Insights Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Enhanced AI Insights Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {aiInsights.slice(0, 4).map((insight) => (
-          <Card key={insight.id} className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/10 to-transparent rounded-full -translate-y-10 translate-x-10" />
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+          <Card key={insight.id} className="relative overflow-hidden hover:shadow-md transition-all duration-200 group cursor-pointer border-2 hover:border-primary/20">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/10 to-transparent rounded-full -translate-y-12 translate-x-12 group-hover:scale-110 transition-transform" />
+            <CardHeader className="pb-2 relative z-10">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
-                  {getInsightIcon(insight.type)}
-                  <Badge variant={getPriorityColor(insight.priority)} className="text-xs">
+                  <div className={`p-1.5 rounded-md ${
+                    insight.type === 'prediction' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400' :
+                    insight.type === 'recommendation' ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400' :
+                    insight.type === 'alert' ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400' :
+                    'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400'
+                  }`}>
+                    {getInsightIcon(insight.type)}
+                  </div>
+                  <Badge variant={getPriorityColor(insight.priority)} className="text-xs font-semibold">
                     {insight.priority.toUpperCase()}
                   </Badge>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  {insight.confidence}% confianza
-                </Badge>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                  <span className="text-xs font-medium">{insight.confidence}%</span>
+                </div>
               </div>
-              <CardTitle className="text-sm font-medium">{insight.title}</CardTitle>
+              <CardTitle className="text-sm font-semibold leading-tight">{insight.title}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary mb-1">
-                {insight.impact}%
+            <CardContent className="relative z-10">
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-2xl font-bold text-primary">{insight.impact}%</span>
+                <span className="text-xs text-muted-foreground">impacto esperado</span>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">
+              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                 {insight.content}
               </p>
+              <div className="mt-3 flex items-center text-xs text-muted-foreground">
+                <Clock className="h-3 w-3 mr-1" />
+                {insight.timestamp.toLocaleDateString('es-ES', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Alert for High Priority Insights */}
+      {aiInsights.filter(i => i.priority === 'high').length > 0 && (
+        <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+          <AlertCircle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800 dark:text-orange-200">
+            Tienes {aiInsights.filter(i => i.priority === 'high').length} insights de alta prioridad que requieren atención inmediata.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Separator className="my-6" />
 
       {/* Main Dashboard Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -527,45 +651,91 @@ export function InsightsDashboard({ profile, timeRange = "6months", onTimeRangeC
         </TabsContent>
 
         <TabsContent value="drilldown" className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Análisis Drill-Down</h2>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Análisis Drill-Down
+              </h2>
+              <Badge variant="outline" className="text-xs">
+                <Filter className="h-3 w-3 mr-1" />
+                {drillDownData.length} Categorías Analizadas
+              </Badge>
+            </div>
+
             {drillDownData.map((category, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <CardTitle>{category.category}</CardTitle>
+              <Card key={index} className="overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-muted/50 to-background">
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    {category.category}
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {category.subcategories.map((sub, subIndex) => (
-                      <div key={subIndex} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium">{sub.name}</span>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Métrica</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Tendencia</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {category.subcategories.map((sub, subIndex) => (
+                        <TableRow key={subIndex} className="hover:bg-muted/50">
+                          <TableCell>
+                            <div className="font-medium">{sub.name}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-2xl font-bold text-primary">{sub.value}%</div>
+                          </TableCell>
+                          <TableCell>
                             <Badge variant={sub.trend === "up" ? "default" : sub.trend === "down" ? "destructive" : "secondary"}>
-                              {sub.trend === "up" ? "↗" : sub.trend === "down" ? "↘" : "→"} {sub.value}%
+                              {sub.trend === "up" ? <TrendingUp className="h-3 w-3 mr-1" /> :
+                               sub.trend === "down" ? <TrendingDown className="h-3 w-3 mr-1" /> :
+                               <Activity className="h-3 w-3 mr-1" />}
+                              {sub.trend === "up" ? "Subiendo" : sub.trend === "down" ? "Bajando" : "Estable"}
                             </Badge>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedMetric(selectedMetric === sub.name ? null : sub.name)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedMetric(selectedMetric === sub.name ? null : sub.name)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              {selectedMetric === sub.name ? 'Ocultar' : 'Ver Detalles'}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Expanded Details */}
+                  {category.subcategories.map((sub, subIndex) => (
+                    selectedMetric === sub.name && sub.children && (
+                      <div key={`detail-${subIndex}`} className="border-t bg-muted/30 p-4">
+                        <div className="mb-3">
+                          <h4 className="font-semibold text-sm">Desglose de {sub.name}</h4>
                         </div>
-                        {selectedMetric === sub.name && sub.children && (
-                          <div className="grid grid-cols-3 gap-2 mt-3">
-                            {sub.children.map((child, childIndex) => (
-                              <div key={childIndex} className="text-center p-2 bg-accent/20 rounded">
-                                <div className="text-sm font-medium">{child.name}</div>
-                                <div className="text-lg font-bold text-primary">{child.value}%</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {sub.children.map((child, childIndex) => (
+                            <Card key={childIndex} className="border-0 bg-background/50">
+                              <CardContent className="p-4 text-center">
+                                <div className="text-sm font-medium text-muted-foreground mb-1">{child.name}</div>
+                                <div className="text-2xl font-bold text-primary">{child.value}%</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {child.value >= 80 ? "Excelente" : child.value >= 60 ? "Bueno" : "Necesita Mejora"}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    )
+                  ))}
                 </CardContent>
               </Card>
             ))}

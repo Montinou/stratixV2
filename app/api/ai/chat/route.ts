@@ -1,50 +1,57 @@
 import { type NextRequest } from "next/server"
 import { stackServerApp } from "@/stack"
-import { streamText, generateText } from 'ai'
+import { streamText, generateText, convertToCoreMessages } from 'ai'
 import { gateway } from '@ai-sdk/gateway'
 import type { CoreMessage } from 'ai'
+import { conversationManager } from '@/lib/ai/conversation-manager'
+import { chatContextBuilder, type ChatContextRequest } from '@/lib/ai/chat-context'
+import { z } from 'zod'
 
 export const runtime = 'edge'
 
-// Sistema de mensajes OKR-específico
-const SYSTEM_PROMPT = `Eres un asistente experto en OKRs (Objectives and Key Results) y gestión estratégica. Tu función es ayudar a usuarios empresariales a:
+// Enhanced request validation schema
+const chatRequestSchema = z.object({
+  message: z.string().min(1, 'Message is required').optional(),
+  messages: z.array(z.any()).optional(),
+  conversationId: z.string().optional(),
+  context: z.object({
+    currentOKRs: z.array(z.any()).optional(),
+    userRole: z.string().optional(),
+    companyContext: z.string().optional(),
+    recentActivity: z.array(z.any()).optional(),
+    department: z.string().optional(),
+    role: z.string().optional(),
+    companySize: z.enum(['startup', 'pyme', 'empresa', 'corporacion']).optional(),
+  }).optional(),
+  attachments: z.array(z.any()).optional(),
+  streaming: z.boolean().default(true),
+  preferences: z.object({
+    language: z.enum(['es', 'en']).default('es'),
+    communicationStyle: z.enum(['formal', 'informal']).default('formal'),
+    detailLevel: z.enum(['basic', 'detailed', 'expert']).default('detailed')
+  }).optional()
+})
 
-1. **Crear OKRs efectivos**: Objetivos claros, ambiciosos pero alcanzables
-2. **Definir Key Results measurables**: Métricas específicas y cuantificables
-3. **Alinear objetivos estratégicos**: Conectar OKRs individuales con metas empresariales
-4. **Seguimiento y evaluación**: Monitorear progreso y ajustar estrategias
-5. **Mejores prácticas**: Implementar metodologías probadas de OKRs
+// Rate limiting
+const requestCounts = new Map<string, { count: number; resetTime: number }>()
+const RATE_LIMIT = 50 // requests per hour
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour in milliseconds
 
-**Contexto empresarial español:**
-- Enfócate en empresas y cultura empresarial española
-- Usa ejemplos relevantes para diferentes sectores (tecnología, retail, manufacturas, servicios)
-- Considera métricas comunes en el mercado español
-- Adapta sugerencias a diferentes tamaños de empresa (startups, PYMES, grandes corporaciones)
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const userLimit = requestCounts.get(userId)
 
-**Estilo de comunicación:**
-- Profesional pero accesible
-- Respuestas estructuradas y accionables
-- Incluye ejemplos prácticos cuando sea posible
-- Pregunta por contexto específico cuando sea necesario
-- Mantén respuestas concisas pero completas
-
-**Capacidades específicas:**
-- Analizar objetivos existentes y sugerir mejoras
-- Generar Key Results para objetivos dados
-- Crear OKRs completos para departamentos específicos
-- Revisar y validar la calidad de OKRs propuestos
-- Sugerir métricas de seguimiento y KPIs relevantes
-
-Responde siempre en español y enfócate en proporcionar valor empresarial concreto.`
-
-interface ChatRequest {
-  messages: CoreMessage[]
-  conversationId?: string
-  context?: {
-    department?: string
-    role?: string
-    companySize?: 'startup' | 'pyme' | 'empresa' | 'corporacion'
+  if (!userLimit || now > userLimit.resetTime) {
+    requestCounts.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW })
+    return true
   }
+
+  if (userLimit.count >= RATE_LIMIT) {
+    return false
+  }
+
+  userLimit.count++
+  return true
 }
 
 // Initialize AI Gateway
@@ -175,13 +182,33 @@ export async function GET(request: NextRequest) {
     }
 
     // Health check del AI Gateway
-    const healthStatus = await aiClient.healthCheck()
+    const healthStatus = {
+      status: 'online',
+      timestamp: new Date().toISOString(),
+      latency: null
+    }
+
+    // Intentar una llamada simple para verificar disponibilidad
+    try {
+      const testModel = ai('openai/gpt-4o-mini')
+      const testResult = await generateText({
+        model: testModel,
+        prompt: 'Test',
+        maxTokens: 1
+      })
+
+      healthStatus.status = 'online'
+      healthStatus.latency = 100 // Placeholder latency
+    } catch (error) {
+      console.warn('AI Gateway health check failed:', error)
+      healthStatus.status = 'degraded'
+    }
 
     return new Response(JSON.stringify({
       status: healthStatus.status,
       timestamp: healthStatus.timestamp,
       latency: healthStatus.latency,
-      availableModels: await aiClient.getAvailableModels(),
+      availableModels: ['openai/gpt-4o-mini', 'anthropic/claude-sonnet-4'],
       user: {
         id: user.id,
         hasAccess: true

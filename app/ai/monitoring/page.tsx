@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   BarChart3,
   DollarSign,
@@ -119,74 +120,86 @@ export default async function AIMonitoringPage() {
           </div>
         </div>
 
-        {/* Rate Limit Status Card */}
+        {/* Rate Limit Status Alert */}
         {rateLimitStatus.status !== 'normal' && (
-          <Card className={`border-${rateLimitStatus.status === 'exceeded' ? 'destructive' : 'warning'}`}>
-            <CardContent className="p-4">
-              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                <div className="flex items-center gap-3">
-                  {getRateLimitIcon(rateLimitStatus.status)}
-                  <div>
-                    <h4 className="font-semibold text-sm sm:text-base">
-                      {rateLimitStatus.status === 'exceeded'
-                        ? 'Límite de Solicitudes Excedido'
-                        : 'Advertencia de Rate Limit'
-                      }
-                    </h4>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Has utilizado {rateLimitStatus.currentRequests} de {rateLimitStatus.limit} solicitudes permitidas
-                    </p>
-                  </div>
+          <Alert variant={rateLimitStatus.status === 'exceeded' ? 'destructive' : 'default'}>
+            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+              <div className="flex items-center gap-3">
+                {getRateLimitIcon(rateLimitStatus.status)}
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-sm">
+                    {rateLimitStatus.status === 'exceeded'
+                      ? 'Límite de Solicitudes Excedido'
+                      : 'Advertencia de Rate Limit'
+                    }
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Has utilizado {rateLimitStatus.currentRequests} de {rateLimitStatus.limit} solicitudes permitidas.
+                    {rateLimitStatus.status === 'exceeded'
+                      ? ' El servicio está temporalmente suspendido.'
+                      : ' Considera reducir el uso para evitar suspensiones.'
+                    }
+                  </p>
                 </div>
-                <div className="text-left sm:text-right">
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-left sm:text-right space-y-1">
                   <p className="text-sm font-medium">
-                    Reinicio: {new Date(rateLimitStatus.resetTime).toLocaleTimeString('es-ES')}
+                    Reinicio: {new Date(rateLimitStatus.resetTime).toLocaleTimeString('es-ES', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {rateLimitPercentage.toFixed(1)}% utilizado
                   </p>
                 </div>
+                <Badge variant={getRateLimitBadgeVariant(rateLimitStatus.status)} className="shrink-0">
+                  {rateLimitStatus.status === 'exceeded' ? 'BLOQUEADO' : 'ADVERTENCIA'}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Alert>
         )}
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Vista General</span>
-              <span className="sm:hidden">General</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Análisis</span>
-              <span className="sm:hidden">Stats</span>
-            </TabsTrigger>
-            <TabsTrigger value="budget" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              <span className="hidden sm:inline">Presupuesto</span>
-              <span className="sm:hidden">Budget</span>
-            </TabsTrigger>
-            <TabsTrigger value="limits" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              <span className="hidden sm:inline">Límites</span>
-              <span className="sm:hidden">Limits</span>
-            </TabsTrigger>
-            <TabsTrigger value="export" className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Exportar</span>
-              <span className="sm:hidden">Export</span>
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="admin" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Admin</span>
-                <span className="sm:hidden">Admin</span>
+          <div className="overflow-x-auto">
+            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-3 md:grid-cols-5'} min-w-fit`}>
+              <TabsTrigger value="overview" className="flex items-center gap-1 px-3">
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Vista General</span>
+                <span className="sm:hidden">General</span>
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="analytics" className="flex items-center gap-1 px-3">
+                <TrendingUp className="h-4 w-4" />
+                <span className="hidden sm:inline">Análisis</span>
+                <span className="sm:hidden">Stats</span>
+              </TabsTrigger>
+              <TabsTrigger value="budget" className="flex items-center gap-1 px-3">
+                <DollarSign className="h-4 w-4" />
+                <span className="hidden sm:inline">Presupuesto</span>
+                <span className="sm:hidden">Budget</span>
+              </TabsTrigger>
+              <TabsTrigger value="limits" className="flex items-center gap-1 px-3">
+                <Shield className="h-4 w-4" />
+                <span className="hidden sm:inline">Límites</span>
+                <span className="sm:hidden">Limits</span>
+              </TabsTrigger>
+              <TabsTrigger value="export" className="flex items-center gap-1 px-3">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Exportar</span>
+                <span className="sm:hidden">Export</span>
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="admin" className="flex items-center gap-1 px-3">
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                  <span className="sm:hidden">Admin</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">

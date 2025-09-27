@@ -120,70 +120,100 @@ export function AIAnalyticsContent({ profile }: AIAnalyticsContentProps) {
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Brain className="h-4 w-4 text-blue-600" />
+        {/* Enhanced Quick Stats with Better Design */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-transparent opacity-50" />
+            <CardHeader className="relative pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                <div className="p-1.5 bg-blue-500/20 rounded-lg">
+                  <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
                 Insights Generados
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">47</div>
-              <p className="text-xs text-blue-600 dark:text-blue-400">Últimas 24h</p>
+            <CardContent className="relative">
+              <div className="text-3xl font-bold text-blue-700 dark:text-blue-300 mb-1">47</div>
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-3 w-3 text-green-500" />
+                <span className="text-xs text-blue-600 dark:text-blue-400">+12 vs ayer</span>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-transparent opacity-50" />
+            <CardHeader className="relative pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-green-700 dark:text-green-300">
+                <div className="p-1.5 bg-green-500/20 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
                 Precisión Predictiva
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-700 dark:text-green-300">92%</div>
-              <p className="text-xs text-green-600 dark:text-green-400">Promedio último mes</p>
+            <CardContent className="relative">
+              <div className="text-3xl font-bold text-green-700 dark:text-green-300 mb-1">92%</div>
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-3 w-3 text-green-500" />
+                <span className="text-xs text-green-600 dark:text-green-400">+3% este mes</span>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Target className="h-4 w-4 text-purple-600" />
-                Recomendaciones Activas
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-transparent opacity-50" />
+            <CardHeader className="relative pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                  <Target className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                Recomendaciones
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">23</div>
-              <p className="text-xs text-purple-600 dark:text-purple-400">Pendientes implementar</p>
+            <CardContent className="relative">
+              <div className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-1">23</div>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3 text-amber-500" />
+                <span className="text-xs text-purple-600 dark:text-purple-400">5 prioritarias</span>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200 dark:border-orange-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Users className="h-4 w-4 text-orange-600" />
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-transparent opacity-50" />
+            <CardHeader className="relative pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-orange-700 dark:text-orange-300">
+                <div className="p-1.5 bg-orange-500/20 rounded-lg">
+                  <Users className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                </div>
                 Equipos Analizados
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">8</div>
-              <p className="text-xs text-orange-600 dark:text-orange-400">Departamentos activos</p>
+            <CardContent className="relative">
+              <div className="text-3xl font-bold text-orange-700 dark:text-orange-300 mb-1">8</div>
+              <div className="flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                <span className="text-xs text-orange-600 dark:text-orange-400">Todos activos</span>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-indigo-600" />
-                Métricas Monitoreadas
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-indigo-500/10 via-indigo-500/5 to-transparent">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent opacity-50" />
+            <CardHeader className="relative pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                <div className="p-1.5 bg-indigo-500/20 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                Métricas Live
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">156</div>
-              <p className="text-xs text-indigo-600 dark:text-indigo-400">En tiempo real</p>
+            <CardContent className="relative">
+              <div className="text-3xl font-bold text-indigo-700 dark:text-indigo-300 mb-1">156</div>
+              <div className="flex items-center gap-1">
+                <Activity className="h-3 w-3 text-green-500 animate-pulse" />
+                <span className="text-xs text-indigo-600 dark:text-indigo-400">Tiempo real</span>
+              </div>
             </CardContent>
           </Card>
         </div>

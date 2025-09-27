@@ -4,8 +4,8 @@ import * as React from 'react'
 import { Copy, Edit3, Heart, ThumbsUp, ThumbsDown, MoreHorizontal, FileText, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Card, CardContent } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
@@ -70,25 +70,29 @@ export function ChatMessage({
   const isUser = message.role === 'user'
   const isAssistant = message.role === 'assistant'
 
-  // Simulated streaming effect for assistant messages
+  // Optimized streaming effect for assistant messages
   React.useEffect(() => {
     if (isStreaming && isAssistant && message.content) {
       setStreamedContent('')
       setCurrentIndex(0)
 
-      const streamContent = () => {
-        if (currentIndex < message.content.length) {
-          setStreamedContent(prev => prev + message.content[currentIndex])
-          setCurrentIndex(prev => prev + 1)
-        }
-      }
+      const interval = setInterval(() => {
+        setCurrentIndex(prev => {
+          const next = prev + 1
+          if (next <= message.content.length) {
+            setStreamedContent(message.content.slice(0, next))
+            return next
+          }
+          return prev
+        })
+      }, 30)
 
-      const interval = setInterval(streamContent, 30) // 30ms per character
       return () => clearInterval(interval)
     } else {
       setStreamedContent(message.content)
+      setCurrentIndex(message.content.length)
     }
-  }, [isStreaming, isAssistant, message.content, currentIndex])
+  }, [isStreaming, isAssistant, message.content])
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content)
@@ -108,43 +112,47 @@ export function ChatMessage({
     }).format(date)
   }
 
-  const renderAttachments = () => {
+  const renderAttachments = React.useMemo(() => {
     if (!message.attachments?.length) return null
 
     return (
-      <div className="mt-2 space-y-2">
+      <div className="mt-3 space-y-2">
         {message.attachments.map((attachment) => (
-          <Card key={attachment.id} className="p-2 bg-muted/50">
-            <div className="flex items-center space-x-2">
-              {attachment.type === 'image' ? (
-                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{attachment.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {(attachment.size / 1024).toFixed(1)} KB
-                </p>
+          <Card key={attachment.id} className="border-muted/30">
+            <CardContent className="p-3">
+              <div className="flex items-center space-x-3">
+                <div className="shrink-0">
+                  {attachment.type === 'image' ? (
+                    <ImageIcon className="h-4 w-4 text-blue-500" />
+                  ) : (
+                    <FileText className="h-4 w-4 text-green-500" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{attachment.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(attachment.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
         ))}
       </div>
     )
-  }
+  }, [message.attachments])
 
-  const renderReactions = () => {
+  const renderReactions = React.useMemo(() => {
     if (!message.reactions?.length) return null
 
     return (
-      <div className="flex items-center space-x-1 mt-2">
+      <div className="flex items-center gap-1 mt-3">
         {message.reactions.map((reaction) => (
           <Button
             key={reaction.type}
             variant={reaction.userReacted ? "default" : "outline"}
             size="sm"
-            className="h-6 px-2 text-xs"
+            className="h-6 px-2 text-xs rounded-full"
             onClick={() => handleReaction(reaction.type)}
           >
             {reaction.type === 'like' && <ThumbsUp className="h-3 w-3 mr-1" />}
@@ -155,7 +163,7 @@ export function ChatMessage({
         ))}
       </div>
     )
-  }
+  }, [message.reactions, handleReaction])
 
   return (
     <div
@@ -189,32 +197,36 @@ export function ChatMessage({
         <div className={cn('flex flex-col', isUser ? 'items-end' : 'items-start')}>
           <Card
             className={cn(
-              'p-3 shadow-sm',
+              'shadow-sm border transition-all duration-200',
               isUser
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted/80 text-foreground',
+                ? 'bg-primary text-primary-foreground border-primary/20'
+                : 'bg-card text-card-foreground border-border',
               isStreaming && 'animate-pulse'
             )}
           >
-            <div className="text-sm leading-relaxed whitespace-pre-wrap">
-              {isStreaming ? streamedContent : message.content}
-              {isStreaming && currentIndex < message.content.length && (
-                <span className="animate-pulse">|</span>
-              )}
-            </div>
+            <CardContent className="p-3">
+              <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                {streamedContent}
+                {isStreaming && currentIndex < message.content.length && (
+                  <span className="animate-pulse ml-1 text-muted-foreground">▋</span>
+                )}
+              </div>
 
-            {renderAttachments()}
-            {renderReactions()}
+              {renderAttachments}
+              {renderReactions}
+            </CardContent>
           </Card>
 
           <div className="flex items-center justify-between mt-1 w-full">
             <div className={cn(
-              'flex items-center space-x-1 text-xs text-muted-foreground',
-              isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'
+              'flex items-center gap-2 text-xs text-muted-foreground',
+              isUser ? 'flex-row-reverse' : 'flex-row'
             )}>
-              <span>{formatTime(message.timestamp)}</span>
+              <time dateTime={message.timestamp.toISOString()}>
+                {formatTime(message.timestamp)}
+              </time>
               {isStreaming && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs animate-pulse">
                   Escribiendo...
                 </Badge>
               )}
@@ -222,13 +234,13 @@ export function ChatMessage({
 
             {showActions && isHovered && (
               <div className={cn(
-                'flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity',
-                isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'
+                'flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+                isUser ? 'flex-row-reverse' : 'flex-row'
               )}>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-5 w-5 sm:h-6 sm:w-6"
+                  className="h-6 w-6 hover:bg-muted/50"
                   onClick={handleCopy}
                   aria-label="Copiar mensaje"
                 >
@@ -238,7 +250,7 @@ export function ChatMessage({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-5 w-5 sm:h-6 sm:w-6 hidden sm:inline-flex"
+                  className="h-6 w-6 hover:bg-muted/50 hidden sm:inline-flex"
                   onClick={() => handleReaction('like')}
                   aria-label="Me gusta"
                 >
@@ -250,36 +262,36 @@ export function ChatMessage({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 sm:h-6 sm:w-6"
+                      className="h-6 w-6 hover:bg-muted/50"
                       aria-label="Más opciones"
                     >
                       <MoreHorizontal className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align={isUser ? "end" : "start"}>
-                    <DropdownMenuItem onClick={() => handleReaction('like')}>
-                      <ThumbsUp className="h-4 w-4 mr-2" />
+                  <DropdownMenuContent align={isUser ? "end" : "start"} className="w-48">
+                    <DropdownMenuItem onClick={() => handleReaction('like')} className="gap-2">
+                      <ThumbsUp className="h-4 w-4" />
                       Me gusta
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleReaction('heart')}>
-                      <Heart className="h-4 w-4 mr-2" />
+                    <DropdownMenuItem onClick={() => handleReaction('heart')} className="gap-2">
+                      <Heart className="h-4 w-4" />
                       Me encanta
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleReaction('dislike')}>
-                      <ThumbsDown className="h-4 w-4 mr-2" />
+                    <DropdownMenuItem onClick={() => handleReaction('dislike')} className="gap-2">
+                      <ThumbsDown className="h-4 w-4" />
                       No me gusta
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {isUser && onEdit && (
-                      <DropdownMenuItem onClick={() => onEdit(message.id)}>
-                        <Edit3 className="h-4 w-4 mr-2" />
+                      <DropdownMenuItem onClick={() => onEdit(message.id)} className="gap-2">
+                        <Edit3 className="h-4 w-4" />
                         Editar
                       </DropdownMenuItem>
                     )}
                     {onDelete && (
                       <DropdownMenuItem
                         onClick={() => onDelete(message.id)}
-                        className="text-destructive"
+                        className="text-destructive gap-2"
                       >
                         Eliminar
                       </DropdownMenuItem>

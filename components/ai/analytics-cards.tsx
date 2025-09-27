@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import {
   TrendingUp,
@@ -21,7 +24,12 @@ import {
   Calendar,
   BarChart3,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Info,
+  Star,
+  Timer,
+  Lightbulb,
+  Gauge
 } from "lucide-react"
 
 interface PredictiveAnalytic {
@@ -332,67 +340,192 @@ export function AnalyticsCards({ timeRange = "6months", refreshInterval = 30000,
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(6)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-200 rounded w-full"></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-8">
+        {/* Real-Time Monitoring Skeleton */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-2 w-2 rounded-full" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-12 w-16" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Predictive Analytics Skeleton */}
+        <div>
+          <Skeleton className="h-6 w-40 mb-4" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-12" />
+                      <Skeleton className="h-8 w-16" />
+                    </div>
+                    <Skeleton className="h-4 w-4" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-8 w-16" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Recommendations Skeleton */}
+        <div>
+          <Skeleton className="h-6 w-48 mb-4" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[...Array(2)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Skeleton className="h-12 w-full" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 flex-1" />
+                    <Skeleton className="h-8 flex-1" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <Alert>
+          <Brain className="h-4 w-4" />
+          <AlertDescription>
+            Cargando análisis predictivos y recomendaciones inteligentes...
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }
 
   return (
     <div className="space-y-8">
-      {/* Real-Time Monitoring Widgets */}
+      {/* Enhanced Real-Time Monitoring Widgets */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Monitoreo en Tiempo Real
-          </h2>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            Última actualización: {lastRefresh.toLocaleTimeString()}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Monitoreo en Tiempo Real
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Métricas actualizadas automáticamente cada {refreshInterval ? `${refreshInterval / 1000}s` : 'vez'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-xs">
+              <Timer className="h-3 w-3 mr-1" />
+              {realTimeWidgets.filter(w => w.status === 'healthy').length}/{realTimeWidgets.length} Saludables
+            </Badge>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <span>En vivo</span>
+              </div>
+              <span>•</span>
+              <span>{lastRefresh.toLocaleTimeString('es-ES')}</span>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {realTimeWidgets.map((widget) => (
-            <Card key={widget.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onCardClick?.(widget.id)}>
+            <Card
+              key={widget.id}
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 group border-2 ${
+                widget.status === 'healthy' ? 'hover:border-green-200 dark:hover:border-green-800' :
+                widget.status === 'warning' ? 'hover:border-yellow-200 dark:hover:border-yellow-800' :
+                'hover:border-red-200 dark:hover:border-red-800'
+              }`}
+              onClick={() => onCardClick?.(widget.id)}
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">{widget.title}</CardTitle>
-                  <div className={`h-2 w-2 rounded-full ${getStatusColor(widget.status).replace('text', 'bg')}`} />
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Gauge className="h-4 w-4" />
+                    {widget.title}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${
+                      widget.status === 'healthy' ? 'bg-green-500' :
+                      widget.status === 'warning' ? 'bg-yellow-500' :
+                      'bg-red-500'
+                    } ${widget.status === 'healthy' ? 'animate-pulse' : ''}`} />
+                    <span className={`text-xs font-medium ${getStatusColor(widget.status)}`}>
+                      {widget.status === 'healthy' ? 'OK' : widget.status === 'warning' ? 'AVISO' : 'CRÍTICO'}
+                    </span>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-bold">{widget.value}</div>
+                  <div className="space-y-1">
+                    <div className="text-2xl font-bold text-primary group-hover:scale-105 transition-transform">
+                      {widget.value}
+                    </div>
                     <div className="flex items-center gap-1 text-xs">
                       {getTrendIcon(widget.trend)}
-                      <span className={widget.change >= 0 ? "text-green-500" : "text-red-500"}>
+                      <span className={`font-medium ${widget.change >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                         {widget.change >= 0 ? "+" : ""}{widget.change.toFixed(1)}%
                       </span>
+                      <span className="text-muted-foreground">vs anterior</span>
                     </div>
                   </div>
                   {widget.chartData && (
-                    <div className="w-16 h-12">
+                    <div className="w-20 h-16 opacity-80 group-hover:opacity-100 transition-opacity">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={widget.chartData}>
                           <Line
                             type="monotone"
                             dataKey="value"
-                            stroke="hsl(var(--primary))"
+                            stroke={
+                              widget.status === 'healthy' ? 'hsl(var(--chart-1))' :
+                              widget.status === 'warning' ? 'hsl(var(--chart-3))' :
+                              'hsl(var(--chart-4))'
+                            }
                             strokeWidth={2}
                             dot={false}
                           />
@@ -401,86 +534,164 @@ export function AnalyticsCards({ timeRange = "6months", refreshInterval = 30000,
                     </div>
                   )}
                 </div>
+                {widget.threshold && (
+                  <div className="mt-3 pt-2 border-t border-border/50">
+                    <div className="text-xs text-muted-foreground">
+                      Umbrales: <span className="text-yellow-600">⚠{widget.threshold.warning}</span>
+                      {" • "}
+                      <span className="text-red-600">🚨{widget.threshold.critical}</span>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
+
+        {/* Status Summary Alert */}
+        {realTimeWidgets.some(w => w.status !== 'healthy') && (
+          <Alert className="mt-4 border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              {realTimeWidgets.filter(w => w.status === 'warning').length} métricas en estado de advertencia y{" "}
+              {realTimeWidgets.filter(w => w.status === 'critical').length} en estado crítico requieren atención.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
-      {/* Predictive Analytics Cards */}
+      <Separator className="my-8" />
+
+      {/* Enhanced Predictive Analytics Cards */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Análisis Predictivo
-        </h2>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Análisis Predictivo
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Predicciones generadas por IA basadas en patrones históricos y tendencias actuales
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            <Brain className="h-3 w-3 mr-1" />
+            {predictiveAnalytics.filter(p => p.confidence > 85).length} Alta Confianza
+          </Badge>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {predictiveAnalytics.map((analytic) => (
-            <Card key={analytic.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => onCardClick?.(analytic.id)}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{analytic.title}</CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    {analytic.confidence}% confianza
-                  </Badge>
+            <Card
+              key={analytic.id}
+              className="cursor-pointer hover:shadow-lg transition-all duration-200 group border-2 hover:border-primary/20"
+              onClick={() => onCardClick?.(analytic.id)}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <CardTitle className="text-lg font-semibold">{analytic.title}</CardTitle>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                    <span className="text-xs font-medium">{analytic.confidence}%</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {getTrendIcon(analytic.trend)}
-                  <span className="text-sm text-muted-foreground">{analytic.timeframe}</span>
+                  <div className={`p-1.5 rounded-md ${
+                    analytic.trend === 'up' ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400' :
+                    analytic.trend === 'down' ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400' :
+                    'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400'
+                  }`}>
+                    {getTrendIcon(analytic.trend)}
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium">{analytic.timeframe}</span>
+                    <div className="text-xs text-muted-foreground">
+                      {analytic.trend === 'up' ? 'Tendencia positiva' :
+                       analytic.trend === 'down' ? 'Tendencia descendente' :
+                       'Tendencia estable'}
+                    </div>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Actual</div>
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground mb-1">Actual</div>
                     <div className="text-2xl font-bold">{analytic.currentValue}%</div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Predicción</div>
-                    <div className="text-2xl font-bold text-primary">{analytic.predictedValue}%</div>
+                  <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground mb-1">Predicción IA</div>
+                    <div className={`text-2xl font-bold ${
+                      analytic.predictedValue > analytic.currentValue ? 'text-green-600' :
+                      analytic.predictedValue < analytic.currentValue ? 'text-red-600' :
+                      'text-primary'
+                    }`}>
+                      {analytic.predictedValue}%
+                    </div>
                   </div>
                 </div>
 
-                <div className="h-24">
+                <div className="h-24 bg-background/50 rounded-md p-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={analytic.chartData}>
+                      <defs>
+                        <linearGradient id={`gradient-${analytic.id}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
                       <Area
                         type="monotone"
                         dataKey="value"
                         stroke="hsl(var(--chart-1))"
-                        fill="hsl(var(--chart-1))"
-                        fillOpacity={0.3}
+                        fill={`url(#gradient-${analytic.id})`}
+                        strokeWidth={2}
                       />
                       <Area
                         type="monotone"
                         dataKey="predicted"
                         stroke="hsl(var(--chart-2))"
-                        fill="hsl(var(--chart-2))"
-                        fillOpacity={0.2}
-                        strokeDasharray="5 5"
+                        fill="none"
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
                       />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
 
-                <div className="text-xs text-muted-foreground">
-                  {analytic.description}
-                </div>
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {analytic.description}
+                  </p>
 
-                <div className="space-y-1">
-                  <div className="text-xs font-medium">Recomendaciones:</div>
-                  {analytic.recommendations.slice(0, 2).map((rec, i) => (
-                    <div key={i} className="text-xs text-muted-foreground flex items-start gap-1">
-                      <span>•</span> {rec}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className="h-3 w-3 text-amber-500" />
+                      <span className="text-xs font-medium">Recomendaciones clave:</span>
                     </div>
-                  ))}
+                    <div className="space-y-1">
+                      {analytic.recommendations.slice(0, 2).map((rec, i) => (
+                        <div key={i} className="text-xs text-muted-foreground flex items-start gap-2 pl-2">
+                          <div className="h-1 w-1 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          <span className="leading-relaxed">{rec}</span>
+                        </div>
+                      ))}
+                      {analytic.recommendations.length > 2 && (
+                        <div className="text-xs text-primary cursor-pointer hover:underline pl-2">
+                          +{analytic.recommendations.length - 2} recomendaciones más
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       </div>
+
+      <Separator className="my-8" />
 
       {/* AI Recommendations */}
       <div>
