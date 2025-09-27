@@ -16,6 +16,7 @@ function InsightsContent({ profile }: { profile: any }) {
         </div>
         <div className="text-center py-12">
           <p className="text-muted-foreground">Funcionalidad de insights en desarrollo</p>
+
         </div>
       </div>
     </DashboardLayout>
