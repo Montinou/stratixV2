@@ -71,7 +71,10 @@ export async function GET(request: NextRequest) {
         status: 'unknown',
         size: 0,
         maxSize: 0,
-        hitRate: 0
+        hitRate: 0,
+        totalRequests: 0,
+        totalHits: 0,
+        totalMisses: 0
       },
       rateLimiting: {
         status: 'unknown',
@@ -180,6 +183,9 @@ function getCacheStats() {
       size: stats.size,
       maxSize: stats.maxSize,
       hitRate: stats.hitRate,
+      totalRequests: stats.totalRequests,
+      totalHits: stats.totalHits,
+      totalMisses: stats.totalMisses,
       topEntries: stats.entries.slice(0, 5) // Top 5 only for brevity
     }
   } catch (error) {

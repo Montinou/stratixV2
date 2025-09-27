@@ -1,5 +1,7 @@
 import { getDrizzleDb } from '@/lib/database/client'
 import type { Objective, Initiative, Activity, Profile, UserRole } from "@/lib/database/types"
+import { objectives, initiatives, activities, profiles } from '@/lib/database/schema'
+import { eq, and, gte, lte, inArray } from 'drizzle-orm'
 
 // Analytics interfaces following the API specification from Issue #65
 export interface AnalyticsTimeRange {
@@ -136,7 +138,7 @@ export interface TeamPerformanceData {
  * Following NEON_STACK_AUTH_SETUP patterns for authentication
  */
 export class AnalyticsEngine {
-  private supabase = createClient()
+  private db = getDrizzleDb()
 
   /**
    * Retrieve comprehensive OKR data for analysis
@@ -145,78 +147,86 @@ export class AnalyticsEngine {
     const { timeRange, okrIds, teamId } = request
 
     // Build query filters
-    let objectiveQuery = this.supabase
-      .from('objectives')
-      .select(`
-        *,
-        owner:profiles!inner(*)
-      `)
-      .gte('created_at', timeRange.start.toISOString())
-      .lte('created_at', timeRange.end.toISOString())
+    const objectiveFilters = [
+      gte(objectives.created_at, timeRange.start),
+      lte(objectives.created_at, timeRange.end)
+    ]
 
-    // Apply filters based on request
+    // Apply additional filters based on request
     if (okrIds && okrIds.length > 0) {
-      objectiveQuery = objectiveQuery.in('id', okrIds)
+      objectiveFilters.push(inArray(objectives.id, okrIds))
     }
 
     if (teamId) {
-      objectiveQuery = objectiveQuery.eq('department', teamId)
+      objectiveFilters.push(eq(objectives.department, teamId))
     }
 
-    const { data: objectives, error: objError } = await objectiveQuery
-    if (objError) throw new Error(`Failed to fetch objectives: ${objError.message}`)
+    try {
+      // Get objectives with owner profiles
+      const objectivesData = await this.db
+        .select()
+        .from(objectives)
+        .leftJoin(profiles, eq(objectives.owner_id, profiles.id))
+        .where(and(...objectiveFilters))
 
-    // Get related initiatives
-    const objectiveIds = objectives?.map(obj => obj.id) || []
-    const { data: initiatives, error: initError } = await this.supabase
-      .from('initiatives')
-      .select(`
-        *,
-        owner:profiles!inner(*),
-        objective:objectives!inner(*)
-      `)
-      .in('objective_id', objectiveIds)
+      const objectiveIds = objectivesData.map(row => row.objectives.id)
 
-    if (initError) throw new Error(`Failed to fetch initiatives: ${initError.message}`)
+      // Get related initiatives
+      const initiativesData = objectiveIds.length > 0
+        ? await this.db
+            .select()
+            .from(initiatives)
+            .leftJoin(profiles, eq(initiatives.owner_id, profiles.id))
+            .leftJoin(objectives, eq(initiatives.objective_id, objectives.id))
+            .where(inArray(initiatives.objective_id, objectiveIds))
+        : []
 
-    // Get related activities
-    const initiativeIds = initiatives?.map(init => init.id) || []
-    const { data: activities, error: actError } = await this.supabase
-      .from('activities')
-      .select(`
-        *,
-        owner:profiles!inner(*),
-        initiative:initiatives!inner(*)
-      `)
-      .in('initiative_id', initiativeIds)
+      const initiativeIds = initiativesData.map(row => row.initiatives.id)
 
-    if (actError) throw new Error(`Failed to fetch activities: ${actError.message}`)
+      // Get related activities
+      const activitiesData = initiativeIds.length > 0
+        ? await this.db
+            .select()
+            .from(activities)
+            .leftJoin(profiles, eq(activities.owner_id, profiles.id))
+            .leftJoin(initiatives, eq(activities.initiative_id, initiatives.id))
+            .where(inArray(activities.initiative_id, initiativeIds))
+        : []
 
-    // Get unique profiles
-    // Get unique owner IDs
-    const ownerIds = new Set<string>()
-    objectives?.forEach(obj => ownerIds.add(obj.owner_id))
-    initiatives?.forEach(init => ownerIds.add(init.owner_id))
-    activities?.forEach(act => ownerIds.add(act.owner_id))
-    const allOwnerIds = Array.from(ownerIds)
+      // Get unique owner IDs
+      const ownerIds = new Set<string>()
+      objectivesData.forEach(row => row.objectives.owner_id && ownerIds.add(row.objectives.owner_id))
+      initiativesData.forEach(row => row.initiatives.owner_id && ownerIds.add(row.initiatives.owner_id))
+      activitiesData.forEach(row => row.activities.owner_id && ownerIds.add(row.activities.owner_id))
+      const allOwnerIds = Array.from(ownerIds)
 
-    const { data: profiles, error: profileError } = await this.supabase
-      .from('profiles')
-      .select('*')
-      .in('id', allOwnerIds)
+      // Get unique profiles
+      const profilesData = allOwnerIds.length > 0
+        ? await this.db
+            .select()
+            .from(profiles)
+            .where(inArray(profiles.id, allOwnerIds))
+        : []
 
-    if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`)
+      // Extract data from joined results
+      const objectivesList = objectivesData.map(row => row.objectives)
+      const initiativesList = initiativesData.map(row => row.initiatives)
+      const activitiesList = activitiesData.map(row => row.activities)
+      const profilesList = profilesData
 
-    // For now, we'll simulate historical progress data
-    // In a real implementation, this would come from a progress_snapshots table
-    const historical_progress = this.generateHistoricalProgressData(objectives || [], initiatives || [], activities || [])
+      // For now, we'll simulate historical progress data
+      // In a real implementation, this would come from a progress_snapshots table
+      const historical_progress = this.generateHistoricalProgressData(objectivesList, initiativesList, activitiesList)
 
-    return {
-      objectives: objectives || [],
-      initiatives: initiatives || [],
-      activities: activities || [],
-      profiles: profiles || [],
-      historical_progress
+      return {
+        objectives: objectivesList,
+        initiatives: initiativesList,
+        activities: activitiesList,
+        profiles: profilesList,
+        historical_progress
+      }
+    } catch (error) {
+      throw new Error(`Failed to fetch analytics data: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

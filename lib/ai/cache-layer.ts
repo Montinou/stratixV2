@@ -24,6 +24,8 @@ export class AICacheLayer {
   private readonly defaultTTL = 1000 * 60 * 60 // 1 hour
   private readonly maxSize = 1000 // Maximum cache entries
   private cleanupInterval: NodeJS.Timeout | null = null
+  private totalRequests = 0
+  private totalHits = 0
 
   private constructor() {
     // Start cleanup interval every 10 minutes
@@ -83,6 +85,8 @@ export class AICacheLayer {
     const key = this.generateKey(operation, params)
     const entry = this.cache.get(key)
 
+    this.totalRequests++
+
     if (!entry) {
       return null
     }
@@ -97,6 +101,7 @@ export class AICacheLayer {
 
     // Update hit count
     entry.hits++
+    this.totalHits++
 
     return entry.data as T
   }
@@ -136,6 +141,8 @@ export class AICacheLayer {
    */
   public clear(): void {
     this.cache.clear()
+    this.totalRequests = 0
+    this.totalHits = 0
   }
 
   /**
@@ -159,6 +166,9 @@ export class AICacheLayer {
     size: number
     maxSize: number
     hitRate: number
+    totalRequests: number
+    totalHits: number
+    totalMisses: number
     entries: Array<{
       operation: string
       hits: number
@@ -173,11 +183,9 @@ export class AICacheLayer {
       ttl: number
     }> = []
 
-    let totalHits = 0
     const now = Date.now()
 
     for (const [key, entry] of this.cache.entries()) {
-      totalHits += entry.hits
       entries.push({
         operation: key.substring(0, 20) + '...', // Truncated key for display
         hits: entry.hits,
@@ -189,12 +197,16 @@ export class AICacheLayer {
     // Sort by hits (most popular first)
     entries.sort((a, b) => b.hits - a.hits)
 
-    const hitRate = this.cache.size > 0 ? totalHits / this.cache.size : 0
+    // Calculate actual hit rate: hits / total requests
+    const hitRate = this.totalRequests > 0 ? this.totalHits / this.totalRequests : 0
 
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       hitRate,
+      totalRequests: this.totalRequests,
+      totalHits: this.totalHits,
+      totalMisses: this.totalRequests - this.totalHits,
       entries: entries.slice(0, 10) // Top 10 entries
     }
   }
@@ -249,6 +261,8 @@ export class AICacheLayer {
       this.cleanupInterval = null
     }
     this.cache.clear()
+    this.totalRequests = 0
+    this.totalHits = 0
   }
 }
 
