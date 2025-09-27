@@ -1,5 +1,8 @@
 export interface WelcomeData {
   hasSeenWelcome: boolean;
+  role?: string;
+  customRole?: string;
+  experienceLevel?: "beginner" | "intermediate" | "advanced";
 }
 
 export interface CompanyData {
@@ -7,11 +10,16 @@ export interface CompanyData {
   industry: string;
   size: string;
   description?: string;
+  logo?: string;
 }
 
 export interface OrganizationData {
   departments: Department[];
   structure: OrganizationStructure;
+  teamSize?: number;
+  methodology?: "okrs" | "kpis" | "custom";
+  collaborationStyle?: "centralized" | "distributed" | "hybrid";
+  integrations?: string[];
 }
 
 export interface Department {

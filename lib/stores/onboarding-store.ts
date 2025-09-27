@@ -11,16 +11,24 @@ import {
 const initialStepData = {
   welcome: {
     hasSeenWelcome: false,
+    role: '',
+    customRole: '',
+    experienceLevel: 'intermediate' as const,
   } as WelcomeData,
   company: {
     name: '',
     industry: '',
     size: '',
     description: '',
+    logo: '',
   } as CompanyData,
   organization: {
     departments: [],
     structure: 'hierarchical' as const,
+    teamSize: 5,
+    methodology: 'okrs' as const,
+    collaborationStyle: 'hybrid' as const,
+    integrations: [],
   } as OrganizationData,
 };
 
