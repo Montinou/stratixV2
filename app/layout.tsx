@@ -4,6 +4,7 @@ import { stackClientApp } from "@/stack"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 // Force dynamic rendering to avoid authentication issues during static generation
@@ -33,13 +34,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <StackProvider app={stackClientApp}>
-          <StackTheme>
-            {children}
-          </StackTheme>
-        </StackProvider>
+        <ThemeProvider>
+          <StackProvider app={stackClientApp}>
+            <StackTheme>
+              {children}
+            </StackTheme>
+          </StackProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

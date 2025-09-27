@@ -14,11 +14,11 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.45 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -36,6 +36,22 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Animation Variables */
+  --animation-duration-fast: 150ms;
+  --animation-duration-normal: 300ms;
+  --animation-duration-slow: 500ms;
+  --animation-duration-slower: 700ms;
+  --animation-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --animation-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-ease-in-smooth: cubic-bezier(0.4, 0, 1, 1);
+  --animation-ease-out-smooth: cubic-bezier(0, 0, 0.2, 1);
+
+  /* Motion Scale for Responsive Animations */
+  --motion-scale: 1;
+  --motion-translate: 1rem;
+  --motion-rotate: 5deg;
 }
 
 .dark {
@@ -54,7 +70,7 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
@@ -71,6 +87,22 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  /* Animation Variables - Dark Mode */
+  --animation-duration-fast: 150ms;
+  --animation-duration-normal: 300ms;
+  --animation-duration-slow: 500ms;
+  --animation-duration-slower: 700ms;
+  --animation-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --animation-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --animation-ease-in-smooth: cubic-bezier(0.4, 0, 1, 1);
+  --animation-ease-out-smooth: cubic-bezier(0, 0, 0.2, 1);
+
+  /* Motion Scale for Responsive Animations */
+  --motion-scale: 1;
+  --motion-translate: 1rem;
+  --motion-rotate: 5deg;
 }
 
 @theme inline {
@@ -120,5 +152,196 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animation-duration-fast: 0ms;
+    --animation-duration-normal: 0ms;
+    --animation-duration-slow: 0ms;
+    --animation-duration-slower: 0ms;
+    --motion-scale: 0;
+    --motion-translate: 0;
+    --motion-rotate: 0deg;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Mobile Device Optimizations */
+@media (max-width: 768px) {
+  :root {
+    --animation-duration-fast: 100ms;
+    --animation-duration-normal: 200ms;
+    --animation-duration-slow: 300ms;
+    --animation-duration-slower: 400ms;
+    --motion-translate: 0.5rem;
+  }
+}
+
+/* Animation Performance Optimizations */
+@layer utilities {
+  .animate-gpu {
+    transform: translateZ(0);
+    will-change: transform, opacity;
+  }
+
+  .animate-gpu-auto {
+    will-change: auto;
+  }
+
+  /* Step Transition Animations */
+  .step-enter {
+    opacity: 0;
+    transform: translateX(var(--motion-translate)) scale(0.95);
+  }
+
+  .step-enter-active {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    transition:
+      opacity var(--animation-duration-normal) var(--animation-ease-smooth),
+      transform var(--animation-duration-normal) var(--animation-ease-spring);
+  }
+
+  .step-exit {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  .step-exit-active {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--motion-translate))) scale(0.95);
+    transition:
+      opacity var(--animation-duration-normal) var(--animation-ease-smooth),
+      transform var(--animation-duration-normal) var(--animation-ease-smooth);
+  }
+
+  /* Progress Animation */
+  .progress-animate {
+    transition:
+      width var(--animation-duration-slow) var(--animation-ease-spring),
+      background-color var(--animation-duration-normal) var(--animation-ease-smooth);
+  }
+
+  /* Button Microinteractions */
+  .button-scale {
+    transition:
+      transform var(--animation-duration-fast) var(--animation-ease-spring),
+      box-shadow var(--animation-duration-fast) var(--animation-ease-smooth);
+  }
+
+  .button-scale:hover {
+    transform: scale(1.02);
+  }
+
+  .button-scale:active {
+    transform: scale(0.98);
+  }
+
+  /* Input Focus Animations */
+  .input-focus {
+    transition:
+      border-color var(--animation-duration-fast) var(--animation-ease-smooth),
+      box-shadow var(--animation-duration-fast) var(--animation-ease-smooth),
+      transform var(--animation-duration-fast) var(--animation-ease-spring);
+  }
+
+  .input-focus:focus {
+    transform: translateY(-1px);
+  }
+
+  /* Card Hover Effects */
+  .card-hover {
+    transition:
+      transform var(--animation-duration-normal) var(--animation-ease-spring),
+      box-shadow var(--animation-duration-normal) var(--animation-ease-smooth),
+      border-color var(--animation-duration-fast) var(--animation-ease-smooth);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Accessibility: Screen reader only content */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .sr-only:focus,
+  .sr-only:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: inherit;
+    margin: inherit;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  /* Enhanced focus indicators */
+  .focus-visible\:ring:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Skip link styles */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    padding: 8px 16px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 100;
+    transition: top var(--animation-duration-fast) var(--animation-ease-smooth);
+  }
+
+  .skip-link:focus {
+    top: 6px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border: oklch(0.4 0 0);
+    --ring: oklch(0.2 0 0);
+  }
+
+  .dark {
+    --border: oklch(0.6 0 0);
+    --ring: oklch(0.8 0 0);
+  }
+}
+
+/* Ensure proper color contrast in forced-colors mode */
+@media (forced-colors: active) {
+  * {
+    forced-color-adjust: auto;
+  }
+
+  .sr-only {
+    forced-color-adjust: none;
   }
 }
