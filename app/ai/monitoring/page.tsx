@@ -4,6 +4,8 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { CostDashboard } from "@/components/ai/cost-dashboard"
 import { UsageMetrics } from "@/components/ai/usage-metrics"
 import { BudgetManagement } from "@/components/ai/budget-management"
+import { CostExport } from "@/components/ai/cost-export"
+import { AdminCostControl } from "@/components/ai/admin-cost-control"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -83,28 +85,37 @@ export default async function AIMonitoringPage() {
     <DashboardLayout>
       <div className="flex-1 space-y-6 p-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Monitoreo de IA</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Monitoreo de IA</h1>
+            <p className="text-sm md:text-base text-muted-foreground">
               Control integral de costos, uso y rendimiento de servicios de IA
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge variant={getRateLimitBadgeVariant(rateLimitStatus.status)} className="flex items-center gap-1">
+          <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:gap-3 sm:space-y-0">
+            <Badge
+              variant={getRateLimitBadgeVariant(rateLimitStatus.status)}
+              className="flex items-center gap-1 w-fit"
+            >
               {getRateLimitIcon(rateLimitStatus.status)}
-              Rate Limit: {rateLimitStatus.currentRequests}/{rateLimitStatus.limit}
+              <span className="hidden sm:inline">Rate Limit:</span>
+              <span className="sm:hidden">RL:</span>
+              {rateLimitStatus.currentRequests}/{rateLimitStatus.limit}
             </Badge>
-            <Button variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Exportar Reporte
-            </Button>
-            {isAdmin && (
-              <Button>
-                <Settings className="mr-2 h-4 w-4" />
-                Configuración
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+                <Download className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Exportar Reporte</span>
+                <span className="sm:hidden">Exportar</span>
               </Button>
-            )}
+              {isAdmin && (
+                <Button size="sm" className="flex-1 sm:flex-none">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Configuración</span>
+                  <span className="sm:hidden">Config</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -112,22 +123,22 @@ export default async function AIMonitoringPage() {
         {rateLimitStatus.status !== 'normal' && (
           <Card className={`border-${rateLimitStatus.status === 'exceeded' ? 'destructive' : 'warning'}`}>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
                 <div className="flex items-center gap-3">
                   {getRateLimitIcon(rateLimitStatus.status)}
                   <div>
-                    <h4 className="font-semibold">
+                    <h4 className="font-semibold text-sm sm:text-base">
                       {rateLimitStatus.status === 'exceeded'
                         ? 'Límite de Solicitudes Excedido'
                         : 'Advertencia de Rate Limit'
                       }
                     </h4>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Has utilizado {rateLimitStatus.currentRequests} de {rateLimitStatus.limit} solicitudes permitidas
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <p className="text-sm font-medium">
                     Reinicio: {new Date(rateLimitStatus.resetTime).toLocaleTimeString('es-ES')}
                   </p>
@@ -142,23 +153,39 @@ export default async function AIMonitoringPage() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
-              Vista General
+              <span className="hidden sm:inline">Vista General</span>
+              <span className="sm:hidden">General</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Análisis
+              <span className="hidden sm:inline">Análisis</span>
+              <span className="sm:hidden">Stats</span>
             </TabsTrigger>
             <TabsTrigger value="budget" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Presupuesto
+              <span className="hidden sm:inline">Presupuesto</span>
+              <span className="sm:hidden">Budget</span>
             </TabsTrigger>
             <TabsTrigger value="limits" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
-              Límites
+              <span className="hidden sm:inline">Límites</span>
+              <span className="sm:hidden">Limits</span>
             </TabsTrigger>
+            <TabsTrigger value="export" className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Exportar</span>
+              <span className="sm:hidden">Export</span>
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Admin</span>
+                <span className="sm:hidden">Admin</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Overview Tab */}
@@ -331,6 +358,18 @@ export default async function AIMonitoringPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Export Tab */}
+          <TabsContent value="export" className="space-y-6">
+            <CostExport profile={profile} />
+          </TabsContent>
+
+          {/* Admin Tab */}
+          {isAdmin && (
+            <TabsContent value="admin" className="space-y-6">
+              <AdminCostControl profile={profile} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
