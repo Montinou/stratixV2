@@ -136,7 +136,7 @@ export interface TeamPerformanceData {
  * Following NEON_STACK_AUTH_SETUP patterns for authentication
  */
 export class AnalyticsEngine {
-  private supabase = createClient()
+  private db = getDrizzleDb()
 
   /**
    * Retrieve comprehensive OKR data for analysis
@@ -144,79 +144,132 @@ export class AnalyticsEngine {
   async getAnalyticsData(request: AnalyticsRequest, userId: string): Promise<OKRAnalyticsData> {
     const { timeRange, okrIds, teamId } = request
 
-    // Build query filters
-    let objectiveQuery = this.supabase
-      .from('objectives')
-      .select(`
-        *,
-        owner:profiles!inner(*)
-      `)
-      .gte('created_at', timeRange.start.toISOString())
-      .lte('created_at', timeRange.end.toISOString())
+    try {
+      // Import the necessary tables from schema
+      const { objectives, initiatives, activities, profiles } = await import('@/lib/database/schema')
+      const { eq, and, gte, lte, inArray } = await import('drizzle-orm')
 
-    // Apply filters based on request
-    if (okrIds && okrIds.length > 0) {
-      objectiveQuery = objectiveQuery.in('id', okrIds)
-    }
+      // Build base query conditions
+      const conditions = [
+        gte(objectives.createdAt, timeRange.start),
+        lte(objectives.createdAt, timeRange.end)
+      ]
 
-    if (teamId) {
-      objectiveQuery = objectiveQuery.eq('department', teamId)
-    }
+      // Apply filters based on request
+      if (okrIds && okrIds.length > 0) {
+        conditions.push(inArray(objectives.id, okrIds))
+      }
 
-    const { data: objectives, error: objError } = await objectiveQuery
-    if (objError) throw new Error(`Failed to fetch objectives: ${objError.message}`)
+      if (teamId) {
+        conditions.push(eq(objectives.department, teamId))
+      }
 
-    // Get related initiatives
-    const objectiveIds = objectives?.map(obj => obj.id) || []
-    const { data: initiatives, error: initError } = await this.supabase
-      .from('initiatives')
-      .select(`
-        *,
-        owner:profiles!inner(*),
-        objective:objectives!inner(*)
-      `)
-      .in('objective_id', objectiveIds)
+      // Get objectives with owner profiles
+      const objectivesData = await this.db
+        .select({
+          objective: objectives,
+          owner: profiles
+        })
+        .from(objectives)
+        .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
+        .where(and(...conditions))
 
-    if (initError) throw new Error(`Failed to fetch initiatives: ${initError.message}`)
+      const objectiveIds = objectivesData.map(obj => obj.objective.id)
 
-    // Get related activities
-    const initiativeIds = initiatives?.map(init => init.id) || []
-    const { data: activities, error: actError } = await this.supabase
-      .from('activities')
-      .select(`
-        *,
-        owner:profiles!inner(*),
-        initiative:initiatives!inner(*)
-      `)
-      .in('initiative_id', initiativeIds)
+      // Get related initiatives if we have objectives
+      let initiativesData: any[] = []
+      if (objectiveIds.length > 0) {
+        initiativesData = await this.db
+          .select({
+            initiative: initiatives,
+            owner: profiles,
+            objective: objectives
+          })
+          .from(initiatives)
+          .leftJoin(profiles, eq(initiatives.ownerId, profiles.userId))
+          .leftJoin(objectives, eq(initiatives.objectiveId, objectives.id))
+          .where(inArray(initiatives.objectiveId, objectiveIds))
+      }
 
-    if (actError) throw new Error(`Failed to fetch activities: ${actError.message}`)
+      const initiativeIds = initiativesData.map(init => init.initiative.id)
 
-    // Get unique profiles
-    // Get unique owner IDs
-    const ownerIds = new Set<string>()
-    objectives?.forEach(obj => ownerIds.add(obj.owner_id))
-    initiatives?.forEach(init => ownerIds.add(init.owner_id))
-    activities?.forEach(act => ownerIds.add(act.owner_id))
-    const allOwnerIds = Array.from(ownerIds)
+      // Get related activities if we have initiatives
+      let activitiesData: any[] = []
+      if (initiativeIds.length > 0) {
+        activitiesData = await this.db
+          .select({
+            activity: activities,
+            owner: profiles,
+            initiative: initiatives
+          })
+          .from(activities)
+          .leftJoin(profiles, eq(activities.assignedTo, profiles.userId))
+          .leftJoin(initiatives, eq(activities.initiativeId, initiatives.id))
+          .where(inArray(activities.initiativeId, initiativeIds))
+      }
 
-    const { data: profiles, error: profileError } = await this.supabase
-      .from('profiles')
-      .select('*')
-      .in('id', allOwnerIds)
+      // Get unique profiles
+      const ownerIds = new Set<string>()
+      objectivesData.forEach(obj => obj.objective.ownerId && ownerIds.add(obj.objective.ownerId))
+      initiativesData.forEach(init => init.initiative.ownerId && ownerIds.add(init.initiative.ownerId))
+      activitiesData.forEach(act => act.activity.assignedTo && ownerIds.add(act.activity.assignedTo))
+      const allOwnerIds = Array.from(ownerIds)
 
-    if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`)
+      let profilesData: any[] = []
+      if (allOwnerIds.length > 0) {
+        profilesData = await this.db
+          .select()
+          .from(profiles)
+          .where(inArray(profiles.userId, allOwnerIds))
+      }
 
-    // For now, we'll simulate historical progress data
-    // In a real implementation, this would come from a progress_snapshots table
-    const historical_progress = this.generateHistoricalProgressData(objectives || [], initiatives || [], activities || [])
+      // Transform data to match expected format
+      const objectivesResult = objectivesData.map(obj => ({
+        ...obj.objective,
+        owner_id: obj.objective.ownerId,
+        start_date: obj.objective.startDate?.toISOString() || new Date().toISOString(),
+        end_date: obj.objective.endDate?.toISOString() || new Date().toISOString(),
+        created_at: obj.objective.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: obj.objective.updatedAt?.toISOString() || new Date().toISOString()
+      }))
 
-    return {
-      objectives: objectives || [],
-      initiatives: initiatives || [],
-      activities: activities || [],
-      profiles: profiles || [],
-      historical_progress
+      const initiativesResult = initiativesData.map(init => ({
+        ...init.initiative,
+        objective_id: init.initiative.objectiveId,
+        owner_id: init.initiative.ownerId,
+        start_date: init.initiative.startDate?.toISOString() || new Date().toISOString(),
+        end_date: init.initiative.endDate?.toISOString() || new Date().toISOString(),
+        created_at: init.initiative.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: init.initiative.updatedAt?.toISOString() || new Date().toISOString()
+      }))
+
+      const activitiesResult = activitiesData.map(act => ({
+        ...act.activity,
+        initiative_id: act.activity.initiativeId,
+        assigned_to: act.activity.assignedTo,
+        due_date: act.activity.dueDate?.toISOString() || new Date().toISOString(),
+        created_at: act.activity.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: act.activity.updatedAt?.toISOString() || new Date().toISOString()
+      }))
+
+      // For now, we'll simulate historical progress data
+      // In a real implementation, this would come from a progress_snapshots table
+      const historical_progress = this.generateHistoricalProgressData(
+        objectivesResult,
+        initiativesResult,
+        activitiesResult
+      )
+
+      return {
+        objectives: objectivesResult,
+        initiatives: initiativesResult,
+        activities: activitiesResult,
+        profiles: profilesData,
+        historical_progress
+      }
+    } catch (error) {
+      console.error('Error fetching analytics data:', error)
+      throw error
     }
   }
 

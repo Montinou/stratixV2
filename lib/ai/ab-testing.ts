@@ -1,8 +1,8 @@
 import { aiClient } from './gateway-client'
-import { performanceAnalytics } from './performance-analytics'
-import { qualityTracker } from './quality-metrics'
-import type { QualityMetrics } from './quality-metrics'
-import type { AIPerformanceMetrics } from './performance-analytics'
+import { metricsCollector, instrumentAIOperation, CostCalculator } from '../performance/unified-performance-service'
+import { qualityService } from '../performance/unified-quality-service'
+import type { QualityAssessment } from '../performance/unified-quality-service'
+import type { PerformanceMetrics } from '../performance/unified-performance-service'
 
 // A/B Testing interfaces
 export interface ABTest {
@@ -265,18 +265,21 @@ export class ABTestingFramework {
       const endTime = Date.now()
 
       const latency = endTime - startTime
-      const cost = this.estimateCost(variant.modelConfig.model, prompt, response)
+      const inputTokens = CostCalculator.estimateTokens(prompt)
+      const outputTokens = CostCalculator.estimateTokens(response)
+      const costData = CostCalculator.calculateCost(variant.modelConfig.model, inputTokens, outputTokens)
+      const cost = costData.total
 
       // Track quality metrics
       const executionId = this.generateExecutionId()
-      const qualityMetrics = await qualityTracker.evaluateResponse(
+      const qualityMetrics = await qualityService.evaluateQuality(
         executionId,
         operation,
         variant.modelConfig.model,
+        variant.modelConfig.model.split('/')[0],
         prompt,
         response,
-        userId,
-        { testId, variantId, abTest: true }
+        { userId, metadata: { testId, variantId, abTest: true } }
       )
 
       // Record execution
@@ -326,14 +329,15 @@ export class ABTestingFramework {
       helpful: feedback.helpful
     }
 
-    // Also add to quality tracker if available
-    const qualityMetric = qualityTracker.getQualityMetrics({
+    // Also add to quality service if available
+    const qualityMetrics = qualityService.getAssessments({
       startDate: new Date(execution.timestamp.getTime() - 1000),
       endDate: new Date(execution.timestamp.getTime() + 1000)
-    }).find(m => m.requestId === executionId)
+    })
+    const qualityMetric = qualityMetrics.find(m => m.requestId === executionId)
 
     if (qualityMetric) {
-      qualityTracker.addUserFeedback(qualityMetric.id, {
+      qualityService.addUserFeedback(qualityMetric.id, {
         rating: feedback.rating as 1 | 2 | 3 | 4 | 5,
         helpful: feedback.helpful,
         comments: feedback.comments
@@ -453,23 +457,6 @@ export class ABTestingFramework {
     })
   }
 
-  private estimateCost(model: string, prompt: string, response: string): number {
-    // Simple cost estimation - in practice, would use actual token counts
-    const inputTokens = Math.ceil(prompt.length / 4)
-    const outputTokens = Math.ceil(response.length / 4)
-
-    const costs = {
-      'openai/gpt-4o': { input: 2.5, output: 10.0 },
-      'openai/gpt-4o-mini': { input: 0.15, output: 0.6 },
-      'anthropic/claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
-      'anthropic/claude-3-sonnet-20240229': { input: 3.0, output: 15.0 }
-    }
-
-    const modelCost = costs[model as keyof typeof costs]
-    if (!modelCost) return 0
-
-    return (inputTokens / 1000000) * modelCost.input + (outputTokens / 1000000) * modelCost.output
-  }
 
   private async calculateCurrentMetrics(testId: string): Promise<ABTestMetrics> {
     const executions = this.executions.filter(e => e.testId === testId)

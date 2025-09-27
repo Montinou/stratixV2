@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { stackServerApp } from "@/stack"
-import { performanceAnalytics } from "@/lib/ai/performance-analytics"
-import { modelBenchmarking } from "@/lib/ai/benchmarking"
-import type { PerformanceStats, ModelPerformance, OperationPerformance } from "@/lib/ai/performance-analytics"
+import { dashboardService, getDashboardOverview } from "@/lib/performance/unified-dashboard-service"
+import { metricsCollector } from "@/lib/performance/unified-performance-service"
+import { benchmarkingService } from "@/lib/performance/unified-benchmarking-service"
+import type {
+  PerformanceStats,
+  ModelComparison,
+  OperationPerformance
+} from "@/lib/performance/unified-performance-service"
 
 // Comprehensive AI Analytics API endpoint
 export async function GET(request: NextRequest) {
@@ -116,8 +121,8 @@ async function handleOverviewAnalytics(
   endTime: Date,
   filters: any
 ): Promise<NextResponse> {
-  const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, filters)
-  const anomalies = performanceAnalytics.detectAnomalies(24, {
+  const stats = await metricsCollector.getStats(startTime, endTime, filters)
+  const anomalies = await metricsCollector.detectAnomalies(24, {
     latencyMultiplier: 2.0,
     errorRateThreshold: 5.0,
     costMultiplier: 2.5
@@ -152,15 +157,15 @@ async function handlePerformanceAnalytics(
   endTime: Date,
   filters: any
 ): Promise<NextResponse> {
-  const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, filters)
+  const stats = await metricsCollector.getStats(startTime, endTime, filters)
 
   // Get operation-specific performance if operation is not filtered
   let operationPerformances: OperationPerformance[] = []
   if (!filters.operation) {
     const operations = getUniqueOperations(startTime, endTime, filters)
-    operationPerformances = operations.map(op =>
-      performanceAnalytics.getModelComparison(op, startTime, endTime)
-    )
+    operationPerformances = await Promise.all(operations.map(op =>
+      metricsCollector.getModelComparison(op, startTime, endTime)
+    ))
   }
 
   const performance = {
@@ -186,7 +191,7 @@ async function handleCostAnalytics(
   endTime: Date,
   filters: any
 ): Promise<NextResponse> {
-  const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, filters)
+  const stats = await metricsCollector.getStats(startTime, endTime, filters)
 
   const costAnalytics = {
     summary: {
@@ -203,7 +208,7 @@ async function handleCostAnalytics(
     trends: generateCostTrends(startTime, endTime, filters),
     optimization: {
       potentialSavings: calculatePotentialSavings(startTime, endTime, filters),
-      recommendations: performanceAnalytics.generateOptimizationRecommendations(
+      recommendations: await metricsCollector.generateOptimizationRecommendations(
         { start: startTime, end: endTime },
         'cost'
       )
@@ -225,7 +230,7 @@ async function handleQualityAnalytics(
   endTime: Date,
   filters: any
 ): Promise<NextResponse> {
-  const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, filters)
+  const stats = await metricsCollector.getStats(startTime, endTime, filters)
 
   const qualityAnalytics = {
     summary: {
@@ -260,7 +265,7 @@ async function handleBenchmarkAnalytics(
   endTime: Date,
   filters: any
 ): Promise<NextResponse> {
-  const benchmarkResults = modelBenchmarking.getBenchmarkResults({
+  const benchmarkResults = await benchmarkingService.getResults({
     ...(filters.model && { model: filters.model }),
     startDate: startTime,
     endDate: endTime
@@ -271,7 +276,7 @@ async function handleBenchmarkAnalytics(
     modelRankings: generateModelRankings(benchmarkResults),
     categoryPerformance: generateCategoryPerformance(benchmarkResults),
     improvementOpportunities: identifyImprovementOpportunities(benchmarkResults),
-    availableSuites: modelBenchmarking.getBenchmarkSuites()
+    availableSuites: await benchmarkingService.getSuites()
   }
 
   return NextResponse.json({
@@ -291,7 +296,7 @@ async function handleAnomalyDetection(
   filters: any
 ): Promise<NextResponse> {
   const hoursDiff = Math.abs(endTime.getTime() - startTime.getTime()) / 36e5
-  const anomalies = performanceAnalytics.detectAnomalies(hoursDiff, {
+  const anomalies = await metricsCollector.detectAnomalies(hoursDiff, {
     latencyMultiplier: 2.0,
     errorRateThreshold: 5.0,
     costMultiplier: 2.5
@@ -327,15 +332,15 @@ async function handleOptimizationRecommendations(
   filters: any
 ): Promise<NextResponse> {
   const recommendations = {
-    cost: performanceAnalytics.generateOptimizationRecommendations(
+    cost: await metricsCollector.generateOptimizationRecommendations(
       { start: startTime, end: endTime },
       'cost'
     ),
-    latency: performanceAnalytics.generateOptimizationRecommendations(
+    latency: await metricsCollector.generateOptimizationRecommendations(
       { start: startTime, end: endTime },
       'latency'
     ),
-    quality: performanceAnalytics.generateOptimizationRecommendations(
+    quality: await metricsCollector.generateOptimizationRecommendations(
       { start: startTime, end: endTime },
       'quality'
     )
@@ -364,7 +369,7 @@ async function handleRunBenchmark(params: any, userId: string): Promise<NextResp
   try {
     const { suiteId, modelsToTest, testCasesToRun, parallel = false } = params
 
-    const result = await modelBenchmarking.runBenchmarkSuite(suiteId, {
+    const result = await benchmarkingService.executeSuite(suiteId, {
       modelsToTest,
       testCasesToRun,
       parallel,
@@ -390,7 +395,7 @@ async function handleRecordMetrics(params: any, userId: string): Promise<NextRes
   try {
     const { metrics } = params
 
-    const requestId = performanceAnalytics.recordMetrics({
+    const requestId = await metricsCollector.recordMetrics({
       ...metrics,
       userId
     })
@@ -447,8 +452,8 @@ async function handleExportAnalytics(params: any, userId: string): Promise<NextR
     const { format = 'json', timeRange, filters } = params
     const { startTime, endTime } = parseTimeRange(timeRange)
 
-    const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, { ...filters, userId })
-    const benchmarks = modelBenchmarking.getBenchmarkResults({
+    const stats = await metricsCollector.getStats(startTime, endTime, { ...filters, userId })
+    const benchmarks = await benchmarkingService.getResults({
       startDate: startTime,
       endDate: endTime
     })
@@ -514,33 +519,51 @@ function parseTimeRange(timeRange: string): { startTime: Date; endTime: Date } {
 }
 
 function generateTrendData(startTime: Date, endTime: Date, filters: any) {
-  // Generate sample trend data - in real implementation, would query actual metrics
-  const hours = Math.ceil((endTime.getTime() - startTime.getTime()) / (60 * 60 * 1000))
-  const trends = []
+  try {
+    // Get real performance data from analytics system
+    const realMetrics = await metricsCollector.getTimeSeriesData(startTime, endTime, filters)
 
-  for (let i = 0; i < hours; i++) {
-    const timestamp = new Date(startTime.getTime() + i * 60 * 60 * 1000)
-    trends.push({
-      timestamp,
-      requests: Math.floor(Math.random() * 100) + 50,
-      averageLatency: Math.floor(Math.random() * 2000) + 1000,
-      successRate: 95 + Math.random() * 5,
-      cost: Math.random() * 0.01
-    })
+    if (realMetrics && realMetrics.length > 0) {
+      return realMetrics
+    }
+
+    // Fallback to minimal sample data if no real data available
+    const hours = Math.min(24, Math.ceil((endTime.getTime() - startTime.getTime()) / (60 * 60 * 1000)))
+    const trends = []
+
+    for (let i = 0; i < hours; i++) {
+      const timestamp = new Date(startTime.getTime() + i * 60 * 60 * 1000)
+      trends.push({
+        timestamp,
+        requests: 0,
+        averageLatency: 0,
+        successRate: 100,
+        cost: 0
+      })
+    }
+
+    return trends
+  } catch (error) {
+    console.warn('Failed to generate trend data, returning empty data:', error)
+    return []
   }
-
-  return trends
 }
 
 function getTopOperationsByVolume(startTime: Date, endTime: Date, filters: any) {
-  // Mock data - replace with actual implementation
-  return [
-    { operation: 'generate_okr', requests: 1250, successRate: 98.2, avgLatency: 2300 },
-    { operation: 'analyze_performance', requests: 890, successRate: 96.5, avgLatency: 3400 },
-    { operation: 'generate_insights', requests: 670, successRate: 97.1, avgLatency: 2800 },
-    { operation: 'chat_completion', requests: 450, successRate: 99.1, avgLatency: 1800 },
-    { operation: 'embedding_generation', requests: 320, successRate: 99.8, avgLatency: 800 }
-  ]
+  try {
+    // Get real operation data from analytics system
+    const realOperations = await metricsCollector.getTopOperations(startTime, endTime, filters)
+
+    if (realOperations && realOperations.length > 0) {
+      return realOperations
+    }
+
+    // Return empty array if no real data available
+    return []
+  } catch (error) {
+    console.warn('Failed to get operations data, returning empty array:', error)
+    return []
+  }
 }
 
 function calculateOverallHealthScore(stats: PerformanceStats, anomalies: any[]): number {
@@ -576,23 +599,20 @@ function calculateLatencyDistribution(startTime: Date, endTime: Date, filters: a
 }
 
 function generateModelComparisonData(startTime: Date, endTime: Date, filters: any) {
-  // Mock implementation - replace with actual data
-  return [
-    {
-      model: 'openai/gpt-4o-mini',
-      averageLatency: 1800,
-      successRate: 98.5,
-      cost: 0.0008,
-      requests: 1500
-    },
-    {
-      model: 'anthropic/claude-3-haiku-20240307',
-      averageLatency: 2200,
-      successRate: 97.2,
-      cost: 0.0012,
-      requests: 800
+  try {
+    // Get real model comparison data from analytics system
+    const realModelData = await metricsCollector.getModelComparison(startTime, endTime, filters)
+
+    if (realModelData && realModelData.length > 0) {
+      return realModelData
     }
-  ]
+
+    // Return empty array if no real data available
+    return []
+  } catch (error) {
+    console.warn('Failed to get model comparison data, returning empty array:', error)
+    return []
+  }
 }
 
 function generatePerformanceTimeSeries(startTime: Date, endTime: Date, filters: any) {
@@ -607,45 +627,81 @@ function projectMonthlyCost(totalCost: number, startTime: Date, endTime: Date): 
 }
 
 function generateCostByModel(startTime: Date, endTime: Date, filters: any) {
-  // Mock implementation
-  return [
-    { model: 'openai/gpt-4o-mini', cost: 2.45, percentage: 65 },
-    { model: 'anthropic/claude-3-haiku-20240307', cost: 1.20, percentage: 32 },
-    { model: 'openai/text-embedding-3-small', cost: 0.15, percentage: 3 }
-  ]
+  try {
+    // Get real cost data from analytics system
+    const realCostData = await metricsCollector.getCostByModel(startTime, endTime, filters)
+    if (realCostData && realCostData.length > 0) {
+      return realCostData
+    }
+    return [] // Return empty array if no real data available
+  } catch (error) {
+    console.warn('Failed to get cost by model data:', error)
+    return []
+  }
 }
 
 function generateCostByOperation(startTime: Date, endTime: Date, filters: any) {
-  // Mock implementation
-  return [
-    { operation: 'generate_okr', cost: 1.85, percentage: 49 },
-    { operation: 'analyze_performance', cost: 1.25, percentage: 33 },
-    { operation: 'generate_insights', cost: 0.70, percentage: 18 }
-  ]
+  try {
+    // Get real cost data by operation from analytics system
+    const realCostData = await metricsCollector.getCostByOperation(startTime, endTime, filters)
+    if (realCostData && realCostData.length > 0) {
+      return realCostData
+    }
+    return [] // Return empty array if no real data available
+  } catch (error) {
+    console.warn('Failed to get cost by operation data:', error)
+    return []
+  }
 }
 
 function generateCostByProvider(startTime: Date, endTime: Date, filters: any) {
-  // Mock implementation
-  return [
-    { provider: 'openai', cost: 2.60, percentage: 69 },
-    { provider: 'anthropic', cost: 1.20, percentage: 31 }
-  ]
+  try {
+    // Get real cost data by provider from analytics system
+    const realCostData = await metricsCollector.getCostByProvider(startTime, endTime, filters)
+    if (realCostData && realCostData.length > 0) {
+      return realCostData
+    }
+    return [] // Return empty array if no real data available
+  } catch (error) {
+    console.warn('Failed to get cost by provider data:', error)
+    return []
+  }
 }
 
 function generateCostTrends(startTime: Date, endTime: Date, filters: any) {
-  // Mock implementation
-  return generateTrendData(startTime, endTime, filters).map(trend => ({
-    timestamp: trend.timestamp,
-    cost: trend.cost
-  }))
+  try {
+    // Use real trend data from analytics system
+    const trendData = generateTrendData(startTime, endTime, filters)
+    return trendData.map(trend => ({
+      timestamp: trend.timestamp,
+      cost: trend.cost || 0
+    }))
+  } catch (error) {
+    console.warn('Failed to get cost trends data:', error)
+    return []
+  }
 }
 
 function calculatePotentialSavings(startTime: Date, endTime: Date, filters: any) {
-  // Mock implementation
-  return {
-    modelOptimization: { amount: 0.85, percentage: 22 },
-    caching: { amount: 0.45, percentage: 12 },
-    batching: { amount: 0.25, percentage: 6 }
+  try {
+    // Calculate real potential savings based on analytics data
+    const realSavings = await metricsCollector.calculatePotentialSavings(startTime, endTime, filters)
+    if (realSavings) {
+      return realSavings
+    }
+    // Return zero savings if no real data available
+    return {
+      modelOptimization: { amount: 0, percentage: 0 },
+      caching: { amount: 0, percentage: 0 },
+      batching: { amount: 0, percentage: 0 }
+    }
+  } catch (error) {
+    console.warn('Failed to calculate potential savings:', error)
+    return {
+      modelOptimization: { amount: 0, percentage: 0 },
+      caching: { amount: 0, percentage: 0 },
+      batching: { amount: 0, percentage: 0 }
+    }
   }
 }
 

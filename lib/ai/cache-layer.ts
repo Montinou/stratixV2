@@ -1,8 +1,10 @@
 import { createHash } from 'crypto'
+import { aiCacheManager } from '@/lib/redis/cache-manager'
 
 /**
- * AI Cache Layer - Simple in-memory cache for AI responses
- * This helps reduce costs by caching frequent requests
+ * AI Cache Layer - Multi-tier cache implementation with Redis optimization
+ * L1: In-memory (5min) -> L2: Redis (1hr) -> L3: Database (24hr)
+ * Optimized for free tier usage with compression and efficient eviction
  */
 
 interface CacheEntry<T = any> {
@@ -20,16 +22,20 @@ interface CacheOptions {
 
 export class AICacheLayer {
   private static instance: AICacheLayer
-  private cache = new Map<string, CacheEntry>()
+  private legacyCache = new Map<string, CacheEntry>() // Fallback for Redis unavailable
   private readonly defaultTTL = 1000 * 60 * 60 // 1 hour
-  private readonly maxSize = 1000 // Maximum cache entries
+  private readonly maxSize = 500 // Reduced for Redis optimization
   private cleanupInterval: NodeJS.Timeout | null = null
+  private useRedis = true
 
   private constructor() {
-    // Start cleanup interval every 10 minutes
+    // Start cleanup interval every 15 minutes (reduced frequency for Redis)
     this.cleanupInterval = setInterval(() => {
       this.cleanup()
-    }, 10 * 60 * 1000)
+    }, 15 * 60 * 1000)
+
+    // Check Redis availability
+    this.checkRedisAvailability()
   }
 
   public static getInstance(): AICacheLayer {
@@ -51,23 +57,40 @@ export class AICacheLayer {
   }
 
   /**
-   * Store data in cache
+   * Store data in cache (using multi-tier strategy)
    */
-  public set<T>(
+  public async set<T>(
     operation: string,
     params: any,
     data: T,
     options: CacheOptions = {}
-  ): void {
+  ): Promise<void> {
+    if (this.useRedis) {
+      try {
+        // Use multi-tier cache manager
+        const customTTL = options.ttl ? {
+          l1: Math.min(options.ttl, 5 * 60 * 1000), // Max 5min for L1
+          l2: Math.min(options.ttl, 60 * 60 * 1000), // Max 1hr for L2
+          l3: options.ttl // Full TTL for L3
+        } : undefined
+
+        await aiCacheManager.set(operation, params, data, customTTL)
+        return
+      } catch (error) {
+        console.warn('⚠️ Redis cache set failed, using fallback:', error)
+        this.useRedis = false
+      }
+    }
+
+    // Fallback to legacy in-memory cache
     const key = this.generateKey(operation, params)
     const ttl = options.ttl || this.defaultTTL
 
-    // Check if we need to evict old entries
-    if (this.cache.size >= this.maxSize) {
+    if (this.legacyCache.size >= this.maxSize) {
       this.evictOldest()
     }
 
-    this.cache.set(key, {
+    this.legacyCache.set(key, {
       data,
       timestamp: new Date(),
       ttl,
@@ -77,11 +100,22 @@ export class AICacheLayer {
   }
 
   /**
-   * Get data from cache
+   * Get data from cache (using multi-tier strategy)
    */
-  public get<T>(operation: string, params: any): T | null {
+  public async get<T>(operation: string, params: any): Promise<T | null> {
+    if (this.useRedis) {
+      try {
+        // Use multi-tier cache manager
+        return await aiCacheManager.get<T>(operation, params)
+      } catch (error) {
+        console.warn('⚠️ Redis cache get failed, using fallback:', error)
+        this.useRedis = false
+      }
+    }
+
+    // Fallback to legacy in-memory cache
     const key = this.generateKey(operation, params)
-    const entry = this.cache.get(key)
+    const entry = this.legacyCache.get(key)
 
     if (!entry) {
       return null
@@ -91,7 +125,7 @@ export class AICacheLayer {
     const now = Date.now()
     const entryTime = entry.timestamp.getTime()
     if (now - entryTime > entry.ttl) {
-      this.cache.delete(key)
+      this.legacyCache.delete(key)
       return null
     }
 
@@ -102,11 +136,21 @@ export class AICacheLayer {
   }
 
   /**
-   * Check if data exists in cache
+   * Check if data exists in cache (using multi-tier strategy)
    */
-  public has(operation: string, params: any): boolean {
+  public async has(operation: string, params: any): Promise<boolean> {
+    if (this.useRedis) {
+      try {
+        return await aiCacheManager.has(operation, params)
+      } catch (error) {
+        console.warn('⚠️ Redis cache has failed, using fallback:', error)
+        this.useRedis = false
+      }
+    }
+
+    // Fallback to legacy in-memory cache
     const key = this.generateKey(operation, params)
-    const entry = this.cache.get(key)
+    const entry = this.legacyCache.get(key)
 
     if (!entry) {
       return false
@@ -116,7 +160,7 @@ export class AICacheLayer {
     const now = Date.now()
     const entryTime = entry.timestamp.getTime()
     if (now - entryTime > entry.ttl) {
-      this.cache.delete(key)
+      this.legacyCache.delete(key)
       return false
     }
 
@@ -124,28 +168,51 @@ export class AICacheLayer {
   }
 
   /**
-   * Delete specific cache entry
+   * Delete specific cache entry (using multi-tier strategy)
    */
-  public delete(operation: string, params: any): boolean {
+  public async delete(operation: string, params: any): Promise<boolean> {
+    if (this.useRedis) {
+      try {
+        return await aiCacheManager.delete(operation, params)
+      } catch (error) {
+        console.warn('⚠️ Redis cache delete failed, using fallback:', error)
+        this.useRedis = false
+      }
+    }
+
+    // Fallback to legacy in-memory cache
     const key = this.generateKey(operation, params)
-    return this.cache.delete(key)
+    return this.legacyCache.delete(key)
   }
 
   /**
-   * Clear all cache entries
+   * Clear all cache entries (using multi-tier strategy)
    */
-  public clear(): void {
-    this.cache.clear()
+  public async clear(): Promise<void> {
+    if (this.useRedis) {
+      try {
+        await aiCacheManager.clear()
+        return
+      } catch (error) {
+        console.warn('⚠️ Redis cache clear failed, using fallback:', error)
+        this.useRedis = false
+      }
+    }
+
+    // Fallback to legacy in-memory cache
+    this.legacyCache.clear()
   }
 
   /**
-   * Clear cache entries by tag
+   * Clear cache entries by tag (legacy fallback only)
    */
   public clearByTag(tag: string): number {
+    // Note: Tag-based clearing not implemented in Redis layer for efficiency
+    // Use operation-specific clears instead
     let deleted = 0
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, entry] of this.legacyCache.entries()) {
       if (entry.tags && entry.tags.includes(tag)) {
-        this.cache.delete(key)
+        this.legacyCache.delete(key)
         deleted++
       }
     }
@@ -153,19 +220,30 @@ export class AICacheLayer {
   }
 
   /**
-   * Get cache statistics
+   * Get cache statistics (enhanced with Redis stats)
    */
-  public getStats(): {
+  public async getStats(): Promise<{
     size: number
     maxSize: number
     hitRate: number
+    redisStats?: any
     entries: Array<{
       operation: string
       hits: number
       age: number
       ttl: number
     }>
-  } {
+  }> {
+    // Get Redis stats if available
+    let redisStats
+    if (this.useRedis) {
+      try {
+        redisStats = await aiCacheManager.getStats()
+      } catch (error) {
+        console.warn('⚠️ Failed to get Redis stats:', error)
+      }
+    }
+
     const entries: Array<{
       operation: string
       hits: number
@@ -176,7 +254,8 @@ export class AICacheLayer {
     let totalHits = 0
     const now = Date.now()
 
-    for (const [key, entry] of this.cache.entries()) {
+    // Use legacy cache for detailed entries (Redis abstraction doesn't expose individual entries)
+    for (const [key, entry] of this.legacyCache.entries()) {
       totalHits += entry.hits
       entries.push({
         operation: key.substring(0, 20) + '...', // Truncated key for display
@@ -189,12 +268,14 @@ export class AICacheLayer {
     // Sort by hits (most popular first)
     entries.sort((a, b) => b.hits - a.hits)
 
-    const hitRate = this.cache.size > 0 ? totalHits / this.cache.size : 0
+    const hitRate = redisStats?.total?.hitRate ||
+      (this.legacyCache.size > 0 ? totalHits / this.legacyCache.size : 0)
 
     return {
-      size: this.cache.size,
+      size: redisStats?.l1?.size || this.legacyCache.size,
       maxSize: this.maxSize,
       hitRate,
+      redisStats,
       entries: entries.slice(0, 10) // Top 10 entries
     }
   }
@@ -202,33 +283,57 @@ export class AICacheLayer {
   /**
    * Clean up expired entries
    */
-  private cleanup(): void {
+  private async cleanup(): Promise<void> {
+    if (this.useRedis) {
+      try {
+        await aiCacheManager.cleanup()
+        return
+      } catch (error) {
+        console.warn('⚠️ Redis cleanup failed, cleaning legacy cache:', error)
+      }
+    }
+
+    // Cleanup legacy cache
     const now = Date.now()
     const toDelete: string[] = []
 
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, entry] of this.legacyCache.entries()) {
       if (now - entry.timestamp.getTime() > entry.ttl) {
         toDelete.push(key)
       }
     }
 
-    toDelete.forEach(key => this.cache.delete(key))
+    toDelete.forEach(key => this.legacyCache.delete(key))
 
     if (toDelete.length > 0) {
-      console.log(`AI Cache: Cleaned up ${toDelete.length} expired entries`)
+      console.log(`AI Cache: Cleaned up ${toDelete.length} expired legacy entries`)
     }
   }
 
   /**
-   * Evict oldest entries when cache is full
+   * Check Redis availability
+   */
+  private async checkRedisAvailability(): Promise<void> {
+    try {
+      await aiCacheManager.getStats()
+      this.useRedis = true
+      console.log('✅ AI Cache: Redis multi-tier caching enabled')
+    } catch (error) {
+      this.useRedis = false
+      console.warn('⚠️ AI Cache: Using fallback in-memory cache only', error)
+    }
+  }
+
+  /**
+   * Evict oldest entries when cache is full (legacy fallback)
    */
   private evictOldest(): void {
-    if (this.cache.size === 0) return
+    if (this.legacyCache.size === 0) return
 
     let oldestKey: string | null = null
     let oldestTime = Date.now()
 
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, entry] of this.legacyCache.entries()) {
       if (entry.timestamp.getTime() < oldestTime) {
         oldestTime = entry.timestamp.getTime()
         oldestKey = key
@@ -236,19 +341,28 @@ export class AICacheLayer {
     }
 
     if (oldestKey) {
-      this.cache.delete(oldestKey)
+      this.legacyCache.delete(oldestKey)
     }
   }
 
   /**
    * Destroy cache and cleanup intervals
    */
-  public destroy(): void {
+  public async destroy(): Promise<void> {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval)
       this.cleanupInterval = null
     }
-    this.cache.clear()
+
+    if (this.useRedis) {
+      try {
+        await aiCacheManager.clear()
+      } catch (error) {
+        console.warn('⚠️ Failed to clear Redis cache on destroy:', error)
+      }
+    }
+
+    this.legacyCache.clear()
   }
 }
 
@@ -256,7 +370,7 @@ export class AICacheLayer {
 export const aiCache = AICacheLayer.getInstance()
 
 /**
- * Decorator function to add caching to AI operations
+ * Decorator function to add caching to AI operations (Redis-optimized)
  */
 export function withCache<T extends any[], R>(
   operation: string,
@@ -267,7 +381,7 @@ export function withCache<T extends any[], R>(
     const cache = AICacheLayer.getInstance()
 
     // Try to get from cache first
-    const cached = cache.get<R>(operation, args)
+    const cached = await cache.get<R>(operation, args)
     if (cached !== null) {
       console.log(`AI Cache hit for operation: ${operation}`)
       return cached
@@ -276,7 +390,7 @@ export function withCache<T extends any[], R>(
     // Execute function and cache result
     try {
       const result = await fn(...args)
-      cache.set(operation, args, result, options)
+      await cache.set(operation, args, result, options)
       console.log(`AI Cache miss - stored result for operation: ${operation}`)
       return result
     } catch (error) {

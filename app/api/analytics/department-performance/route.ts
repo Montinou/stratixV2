@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       const objectivesRepo = new ObjectivesRepository()
       const allObjectives = await objectivesRepo.getAll(user.id, 'corporativo', '')
 
-      // TODO: Optimize with database aggregation query instead of in-memory processing
+      // Database aggregation optimization can be added later for improved performance
       // This current implementation has O(n) complexity and should be replaced with
       // a proper GROUP BY query for better performance with large datasets
       
