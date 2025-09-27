@@ -146,87 +146,128 @@ export class AnalyticsEngine {
   async getAnalyticsData(request: AnalyticsRequest, userId: string): Promise<OKRAnalyticsData> {
     const { timeRange, okrIds, teamId } = request
 
-    // Build query filters
-    const objectiveFilters = [
-      gte(objectives.created_at, timeRange.start),
-      lte(objectives.created_at, timeRange.end)
-    ]
-
-    // Apply additional filters based on request
-    if (okrIds && okrIds.length > 0) {
-      objectiveFilters.push(inArray(objectives.id, okrIds))
-    }
-
-    if (teamId) {
-      objectiveFilters.push(eq(objectives.department, teamId))
-    }
-
     try {
+      // Build base query conditions
+      const conditions = [
+        gte(objectives.createdAt, timeRange.start),
+        lte(objectives.createdAt, timeRange.end)
+      ]
+
+      // Apply filters based on request
+      if (okrIds && okrIds.length > 0) {
+        conditions.push(inArray(objectives.id, okrIds))
+      }
+
+      if (teamId) {
+        conditions.push(eq(objectives.department, teamId))
+      }
+
       // Get objectives with owner profiles
       const objectivesData = await this.db
-        .select()
+        .select({
+          objective: objectives,
+          owner: profiles
+        })
         .from(objectives)
-        .leftJoin(profiles, eq(objectives.owner_id, profiles.id))
-        .where(and(...objectiveFilters))
+        .leftJoin(profiles, eq(objectives.ownerId, profiles.userId))
+        .where(and(...conditions))
 
-      const objectiveIds = objectivesData.map(row => row.objectives.id)
+      const objectiveIds = objectivesData.map(obj => obj.objective.id)
 
-      // Get related initiatives
-      const initiativesData = objectiveIds.length > 0
-        ? await this.db
-            .select()
-            .from(initiatives)
-            .leftJoin(profiles, eq(initiatives.owner_id, profiles.id))
-            .leftJoin(objectives, eq(initiatives.objective_id, objectives.id))
-            .where(inArray(initiatives.objective_id, objectiveIds))
-        : []
+      // Get related initiatives if we have objectives
+      let initiativesData: any[] = []
+      if (objectiveIds.length > 0) {
+        initiativesData = await this.db
+          .select({
+            initiative: initiatives,
+            owner: profiles,
+            objective: objectives
+          })
+          .from(initiatives)
+          .leftJoin(profiles, eq(initiatives.ownerId, profiles.userId))
+          .leftJoin(objectives, eq(initiatives.objectiveId, objectives.id))
+          .where(inArray(initiatives.objectiveId, objectiveIds))
+      }
 
-      const initiativeIds = initiativesData.map(row => row.initiatives.id)
+      const initiativeIds = initiativesData.map(init => init.initiative.id)
 
-      // Get related activities
-      const activitiesData = initiativeIds.length > 0
-        ? await this.db
-            .select()
-            .from(activities)
-            .leftJoin(profiles, eq(activities.owner_id, profiles.id))
-            .leftJoin(initiatives, eq(activities.initiative_id, initiatives.id))
-            .where(inArray(activities.initiative_id, initiativeIds))
-        : []
-
-      // Get unique owner IDs
-      const ownerIds = new Set<string>()
-      objectivesData.forEach(row => row.objectives.owner_id && ownerIds.add(row.objectives.owner_id))
-      initiativesData.forEach(row => row.initiatives.owner_id && ownerIds.add(row.initiatives.owner_id))
-      activitiesData.forEach(row => row.activities.owner_id && ownerIds.add(row.activities.owner_id))
-      const allOwnerIds = Array.from(ownerIds)
+      // Get related activities if we have initiatives
+      let activitiesData: any[] = []
+      if (initiativeIds.length > 0) {
+        activitiesData = await this.db
+          .select({
+            activity: activities,
+            owner: profiles,
+            initiative: initiatives
+          })
+          .from(activities)
+          .leftJoin(profiles, eq(activities.assignedTo, profiles.userId))
+          .leftJoin(initiatives, eq(activities.initiativeId, initiatives.id))
+          .where(inArray(activities.initiativeId, initiativeIds))
+      }
 
       // Get unique profiles
-      const profilesData = allOwnerIds.length > 0
-        ? await this.db
-            .select()
-            .from(profiles)
-            .where(inArray(profiles.id, allOwnerIds))
-        : []
+      const ownerIds = new Set<string>()
+      objectivesData.forEach(obj => obj.objective.ownerId && ownerIds.add(obj.objective.ownerId))
+      initiativesData.forEach(init => init.initiative.ownerId && ownerIds.add(init.initiative.ownerId))
+      activitiesData.forEach(act => act.activity.assignedTo && ownerIds.add(act.activity.assignedTo))
+      const allOwnerIds = Array.from(ownerIds)
 
-      // Extract data from joined results
-      const objectivesList = objectivesData.map(row => row.objectives)
-      const initiativesList = initiativesData.map(row => row.initiatives)
-      const activitiesList = activitiesData.map(row => row.activities)
-      const profilesList = profilesData
+      let profilesData: any[] = []
+      if (allOwnerIds.length > 0) {
+        profilesData = await this.db
+          .select()
+          .from(profiles)
+          .where(inArray(profiles.userId, allOwnerIds))
+      }
+
+      // Transform data to match expected format
+      const objectivesResult = objectivesData.map(obj => ({
+        ...obj.objective,
+        owner_id: obj.objective.ownerId,
+        start_date: obj.objective.startDate?.toISOString() || new Date().toISOString(),
+        end_date: obj.objective.endDate?.toISOString() || new Date().toISOString(),
+        created_at: obj.objective.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: obj.objective.updatedAt?.toISOString() || new Date().toISOString()
+      }))
+
+      const initiativesResult = initiativesData.map(init => ({
+        ...init.initiative,
+        objective_id: init.initiative.objectiveId,
+        owner_id: init.initiative.ownerId,
+        start_date: init.initiative.startDate?.toISOString() || new Date().toISOString(),
+        end_date: init.initiative.endDate?.toISOString() || new Date().toISOString(),
+        created_at: init.initiative.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: init.initiative.updatedAt?.toISOString() || new Date().toISOString()
+      }))
+
+      const activitiesResult = activitiesData.map(act => ({
+        ...act.activity,
+        initiative_id: act.activity.initiativeId,
+        assigned_to: act.activity.assignedTo,
+        due_date: act.activity.dueDate?.toISOString() || new Date().toISOString(),
+        created_at: act.activity.createdAt?.toISOString() || new Date().toISOString(),
+        updated_at: act.activity.updatedAt?.toISOString() || new Date().toISOString()
+      }))
 
       // For now, we'll simulate historical progress data
       // In a real implementation, this would come from a progress_snapshots table
-      const historical_progress = this.generateHistoricalProgressData(objectivesList, initiativesList, activitiesList)
+      const historical_progress = this.generateHistoricalProgressData(
+        objectivesResult,
+        initiativesResult,
+        activitiesResult
+      )
 
       return {
-        objectives: objectivesList,
-        initiatives: initiativesList,
-        activities: activitiesList,
-        profiles: profilesList,
+        objectives: objectivesResult,
+        initiatives: initiativesResult,
+        activities: activitiesResult,
+        profiles: profilesData,
         historical_progress
       }
     } catch (error) {
-      throw new Error(`Failed to fetch analytics data: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Error fetching analytics data:', error)
+      throw error
     }
   }
 

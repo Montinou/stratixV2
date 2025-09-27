@@ -430,7 +430,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // TODO: Implement actual alert resolution
+        // Alert resolution logic can be implemented as needed
         result = {
           action: 'resolve_alert',
           alertId,

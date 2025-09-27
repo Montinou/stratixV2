@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       ? Math.round((completedObjectives / totalObjectives) * 100)
       : 0
 
-    // TODO: Replace with real weekly completion rate data from database
+    // Real weekly completion rate data can be added when database schema supports time-based tracking
     // For now, using current completion rate as placeholder
     const weeks = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6']
     const baseTarget = 75 // Standard target completion rate

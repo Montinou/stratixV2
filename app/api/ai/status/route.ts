@@ -74,7 +74,8 @@ export async function GET(request: NextRequest) {
         hitRate: 0,
         totalRequests: 0,
         totalHits: 0,
-        totalMisses: 0
+        totalMisses: 0,
+        entries: []
       },
       rateLimiting: {
         status: 'unknown',
