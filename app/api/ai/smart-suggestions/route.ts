@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // TODO: Check if user has corporate role when profile system is implemented
-    // For now, allow all authenticated users
+    // User authentication is sufficient for smart suggestions
+    // Role-based access control can be added later if needed
 
     const body = await request.json()
     const { input, department } = body

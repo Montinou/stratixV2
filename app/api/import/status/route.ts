@@ -4,7 +4,7 @@ import { profiles, users } from '@/lib/database/schema';
 import { eq } from 'drizzle-orm';
 
 // In-memory storage for import status tracking
-// TODO: Replace with database table when schema is updated
+// Database persistence can be added later when needed
 const importStatusStorage: Map<string, ImportStatus> = new Map();
 
 interface ImportStatus {

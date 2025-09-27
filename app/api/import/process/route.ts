@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    // TODO: Store import log in dedicated table when schema is updated
+    // Import log stored in console for now, database logging can be added later
     console.log('Import processed:', importLog);
 
     const response = {

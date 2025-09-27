@@ -32,6 +32,9 @@ const environmentSchema = z.object({
   // Environment
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
+  // Redis Configuration
+  REDIS_URL: z.string().url('REDIS_URL must be a valid Redis URL').optional(),
+
   // Optional configurations
   VERCEL_OIDC_TOKEN: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
@@ -113,6 +116,38 @@ export function validateAIGatewayConfig(): boolean {
 }
 
 /**
+ * Check if Redis configuration is properly set up
+ */
+export function validateRedisConfig(): boolean {
+  try {
+    if (!process.env.REDIS_URL) {
+      console.warn('⚠️ REDIS_URL not configured - Redis caching will be disabled');
+      return false;
+    }
+
+    // Validate REDIS_URL format
+    try {
+      new URL(process.env.REDIS_URL);
+    } catch {
+      console.error('❌ REDIS_URL is not a valid URL');
+      return false;
+    }
+
+    // Check for common Redis URL patterns
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl.startsWith('redis://') && !redisUrl.startsWith('rediss://')) {
+      console.warn('⚠️ REDIS_URL should start with redis:// or rediss://');
+    }
+
+    console.log('✅ Redis configuration is valid');
+    return true;
+  } catch (error) {
+    console.error('❌ Redis configuration validation failed:', error);
+    return false;
+  }
+}
+
+/**
  * Check if database configuration is properly set up
  */
 export function validateDatabaseConfig(): boolean {
@@ -176,6 +211,11 @@ export function performFullValidation(): {
     errors.push('Database configuration is invalid');
   }
 
+  // Check Redis configuration (optional - warning only)
+  if (!validateRedisConfig()) {
+    warnings.push('Redis configuration is invalid or missing - caching will be limited');
+  }
+
   // Check for missing authenticated database URL (used for RLS)
   if (!process.env.DATABASE_AUTHENTICATED_URL) {
     warnings.push('DATABASE_AUTHENTICATED_URL is missing - RLS features may not work');
@@ -204,6 +244,7 @@ export function getEnvironmentStatus() {
     hasAuthConfig: !!process.env.NEXT_PUBLIC_STACK_PROJECT_ID,
     hasAIGateway: !!process.env.AI_GATEWAY_API_KEY,
     hasDatabase: !!process.env.DATABASE_URL,
+    hasRedis: !!process.env.REDIS_URL,
     hasNeonConfig: !!(process.env.NEON_API_KEY && process.env.NEON_PROJECT_ID),
     timestamp: new Date().toISOString()
   };

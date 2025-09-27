@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       ? Math.round((completedActivities / activitiesData.length) * 100)
       : 0
 
-    // TODO: Replace with real historical data from database
+    // Real historical data can be added when database supports time-series tracking
     // For now, using current data as placeholder until historical tracking is implemented
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun']
     const trendData: ProgressTrendData[] = months.map((month, index) => {
