@@ -1,118 +1,196 @@
 ---
 created: 2025-09-24T05:32:18Z
-last_updated: 2025-09-24T05:32:18Z
-version: 1.0
+last_updated: 2025-09-27T05:59:12Z
+version: 2.0
 author: Claude Code PM System
 ---
 
 # Product Context
 
-## Product Identity
+## Product Identity & Vision
 
 ### Core Product
-**OKR Management Application** - A comprehensive Objectives and Key Results management system built for strategic planning and performance tracking.
+**StratixV2** - Plataforma de gestión de OKRs potenciada por IA que transforma la planificación estratégica organizacional mediante asistencia inteligente y experiencias conversacionales.
 
-### Product Name
-**StratixV2** - Second version/iteration of strategic management platform
+### Product Vision
+Una plataforma OKR completamente en español que usa IA para eliminar la complejidad de la planificación estratégica, permitiendo que organizaciones configuren y gestionen sus objetivos en menos de 5 minutos con asistencia conversacional inteligente.
 
-## Target Users & Personas
+### Spanish-First Platform
+- **Idioma Nativo**: Toda la plataforma desarrollada en español desde el inicio
+- **Experiencia Local**: Diseñada para organizaciones hispanohablantes
+- **UX Cultural**: Adaptada a prácticas empresariales regionales
 
-### Primary Users (Inferred)
-- **Team Leaders**: Managing team objectives and key results
-- **Product Managers**: Tracking strategic initiatives and outcomes
-- **Executives**: Monitoring organizational goal achievement
-- **Individual Contributors**: Tracking personal and team objectives
+## Current Implementation Focus: AI-Powered Onboarding
 
-### Use Cases
-Based on recent development focus:
-- **Objective Setting**: Define and structure organizational objectives
-- **Activity Tracking**: Monitor progress on key activities
-- **Performance Insights**: Analyze goal achievement and trends
-- **Team Alignment**: Ensure everyone is working toward common goals
+### 🎯 3 PRDs en Implementación Activa
 
-## Core Functionality
+#### 1. Motor de AI Completo (Foundation - Alta Prioridad)
+- **PRD**: `.claude/prds/motor-ai-completo.md`
+- **Epic**: `.claude/epics/motor-ai-completo/epic.md`
+- **Tecnología**: Vercel AI Gateway + Gemini 2.0 Flash
+- **Objetivo**: Foundation escalable para todas las funcionalidades de IA
+- **Características Clave**:
+  - Generación de plantillas OKR por industria
+  - Asistente conversacional integrado
+  - Motor de insights y analytics automatizados
+  - Arquitectura costo-efectiva con caching agresivo
+- **Duración**: 8 semanas
+- **Dependencias**: AI_GATEWAY_API_KEY (ya configurada)
 
-### Key Features (Inferred from Dependencies)
-- **Dashboard & Analytics**: Data visualization with Recharts
-- **Form-Based Input**: Complex forms with validation (React Hook Form + Zod)
-- **Data Import/Export**: CSV and Excel file processing capabilities
-- **Real-time Updates**: NeonDB-powered real-time functionality
-- **User Authentication**: Secure access with role-based permissions
-- **Theme Support**: Light/dark mode for user preference
+#### 2. Frontend de Onboarding con IA (UI Experience - Alta Prioridad)
+- **PRD**: `.claude/prds/frontend-onboarding-ai.md`
+- **Epic**: `.claude/epics/frontend-onboarding-ai/epic.md`
+- **Tecnología**: Next.js 14 + shadcn/ui + integración IA
+- **Objetivo**: Wizard elegante de onboarding en 3 pasos con IA integrada
+- **Características Clave**:
+  - Pantalla de bienvenida con propuesta de valor
+  - Configuración inteligente de organización con sugerencias IA
+  - Creación conversacional de OKRs
+  - Chat flotante de asistencia IA
+- **Duración**: 3 semanas
+- **Dependencias**: Motor AI foundation
 
-### Business Logic Areas
-Based on recent commits and codebase:
-- **Objectives Management**: Setting and tracking strategic objectives
-- **Activities Coordination**: Managing specific activities tied to objectives
-- **Insights Generation**: Performance analytics and reporting
-- **User Authentication**: Secure access and session management
+#### 3. Sistema de Invitaciones Brevo (Team Growth - Media Prioridad)
+- **PRD**: `.claude/prds/sistema-invitaciones-brevo.md`
+- **Epic**: `.claude/epics/sistema-invitaciones-brevo/epic.md`
+- **Tecnología**: Brevo API + PostgreSQL + Stack Auth
+- **Objetivo**: Sistema completo de invitaciones usando infraestructura Brevo existente
+- **Características Clave**:
+  - Formularios de invitación multi-email
+  - Tracking automático y recordatorios
+  - Aceptación de invitaciones basada en roles
+  - Integración con Stack Auth
+- **Duración**: 4 semanas
+- **Dependencias**: BREVO_API_KEY (ya configuradas)
 
-## Value Proposition
+## Target Users & Journey
 
-### Problem Being Solved
-- **Strategic Misalignment**: Teams working without clear direction
-- **Progress Invisibility**: Difficulty tracking objective achievement
-- **Manual Processes**: Inefficient spreadsheet-based OKR management
-- **Data Fragmentation**: Scattered information across multiple tools
+### Primary Personas for AI-Powered Onboarding
 
-### Solution Approach
-- **Centralized Platform**: Single source of truth for all objectives
-- **Real-time Collaboration**: Team-based objective management
-- **Data-Driven Insights**: Analytics for performance optimization
-- **User-Friendly Interface**: Modern, accessible design
+#### 1. Administrador Corporativo (Creador de Organización)
+- **Contexto**: Primera vez configurando OKRs organizacionales
+- **Necesidad**: Proceso simple y asistido por IA
+- **Journey**: Bienvenida (30s) → Configuración IA (2min) → Primer OKR con IA (2min) → Invitaciones (30s)
+- **Criterio de Éxito**: Organización completa en <5 minutos
 
-## Success Criteria
+#### 2. Gerente de Equipo (Invitado con Responsabilidades)
+- **Contexto**: Invitado para gestionar iniciativas y equipo
+- **Necesidad**: Entender capacidades de gestión y colaboración
+- **Journey**: Invitación → Configuración de rol → Creación de iniciativas → Invitación de reportes directos
+- **Criterio de Éxito**: Equipo activo en primera semana
 
-### Technical Success
-- **Performance**: Fast, responsive application with minimal loading times
-- **Reliability**: Stable operation without infinite loops or crashes
-- **Usability**: Intuitive interface requiring minimal training
-- **Integration**: Seamless data import/export capabilities
+#### 3. Miembro de Equipo (Empleado Individual)
+- **Contexto**: Invitado para contribuir a objetivos organizacionales
+- **Necesidad**: Onboarding simple enfocado en su rol
+- **Journey**: Invitación → Configuración de perfil → Asignación de actividades → Primera contribución
+- **Criterio de Éxito**: Primera actividad completada en 24 horas
 
-### Business Success
-- **User Adoption**: High engagement with objective-setting features
-- **Data Quality**: Accurate, up-to-date objective tracking
-- **Decision Support**: Actionable insights from performance data
-- **Process Efficiency**: Reduced time spent on OKR administration
+## Value Proposition: AI-Enhanced OKR Platform
 
-## Recent Development Focus
+### Problema Actual
+- **Dashboard Vacío**: Nuevos usuarios llegan sin orientación
+- **Complejidad Excesiva**: Configuración manual intimidante
+- **Falta de Guidance**: Sin asistencia para mejores prácticas OKR
+- **Proceso Fragmentado**: Configuración, invitaciones y primeros OKRs desconectados
 
-### Stability Improvements
-Recent commits show focus on:
-- **Bug Resolution**: Fixing infinite loop patterns
-- **Authentication Reliability**: Stable user session management
-- **Page Performance**: Optimizing objectives and activities pages
+### Solución AI-Powered
+- **Asistente IA Conversacional**: Guidance paso a paso en español
+- **Generación Inteligente**: Plantillas OKR por industria con Gemini 2.0 Flash
+- **Configuración Automática**: IA sugiere estructura organizacional
+- **Experiencia Unificada**: Onboarding completo en una sesión
+
+### Differentiators Clave
+1. **Spanish-First**: Única plataforma OKR nativa en español con IA
+2. **Speed to Value**: <5 minutos desde registro hasta primer OKR
+3. **AI-Guided**: Asistencia conversacional en cada paso
+4. **Industry-Specific**: Plantillas especializadas por sector
+
+## Success Criteria & KPIs
+
+### Métricas Principales (AI-Enhanced Onboarding)
+- **Tasa de Activación**: >90% usuarios completan configuración (vs 30% actual)
+- **Tiempo hasta Primer Valor**: <5 minutos desde registro
+- **Tasa de Finalización**: >95% completan wizard de 3 pasos
+- **Interacción con IA**: >60% usuarios interactúan con asistente IA
+- **Satisfacción con IA**: >4.7/5 en utilidad de asistencia inteligente
+
+### Métricas de Adoption
+- **Retención Primera Semana**: >80% usuarios regresan en 7 días
+- **Configuración de Equipos**: Organizaciones 5+ miembros setup en <24 horas
+- **Uso de Plantillas IA**: >85% aceptan sugerencias generadas por IA
+- **Invitaciones Enviadas**: >70% administradores invitan equipo durante onboarding
+
+### Métricas Técnicas
+- **Performance IA**: <3s respuesta para 95% requests
+- **Costo IA**: <$0.10 por OKR generado
+- **Disponibilidad**: >99.5% uptime para servicios IA
+- **Cache Hit Ratio**: >70% queries IA desde cache
+
+## Technology Foundation
+
+### AI Infrastructure (Motor AI Completo)
+- **Vercel AI Gateway**: Cliente unificado para todas las funcionalidades IA
+- **Gemini 2.0 Flash**: Modelo principal por costo-efectividad
+- **Caching Agresivo**: Minimizar costos API con cache inteligente
+- **Rate Limiting**: Control de costos por usuario y organización
+
+### Frontend Stack (Onboarding IA)
+- **Next.js 14**: App Router con React Server Components
+- **shadcn/ui**: Sistema de componentes con Radix UI primitives
+- **Spanish Localization**: Todo el contenido nativo en español
+- **Progressive Enhancement**: Funciona sin IA, enhanced con IA
+
+### Integration Layer (Invitaciones Brevo)
+- **Brevo API**: Email transaccional confiable
+- **PostgreSQL**: Tracking de estados y eventos de invitación
+- **Stack Auth**: Integración seamless con sistema actual
+- **JWT Tokens**: Seguridad para links de invitación
+
+## Implementation Strategy: 3-Phase Approach
+
+### Fase 1: AI Foundation (Semanas 1-4)
+**Focus**: Motor AI Completo
+- Establecer Vercel AI Gateway client
+- Implementar generación de plantillas OKR
+- Crear base del asistente conversacional
+- Setup tracking de costos y monitoreo
+
+### Fase 2: Enhanced Onboarding (Semanas 5-7)
+**Focus**: Frontend Onboarding AI (depende de Fase 1)
+- Construir componentes de wizard interface
+- Integrar asistencia IA throughout el flujo
+- Implementar smart form suggestions
+- Polish de experiencia de usuario
+
+### Fase 3: Team Expansion (Semanas 6-9, Paralelo)
+**Focus**: Sistema Invitaciones Brevo (independiente)
+- Desarrollar sistema de gestión de invitaciones
+- Implementar automatización de emails
+- Crear flujo de aceptación
+- Testing end-to-end del proceso
+
+## Risk Mitigation & Quality Gates
+
+### Control de Costos IA
+- **Caching Agresivo**: Smart caching para minimizar API calls
+- **Rate Limiting**: Por usuario y organización
+- **Budget Alerts**: Monitoreo automático de costos
+- **Fallback Graceful**: Funcionalidad sin IA disponible
 
 ### Quality Assurance
-- **Error Prevention**: Implementing defensive programming patterns
-- **User Experience**: Ensuring smooth application flow
-- **Data Integrity**: Maintaining consistent application state
+- **Feature Flags**: Rollout gradual de funcionalidades IA
+- **A/B Testing**: Comparación onboarding con/sin IA
+- **Performance Monitoring**: <3s response time requirement
+- **User Feedback**: Rating system para respuestas IA
 
-## Integration Requirements
-
-### Data Sources
-- **File Imports**: Support for CSV and Excel data imports
-- **User Input**: Form-based manual data entry
-- **Real-time Updates**: Live collaboration features
-
-### External Dependencies
-- **NeonDB**: PostgreSQL 17.5 database infrastructure
-- **Stack Auth (NeonAuth)**: Modern authentication system
-- **Vercel**: Hosting and deployment platform with automated CI/CD
-- **Analytics**: Performance monitoring and user insights
-
-## Recent Infrastructure Enhancements
-
-### Enhanced Reliability & Performance (2025-09-24)
-- **Automated CI/CD Pipeline**: Pre-build database migration with health validation
-- **Rollback Capabilities**: Multi-level rollback system for deployment safety
-- **Database Performance**: Connection pooling and SSL security optimizations
-- **Infrastructure Monitoring**: Continuous health checks and automated error recovery
-
-These infrastructure improvements enhance the application's reliability and performance while maintaining the same user experience and feature set.
+### Infrastructure Resilience
+- **Stateless AI Design**: Scaling horizontal sin problemas
+- **Database Optimization**: Indexing para queries IA frecuentes
+- **Error Recovery**: Retry logic y circuit breakers
+- **Monitoring**: Health checks continuos
 
 ---
 
-**Last Updated**: 2025-09-24T05:32:18Z  
-**Product Focus**: OKR management platform with modern infrastructure  
-**Current Phase**: Post-migration stability and performance optimization
+**Last Updated**: 2025-09-27T05:59:12Z
+**Product Focus**: AI-powered Spanish OKR platform con onboarding inteligente
+**Current Phase**: Implementación activa de 3 PRDs con prioridad en experiencia IA

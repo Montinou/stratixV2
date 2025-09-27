@@ -1,0 +1,227 @@
+---
+name: motor-ai-completo
+status: backlog
+created: 2025-09-27T05:54:13Z
+progress: 0%
+prd: .claude/prds/motor-ai-completo.md
+github: https://github.com/Montinou/stratixV2/issues/55
+---
+
+# Epic: Motor de AI Completo
+
+## Overview
+
+Implementación del motor de IA escalable usando Vercel AI Gateway con Gemini 2.0 Flash como foundation técnica para todas las funcionalidades inteligentes de la plataforma. Se enfoca en crear una arquitectura simple y extensible que aproveche la infraestructura existente, con énfasis en costo-efectividad y mantenibilidad.
+
+## Architecture Decisions
+
+### Core Technology Stack
+- **Vercel AI Gateway**: Cliente unificado usando AI_GATEWAY_API_KEY existente
+- **Gemini 2.0 Flash**: Modelo principal por costo-efectividad y rendimiento
+- **Next.js API Routes**: Aprovecha infraestructura existente de endpoints
+- **PostgreSQL**: Extiende schema actual para caching y analytics de IA
+- **Existing Auth**: Integra con Stack Auth actual sin modificaciones
+
+### Key Technical Decisions
+1. **Unified AI Client**: Un solo cliente que maneja todas las interacciones con IA
+2. **Prompt-based Architecture**: Sistema basado en prompts optimizados vs. fine-tuning
+3. **Leveraging Existing Schema**: Extiende database actual vs. nueva infraestructura
+4. **Cost-first Approach**: Smart caching y rate limiting para controlar costos
+5. **Stateless Design**: Permite scaling horizontal sin estado compartido
+
+## Technical Approach
+
+### Backend Services
+
+#### AI Gateway Client (`/lib/ai/`)
+```typescript
+// Single unified client following AI Gateway Implementation Guide
+- gateway-client.ts: Configures Vercel AI Gateway with fallbacks
+- prompt-manager.ts: Manages industry-specific prompts and templates
+- cache-layer.ts: Intelligent caching to minimize API costs
+- rate-limiter.ts: Per-user and per-org request throttling
+```
+
+#### API Endpoints (`/app/api/ai/`)
+```typescript
+POST /api/ai/generate-okr     // Template generation for onboarding
+POST /api/ai/chat             // Conversational assistant
+POST /api/ai/insights         // Analytics and recommendations
+GET  /api/ai/status           // Health check and cost tracking
+```
+
+#### Database Extensions
+```sql
+-- Minimal schema additions to existing PostgreSQL
+CREATE TABLE ai_interactions (
+    id UUID PRIMARY KEY,
+    user_id UUID REFERENCES users(id),
+    organization_id UUID REFERENCES organizations(id),
+    type VARCHAR(50), -- 'template', 'chat', 'insights'
+    request_data JSONB,
+    response_data JSONB,
+    cost_cents INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE ai_cache (
+    id UUID PRIMARY KEY,
+    cache_key VARCHAR(255) UNIQUE,
+    response_data JSONB,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+### Frontend Components
+
+#### Chat Interface Components
+- Leverage existing shadcn/ui components (Dialog, Input, Button)
+- Floating chat widget with context awareness
+- Streaming response display using existing design system
+
+#### Template Display Components
+- Extend existing OKR forms with AI-generated suggestions
+- Inline suggestion cards that integrate with current UI
+- Progressive enhancement of existing create flows
+
+### Infrastructure
+
+#### Deployment Considerations
+- Uses existing Vercel deployment pipeline
+- Environment variables already configured (AI_GATEWAY_API_KEY)
+- Leverages current NeonDB PostgreSQL instance
+- No additional infrastructure required
+
+#### Scaling Strategy
+- Stateless API design allows horizontal scaling
+- Database connection pooling via existing setup
+- Rate limiting prevents cost overruns
+- Smart caching reduces external API calls
+
+## Implementation Strategy
+
+### Development Phases
+
+#### Phase 1: Foundation (Week 1-2)
+- AI Gateway client setup and configuration
+- Basic API endpoints with authentication
+- Database schema extensions
+- Cost tracking and monitoring
+
+#### Phase 2: Template Engine (Week 3-4)
+- OKR generation prompts and logic
+- Industry-specific template system
+- Integration with existing OKR creation flows
+- Quality validation and caching
+
+#### Phase 3: Chat Assistant (Week 5-6)
+- Conversational interface components
+- Context-aware chat responses
+- Integration with existing help system
+- Streaming response implementation
+
+#### Phase 4: Insights Engine (Week 7-8)
+- Data analysis prompts for OKR metrics
+- Automated insight generation
+- Integration with dashboard analytics
+- Performance optimization
+
+### Risk Mitigation
+- **API Cost Control**: Aggressive caching and rate limiting from day one
+- **Model Dependency**: Designed for easy model switching via gateway
+- **Performance**: Async processing and smart queuing for heavy operations
+- **Quality**: Validation layers and feedback loops for AI outputs
+
+### Testing Approach
+- Unit tests for AI client and prompt logic
+- Integration tests with mock AI responses
+- Cost simulation testing with rate limiting
+- User acceptance testing with AI features disabled by default
+
+## Tasks Created
+
+- [ ] 001.md - AI Gateway Foundation Setup (parallel: true)
+- [ ] 002.md - Database Schema Extensions (parallel: true)
+- [ ] 003.md - Cost Management & Rate Limiting System (parallel: true)
+- [ ] 004.md - OKR Template Generation Engine (parallel: true, depends on: 001)
+- [ ] 005.md - Conversational AI Chat Assistant (parallel: true, depends on: 001)
+- [ ] 006.md - AI Insights and Analytics Engine (parallel: true, depends on: 001)
+- [ ] 007.md - AI Chat Interface Components (parallel: true, depends on: 005)
+- [ ] 008.md - AI-Enhanced OKR Creation Integration (parallel: true, depends on: 004)
+- [ ] 009.md - AI Performance Optimization & Caching Strategy (parallel: false, depends on: 001,002,004,005,006)
+- [ ] 010.md - AI System Testing & Documentation (parallel: false, depends on: 001,002,004,005,006,007,008)
+
+**Total tasks**: 10
+**Parallel tasks**: 8 (tasks 001-008 can run in parallel within their dependency groups)
+**Sequential tasks**: 2 (tasks 009-010 require completion of earlier tasks)
+**Estimated total effort**: 200-260 hours (8.3-10.8 weeks with 1 developer)
+
+### Parallelization Strategy
+
+**Foundation Phase (Week 1-2)**: Tasks 001, 002, 003 can run completely in parallel
+**API Development Phase (Week 3-4)**: Tasks 004, 005, 006 can run in parallel after 001 completes
+**Frontend Phase (Week 5-6)**: Tasks 007, 008 can run in parallel after their API dependencies
+**Optimization Phase (Week 7)**: Task 009 requires most features to be complete
+**Testing Phase (Week 8)**: Task 010 validates the entire system
+
+## Dependencies
+
+### External Dependencies
+- **Vercel AI Gateway**: Service availability (99.9% SLA)
+- **Google Gemini 2.0 Flash**: Model access via gateway
+- **Existing Infrastructure**: NeonDB, Stack Auth, Next.js deployment
+
+### Internal Dependencies
+- **Database Schema**: Current PostgreSQL structure and migrations
+- **Authentication**: Stack Auth integration (no changes required)
+- **Design System**: shadcn/ui components for consistency
+- **Existing APIs**: Organization and user management endpoints
+
+### Prerequisite Work
+- AI_GATEWAY_API_KEY already configured in environment
+- Database connection and migration system functional
+- Frontend build pipeline operational
+
+## Success Criteria (Technical)
+
+### Performance Benchmarks
+- **Response Time**: <3s for 95% of AI requests
+- **Availability**: >99.5% uptime for AI services
+- **Cost Efficiency**: <$0.10 per OKR template generated
+- **Cache Hit Ratio**: >70% for repeated queries
+
+### Quality Gates
+- **Template Acceptance**: >85% of generated OKRs used without major modification
+- **Error Rate**: <1% of AI requests result in errors
+- **User Satisfaction**: >4.5/5 rating for AI assistance features
+- **Integration**: Zero breaking changes to existing flows
+
+### Acceptance Criteria
+- AI features can be enabled/disabled via feature flags
+- All AI interactions logged for auditing and improvement
+- Cost tracking per organization and feature
+- Graceful degradation when AI services unavailable
+
+## Estimated Effort
+
+### Overall Timeline
+- **Total Duration**: 8 weeks (2 weeks buffer vs. PRD estimate)
+- **Team Size**: 1-2 developers (backend + frontend)
+- **Critical Path**: Foundation → Templates → Chat → Insights
+
+### Resource Requirements
+- **Development**: ~320 hours total (40 hours/week × 8 weeks)
+- **Testing**: ~80 hours (included in timeline)
+- **Documentation**: ~40 hours (included in timeline)
+
+### Critical Path Items
+1. AI Gateway client foundation (blocks everything)
+2. Database schema migration (blocks data persistence)
+3. Template engine (blocks onboarding integration)
+4. Cost management (critical for production)
+
+### Risk Buffer
+- 25% buffer included for AI integration complexity
+- Phased rollout allows for early feedback and iteration
+- Feature flags enable safe production deployment
