@@ -169,12 +169,14 @@ export function ChatMessage({
     >
       <div
         className={cn(
-          'flex max-w-[85%] space-x-3',
+          'flex space-x-3',
+          // Responsive max width - smaller on mobile
+          'max-w-[90%] sm:max-w-[85%]',
           isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'
         )}
       >
         {showAvatar && (
-          <Avatar className="h-8 w-8 shrink-0 mt-1">
+          <Avatar className="h-6 w-6 sm:h-8 sm:w-8 shrink-0 mt-1">
             <AvatarFallback className={cn(
               'text-xs font-medium',
               isUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
@@ -226,7 +228,7 @@ export function ChatMessage({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-5 w-5 sm:h-6 sm:w-6"
                   onClick={handleCopy}
                   aria-label="Copiar mensaje"
                 >
@@ -236,7 +238,7 @@ export function ChatMessage({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-5 w-5 sm:h-6 sm:w-6 hidden sm:inline-flex"
                   onClick={() => handleReaction('like')}
                   aria-label="Me gusta"
                 >
@@ -248,13 +250,17 @@ export function ChatMessage({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6"
+                      className="h-5 w-5 sm:h-6 sm:w-6"
                       aria-label="Más opciones"
                     >
                       <MoreHorizontal className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align={isUser ? "end" : "start"}>
+                    <DropdownMenuItem onClick={() => handleReaction('like')}>
+                      <ThumbsUp className="h-4 w-4 mr-2" />
+                      Me gusta
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleReaction('heart')}>
                       <Heart className="h-4 w-4 mr-2" />
                       Me encanta

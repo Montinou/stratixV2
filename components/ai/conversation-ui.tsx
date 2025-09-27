@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ChatMessage } from './chat-message'
 import { TypingIndicator } from './typing-indicator'
+import { FileUpload, type FileUploadItem } from './file-upload'
+import { ChatSettings, type ChatSettings as ChatSettingsType, DEFAULT_SETTINGS } from './chat-settings'
 import { toast } from 'sonner'
 
 interface ChatMessage {
@@ -53,13 +55,7 @@ interface ConversationUIProps {
   className?: string
 }
 
-interface ConversationSettings {
-  showTimestamps: boolean
-  enableSounds: boolean
-  autoScroll: boolean
-  fontSize: 'small' | 'medium' | 'large'
-  theme: 'light' | 'dark' | 'auto'
-}
+// Use the ChatSettings type from the settings component
 
 export function ConversationUI({
   messages = [],
@@ -78,15 +74,10 @@ export function ConversationUI({
 }: ConversationUIProps) {
   const [inputValue, setInputValue] = React.useState('')
   const [isComposing, setIsComposing] = React.useState(false)
-  const [attachments, setAttachments] = React.useState<File[]>([])
+  const [attachments, setAttachments] = React.useState<FileUploadItem[]>([])
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [settings, setSettings] = React.useState<ConversationSettings>({
-    showTimestamps: true,
-    enableSounds: false,
-    autoScroll: true,
-    fontSize: 'medium',
-    theme: 'auto'
-  })
+  const [showFileUpload, setShowFileUpload] = React.useState(false)
+  const [settings, setSettings] = React.useState<ChatSettingsType>(DEFAULT_SETTINGS)
 
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
@@ -123,10 +114,16 @@ export function ConversationUI({
       return
     }
 
-    onNewMessage(inputValue.trim(), attachments)
+    // Convert FileUploadItems to Files for the API
+    const fileAttachments = attachments
+      .filter(item => item.status === 'completed')
+      .map(item => item.file)
+
+    onNewMessage(inputValue.trim(), fileAttachments)
     setInputValue('')
     setAttachments([])
     setIsComposing(false)
+    setShowFileUpload(false)
 
     // Focus back to textarea
     textareaRef.current?.focus()
@@ -139,27 +136,12 @@ export function ConversationUI({
     }
   }
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || [])
-    const validFiles = files.filter(file => {
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} es demasiado grande. Máximo 10MB.`)
-        return false
-      }
-      return true
-    })
-
-    setAttachments(prev => [...prev, ...validFiles])
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
+  const handleFilesSelected = (newFiles: FileUploadItem[]) => {
+    setAttachments(prev => [...prev, ...newFiles])
   }
 
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index))
+  const handleFileRemove = (fileId: string) => {
+    setAttachments(prev => prev.filter(item => item.id !== fileId))
   }
 
   const clearConversation = () => {
@@ -211,21 +193,32 @@ export function ConversationUI({
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* Conversation Header with Controls */}
+      {/* Settings Panel */}
       {showSettings && (
+        <div className="border-b bg-muted/30 max-h-[50vh] sm:max-h-[60vh] overflow-y-auto">
+          <ChatSettings
+            settings={settings}
+            onSettingsChange={setSettings}
+            className="border-0 shadow-none bg-transparent max-w-none"
+          />
+        </div>
+      )}
+
+      {/* Conversation Header with Controls */}
+      {!showSettings && (
         <div className="flex items-center justify-between p-3 border-b bg-muted/30">
-          <div className="flex items-center space-x-2">
-            <div className="relative">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div className="relative flex-1 max-w-40 sm:max-w-none">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <Input
-                placeholder="Buscar en conversación..."
+                placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-7 h-7 w-40 text-xs"
+                className="pl-7 h-7 text-xs w-full"
               />
             </div>
             {messages.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs hidden sm:inline-flex">
                 {filteredMessages.length} de {messages.length}
               </Badge>
             )}
@@ -311,24 +304,58 @@ export function ConversationUI({
         </div>
       </ScrollArea>
 
-      {/* Attachments Preview */}
-      {attachments.length > 0 && (
+      {/* File Upload Area */}
+      {showFileUpload && allowAttachments && (
+        <div className="p-4 border-t bg-muted/30">
+          <FileUpload
+            onFilesSelected={handleFilesSelected}
+            onFileRemove={handleFileRemove}
+            uploadedFiles={attachments}
+            maxFiles={5}
+            maxFileSize={10 * 1024 * 1024} // 10MB
+          />
+        </div>
+      )}
+
+      {/* Attachments Preview (compact) */}
+      {attachments.length > 0 && !showFileUpload && (
         <div className="p-2 border-t bg-muted/30">
-          <div className="flex flex-wrap gap-2">
-            {attachments.map((file, index) => (
-              <div key={index} className="flex items-center space-x-2 bg-background rounded p-2 text-xs">
-                <Paperclip className="h-3 w-3" />
-                <span className="truncate max-w-20">{file.name}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap gap-1">
+              {attachments.slice(0, 3).map((item) => (
+                <div key={item.id} className="flex items-center space-x-1 bg-background rounded px-2 py-1 text-xs">
+                  <Paperclip className="h-3 w-3" />
+                  <span className="truncate max-w-16">{item.file.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-3 w-3 p-0"
+                    onClick={() => handleFileRemove(item.id)}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+              {attachments.length > 3 && (
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-4 w-4 p-0"
-                  onClick={() => removeAttachment(index)}
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => setShowFileUpload(true)}
                 >
-                  ×
+                  +{attachments.length - 3} más
                 </Button>
-              </div>
-            ))}
+              )}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setShowFileUpload(!showFileUpload)}
+            >
+              {showFileUpload ? 'Ocultar' : 'Ver todo'}
+            </Button>
           </div>
         </div>
       )}
@@ -348,38 +375,28 @@ export function ConversationUI({
               }}
               onKeyDown={handleKeyPress}
               placeholder={placeholder}
-              className="min-h-[40px] max-h-32 resize-none pr-20 text-sm"
+              className="min-h-[40px] max-h-32 resize-none pr-16 sm:pr-20 text-sm"
               disabled={isTyping}
               maxLength={maxLength}
             />
 
             <div className="absolute bottom-2 right-2 flex items-center space-x-1">
               {allowAttachments && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    accept="image/*,application/pdf,.txt,.doc,.docx"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isTyping}
-                  >
-                    <Paperclip className="h-3 w-3" />
-                  </Button>
-                </>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => setShowFileUpload(!showFileUpload)}
+                  disabled={isTyping}
+                >
+                  <Paperclip className="h-3 w-3" />
+                </Button>
               )}
 
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-6 w-6 hidden sm:inline-flex"
                 disabled={isTyping}
               >
                 <Smile className="h-3 w-3" />
@@ -399,10 +416,13 @@ export function ConversationUI({
 
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>
-            {isComposing && `${inputValue.length}/${maxLength} caracteres`}
+            {isComposing && `${inputValue.length}/${maxLength}`}
           </span>
-          <span>
+          <span className="hidden sm:block">
             Presiona Enter para enviar, Shift+Enter para nueva línea
+          </span>
+          <span className="sm:hidden">
+            Enter para enviar
           </span>
         </div>
       </div>

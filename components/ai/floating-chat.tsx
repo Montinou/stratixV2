@@ -111,9 +111,13 @@ export function FloatingChat({
         onClick={onToggle}
         size="lg"
         className={cn(
-          'fixed z-50 h-14 w-14 rounded-full shadow-lg hover:scale-105 transition-all duration-200',
+          'fixed z-50 rounded-full shadow-lg hover:scale-105 transition-all duration-200',
+          // Responsive sizing
+          'h-12 w-12 sm:h-14 sm:w-14',
           positionClasses[position],
           'bg-primary text-primary-foreground hover:bg-primary/90',
+          // Better mobile positioning
+          'bottom-4 right-4 sm:bottom-4 sm:right-4',
           className
         )}
         aria-label="Abrir chat de IA"
@@ -137,9 +141,15 @@ export function FloatingChat({
         'fixed z-50 flex flex-col shadow-2xl transition-all duration-300 ease-in-out',
         positionClasses[position],
         themeClasses,
-        chatState.isMinimized ? 'h-14 w-80' : 'h-[600px] w-96',
-        'max-h-[80vh] max-w-[calc(100vw-2rem)]',
-        'sm:w-96 sm:max-w-none',
+        // Mobile responsive sizing
+        chatState.isMinimized
+          ? 'h-14 w-80 sm:w-80'
+          : 'h-[85vh] w-[calc(100vw-1rem)] sm:h-[600px] sm:w-96',
+        'max-h-[90vh] max-w-[calc(100vw-0.5rem)] sm:max-w-none',
+        // Mobile specific adjustments
+        'sm:bottom-4 sm:right-4',
+        // On mobile, take full width with small margins
+        'mobile:left-2 mobile:right-2 mobile:bottom-2',
         className
       )}
     >
