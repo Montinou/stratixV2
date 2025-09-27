@@ -183,6 +183,9 @@ export interface CacheStatus {
   size: number
   maxSize: number
   hitRate: number
+  totalRequests: number
+  totalHits: number
+  totalMisses: number
   topEntries?: CacheEntry[]
   error?: string
 }
