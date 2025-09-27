@@ -300,5 +300,4 @@ export class RateLimitUtils {
 }
 
 // Export the rate limiter and utilities
-export { RateLimitUtils };
 export default ratelimit;
