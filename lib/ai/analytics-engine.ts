@@ -193,13 +193,12 @@ export class AnalyticsEngine {
     if (actError) throw new Error(`Failed to fetch activities: ${actError.message}`)
 
     // Get unique profiles
-    const allOwnerIds = [
-      ...new Set([
-        ...(objectives?.map(obj => obj.owner_id) || []),
-        ...(initiatives?.map(init => init.owner_id) || []),
-        ...(activities?.map(act => act.owner_id) || [])
-      ])
-    ]
+    // Get unique owner IDs
+    const ownerIds = new Set<string>()
+    objectives?.forEach(obj => ownerIds.add(obj.owner_id))
+    initiatives?.forEach(init => ownerIds.add(init.owner_id))
+    activities?.forEach(act => ownerIds.add(act.owner_id))
+    const allOwnerIds = Array.from(ownerIds)
 
     const { data: profiles, error: profileError } = await this.supabase
       .from('profiles')
@@ -396,7 +395,8 @@ export class AnalyticsEngine {
     for (let i = 0; i < 30; i++) {
       const snapshotDate = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000))
 
-      [...objectives, ...initiatives, ...activities].forEach(item => {
+      const allItems = objectives.concat(initiatives).concat(activities)
+      allItems.forEach(item => {
         const daysSinceStart = Math.floor((snapshotDate.getTime() - new Date(item.start_date).getTime()) / (1000 * 60 * 60 * 24))
         if (daysSinceStart >= 0) {
           // Simulate gradual progress over time

@@ -6,7 +6,7 @@
 import type { Industry, CompanySize, UserRole, OKRTemplateContext } from '@/lib/types/ai'
 
 // Extended industry taxonomy with specialized categories
-export type ExtendedIndustry = Industry |
+export type ExtendedIndustry = Industry
   | 'fintech'
   | 'healthtech'
   | 'edtech'

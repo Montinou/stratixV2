@@ -337,7 +337,7 @@ export function FloatingChat({
           {chatContent}
         </DialogContent>
       </Dialog>
-    )}</>
+    )
 }
 
 export type { FloatingChatProps }

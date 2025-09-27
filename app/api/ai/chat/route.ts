@@ -67,89 +67,200 @@ export async function POST(request: NextRequest) {
       return new Response("No autorizado", { status: 401 })
     }
 
-    const body = await request.json() as ChatRequest
-    const { messages, conversationId, context } = body
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return new Response("Se requieren mensajes para la conversación", { status: 400 })
+    // Rate limiting
+    if (!checkRateLimit(user.id)) {
+      return new Response("Límite de solicitudes excedido. Intenta de nuevo más tarde.", { status: 429 })
     }
 
-    // Validar estructura de mensajes
-    const validMessages = messages.filter(msg =>
-      msg.role && msg.content &&
-      ['user', 'assistant', 'system'].includes(msg.role)
+    // Parse and validate request
+    const body = await request.json()
+    const validatedRequest = chatRequestSchema.parse(body)
+
+    const {
+      message,
+      messages,
+      conversationId = `conv_${user.id}_${Date.now()}`,
+      context,
+      streaming = true,
+      preferences
+    } = validatedRequest
+
+    // Handle both single message and messages array formats
+    let userMessage: string
+    let conversationMessages: CoreMessage[] = []
+
+    if (message) {
+      // Single message format (new conversation style)
+      userMessage = message
+    } else if (messages && Array.isArray(messages) && messages.length > 0) {
+      // Legacy messages array format
+      const validMessages = messages.filter(msg =>
+        msg.role && msg.content &&
+        ['user', 'assistant', 'system'].includes(msg.role)
+      )
+
+      if (validMessages.length === 0) {
+        return new Response("No se encontraron mensajes válidos", { status: 400 })
+      }
+
+      // Extract the last user message
+      const lastUserMessage = validMessages.findLast(msg => msg.role === 'user')
+      if (!lastUserMessage) {
+        return new Response("Se requiere al menos un mensaje de usuario", { status: 400 })
+      }
+
+      userMessage = lastUserMessage.content
+      conversationMessages = validMessages.slice(0, -1) // All except the last user message
+    } else {
+      return new Response("Se requiere un mensaje o array de mensajes", { status: 400 })
+    }
+
+    // Build comprehensive chat context
+    const contextRequest: ChatContextRequest = {
+      userId: user.id,
+      conversationId,
+      currentOKRs: context?.currentOKRs,
+      userRole: context?.userRole || context?.role,
+      companyContext: context?.companyContext,
+      recentActivity: context?.recentActivity,
+      preferences
+    }
+
+    const enhancedContext = await chatContextBuilder.buildChatContext(contextRequest)
+
+    // Initialize or update conversation
+    await conversationManager.initializeConversation(
+      conversationId,
+      enhancedContext.userContext,
+      enhancedContext.okrContext,
+      enhancedContext.activityContext
     )
 
-    if (validMessages.length === 0) {
-      return new Response("No se encontraron mensajes válidos", { status: 400 })
+    // Add any existing conversation messages first
+    for (const msg of conversationMessages) {
+      await conversationManager.addMessage(conversationId, msg, false)
     }
 
-    // Construir contexto específico de OKRs
-    let contextualSystemPrompt = SYSTEM_PROMPT
-
-    if (context) {
-      contextualSystemPrompt += `\n\n**Contexto específico del usuario:**`
-      if (context.department) {
-        contextualSystemPrompt += `\n- Departamento: ${context.department}`
-      }
-      if (context.role) {
-        contextualSystemPrompt += `\n- Rol: ${context.role}`
-      }
-      if (context.companySize) {
-        const sizeLabels = {
-          startup: 'Startup (1-50 empleados)',
-          pyme: 'PYME (50-250 empleados)',
-          empresa: 'Empresa mediana (250-1000 empleados)',
-          corporacion: 'Gran corporación (1000+ empleados)'
-        }
-        contextualSystemPrompt += `\n- Tamaño de empresa: ${sizeLabels[context.companySize]}`
-      }
+    // Add current user message to conversation
+    const currentUserMessage = {
+      role: 'user' as const,
+      content: userMessage
     }
 
-    // Preparar mensajes con contexto del sistema
-    const conversationMessages: CoreMessage[] = [
+    await conversationManager.addMessage(conversationId, currentUserMessage)
+
+    // Get conversation context for AI
+    const aiContext = conversationManager.getContextForAI(conversationId)
+
+    // Build system prompt with enhanced context
+    const systemPrompt = buildEnhancedSystemPrompt(enhancedContext, aiContext.systemPrompt)
+
+    // Prepare messages for AI model
+    const finalMessages = [
       {
-        role: 'system',
-        content: contextualSystemPrompt
+        role: 'system' as const,
+        content: systemPrompt
       },
-      ...validMessages
+      ...aiContext.messages
     ]
 
-    // Usar el modelo AI Gateway con failover
-    const model = ai('openai/gpt-4o-mini')
+    // Determine optimal model based on context complexity
+    const modelToUse = determineOptimalModel(enhancedContext, userMessage)
+    const model = ai(modelToUse)
 
-    const streamResult = streamText({
-      model,
-      messages: conversationMessages,
-      maxTokens: 1500,
-      temperature: 0.7,
-      providerOptions: {
-        gateway: {
-          order: ['openai', 'anthropic'], // Failover order
-          timeout: 30000
+    if (streaming) {
+      const streamResult = streamText({
+        model,
+        messages: finalMessages,
+        maxTokens: 2000,
+        temperature: 0.7,
+        providerOptions: {
+          gateway: {
+            order: ['openai', 'anthropic'], // Failover order
+            timeout: 30000
+          }
+        },
+        onFinish: async (result) => {
+          // Add assistant response to conversation
+          const assistantMessage = {
+            role: 'assistant' as const,
+            content: result.text
+          }
+
+          await conversationManager.addMessage(conversationId, assistantMessage, false)
+
+          // Log analytics
+          console.log('Chat completion:', {
+            conversationId,
+            userId: user.id,
+            messageLength: userMessage.length,
+            responseLength: result.text.length,
+            tokensUsed: result.usage?.totalTokens,
+            model: modelToUse,
+            sessionType: enhancedContext.conversationMetadata.sessionType,
+            urgency: enhancedContext.conversationMetadata.urgency,
+            timestamp: new Date().toISOString()
+          })
+        },
+        onError: (error) => {
+          console.error('Streaming error:', error)
         }
-      },
-      onFinish: async (result) => {
-        // Log de métricas para monitoreo
-        console.log('Chat completion:', {
-          userId: user.id,
-          conversationId,
-          messageCount: conversationMessages.length,
-          tokensUsed: result.usage?.totalTokens,
-          timestamp: new Date().toISOString(),
-          model: 'openai/gpt-4o-mini',
-          latency: result.usage?.completionTokens ?
-            (result.usage.completionTokens / 50) * 1000 : // Estimación ~50 tokens/segundo
-            undefined
-        })
-      }
-    })
+      })
 
-    // Retornar stream response
-    return streamResult.toDataStreamResponse()
+      return streamResult.toDataStreamResponse({
+        headers: {
+          'x-conversation-id': conversationId,
+          'x-session-type': enhancedContext.conversationMetadata.sessionType,
+          'x-urgency': enhancedContext.conversationMetadata.urgency
+        }
+      })
+    } else {
+      // Non-streaming response
+      const result = await generateText({
+        model,
+        messages: finalMessages,
+        maxTokens: 2000,
+        temperature: 0.7
+      })
+
+      // Add assistant response to conversation
+      const assistantMessage = {
+        role: 'assistant' as const,
+        content: result.text
+      }
+
+      await conversationManager.addMessage(conversationId, assistantMessage, false)
+
+      return new Response(JSON.stringify({
+        id: crypto.randomUUID(),
+        message: result.text,
+        conversationId,
+        suggestions: generateFollowUpSuggestions(enhancedContext, result.text),
+        metadata: {
+          sessionType: enhancedContext.conversationMetadata.sessionType,
+          urgency: enhancedContext.conversationMetadata.urgency,
+          model: modelToUse
+        }
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-conversation-id': conversationId
+        }
+      })
+    }
 
   } catch (error) {
     console.error("Error en chat AI:", error)
+
+    if (error instanceof z.ZodError) {
+      return new Response(JSON.stringify({
+        error: 'Formato de solicitud inválido',
+        details: error.errors
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
 
     // Errores específicos para debugging
     if (error instanceof Error) {
@@ -166,6 +277,10 @@ export async function POST(request: NextRequest) {
       if (error.message.includes('timeout')) {
         console.error("Timeout en respuesta AI")
         return new Response("Tiempo de espera agotado, intenta de nuevo", { status: 504 })
+      }
+
+      if (error.message.includes('Profile not found')) {
+        return new Response("Error de perfil de usuario. Por favor, recarga la página.", { status: 400 })
       }
     }
 
@@ -227,4 +342,144 @@ export async function GET(request: NextRequest) {
       headers: { 'Content-Type': 'application/json' }
     })
   }
+}
+
+/**
+ * Build enhanced system prompt with full context
+ */
+function buildEnhancedSystemPrompt(
+  enhancedContext: any,
+  baseSystemPrompt: string
+): string {
+  const { businessContext, conversationMetadata } = enhancedContext
+
+  let enhancedPrompt = baseSystemPrompt
+
+  // Add business context
+  if (businessContext.industry) {
+    enhancedPrompt += `\n\nCONTEXTO EMPRESARIAL:
+- Industria: ${businessContext.industry}
+- Madurez OKR: ${businessContext.okrMaturity}
+- Tamaño de empresa: ${businessContext.companySize}`
+  }
+
+  // Add current challenges
+  if (businessContext.currentChallenges.length > 0) {
+    enhancedPrompt += `\n\nDESAFÍOS ACTUALES:${businessContext.currentChallenges.map(challenge => `\n- ${challenge}`).join('')}`
+  }
+
+  // Add session-specific guidance
+  enhancedPrompt += `\n\nCONTEXTO DE SESIÓN:
+- Tipo: ${conversationMetadata.sessionType}
+- Urgencia: ${conversationMetadata.urgency}
+- Resultados esperados:${conversationMetadata.expectedOutcome.map((outcome: string) => `\n  - ${outcome}`).join('')}`
+
+  // Add specific instructions based on session type
+  const sessionInstructions = getSessionSpecificInstructions(conversationMetadata.sessionType)
+  enhancedPrompt += `\n\nINSTRUCCIONES ESPECÍFICAS:\n${sessionInstructions}`
+
+  return enhancedPrompt
+}
+
+/**
+ * Get session-specific instructions
+ */
+function getSessionSpecificInstructions(sessionType: string): string {
+  const instructions: Record<string, string> = {
+    strategy: `- Enfócate en definir objetivos SMART y resultados clave medibles
+- Proporciona ejemplos específicos para la industria del usuario
+- Sugiere metodologías de implementación paso a paso
+- Incluye marcos de tiempo realistas
+- Considera la capacidad y recursos del equipo`,
+
+    tracking: `- Analiza los datos de progreso de manera constructiva
+- Identifica patrones y tendencias en el rendimiento
+- Sugiere ajustes tácticos basados en datos
+- Proporciona recomendaciones para acelerar el progreso
+- Celebra los logros mientras señalas áreas de mejora`,
+
+    problem_solving: `- Aplica metodología de resolución de problemas estructurada
+- Identifica causas raíz, no solo síntomas
+- Proporciona múltiples alternativas de solución
+- Considera el impacto y la viabilidad de cada solución
+- Incluye medidas preventivas para el futuro`,
+
+    general: `- Proporciona información educativa sobre mejores prácticas de OKR
+- Adapta las recomendaciones al nivel de experiencia del usuario
+- Incluye referencias a metodologías reconocidas
+- Sugiere recursos adicionales cuando sea apropiado
+- Mantén un enfoque práctico y accionable`
+  }
+
+  return instructions[sessionType] || instructions.general
+}
+
+/**
+ * Determine optimal model based on context complexity
+ */
+function determineOptimalModel(enhancedContext: any, message: string): string {
+  const { conversationMetadata, okrContext } = enhancedContext
+
+  // Use premium model for complex scenarios
+  if (
+    conversationMetadata.urgency === 'high' ||
+    conversationMetadata.sessionType === 'problem_solving' ||
+    okrContext.length > 10 ||
+    message.length > 1000
+  ) {
+    return 'openai/gpt-4o' // Premium model for complex cases
+  }
+
+  // Use efficient model for routine conversations
+  return 'openai/gpt-4o-mini' // Cost-effective for most cases
+}
+
+/**
+ * Generate follow-up suggestions based on context and response
+ */
+function generateFollowUpSuggestions(
+  enhancedContext: any,
+  response: string
+): string[] {
+  const { conversationMetadata, businessContext } = enhancedContext
+  const suggestions: string[] = []
+
+  // Base suggestions by session type
+  const baseSuggestions: Record<string, string[]> = {
+    strategy: [
+      "¿Cómo puedo validar que estos objetivos están alineados con la estrategia de la empresa?",
+      "¿Qué métricas adicionales debería considerar?",
+      "¿Cómo comunico estos OKRs al equipo efectivamente?"
+    ],
+    tracking: [
+      "¿Qué acciones específicas pueden acelerar el progreso?",
+      "¿Cómo identifico bloqueos antes de que se vuelvan críticos?",
+      "¿Con qué frecuencia debería revisar estos indicadores?"
+    ],
+    problem_solving: [
+      "¿Cómo puedo prevenir que este problema vuelva a ocurrir?",
+      "¿Qué otros riesgos debería monitorear?",
+      "¿Necesito ajustar mis OKRs debido a este problema?"
+    ],
+    general: [
+      "¿Puedes darme ejemplos específicos para mi industria?",
+      "¿Qué herramientas recomiendas para implementar esto?",
+      "¿Cómo mido el éxito de esta estrategia?"
+    ]
+  }
+
+  // Get base suggestions
+  const baseSet = baseSuggestions[conversationMetadata.sessionType] || baseSuggestions.general
+
+  // Add urgency-specific suggestions
+  if (conversationMetadata.urgency === 'high') {
+    suggestions.push("¿Cuáles son los pasos más críticos que debo tomar inmediatamente?")
+  }
+
+  // Add maturity-specific suggestions
+  if (businessContext.okrMaturity === 'beginner') {
+    suggestions.push("¿Puedes explicar esto de manera más simple?")
+  }
+
+  return [...suggestions, ...baseSet.slice(0, 2)].slice(0, 3)
 }
