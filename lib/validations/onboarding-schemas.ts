@@ -1,6 +1,84 @@
 import { z } from "zod";
 
-// Welcome step schema
+// Step 1: Welcome step schema
+export const welcomeStepSchema = z.object({
+  full_name: z.string().min(1, "El nombre completo es requerido").trim(),
+  job_title: z.string().min(1, "El cargo o posición es requerido").trim(),
+  experience_with_okr: z.enum(["none", "beginner", "intermediate", "advanced"], {
+    required_error: "La experiencia con OKRs es requerida"
+  }),
+  primary_goal: z.string({
+    required_error: "El objetivo principal es requerido"
+  }).min(1, "El objetivo principal es requerido").trim(),
+  urgency_level: z.enum(["low", "medium", "high", "critical"], {
+    required_error: "El nivel de urgencia es requerido"
+  })
+});
+
+// Step 2: Company information schema
+export const companyStepSchema = z.object({
+  company_name: z.string().min(1, "El nombre de la empresa es requerido").trim(),
+  industry_id: z.string().optional(),
+  company_size: z.enum(["startup", "pyme", "empresa", "corporacion"], {
+    required_error: "El tamaño de la empresa es requerido"
+  }),
+  description: z.string().min(1, "La descripción de la empresa es requerida").trim(),
+  website: z.union([
+    z.literal(""),
+    z.string().regex(/^https?:\/\/.+/, "El sitio web debe incluir http:// o https://")
+  ]).optional(),
+  country: z.string().min(1, "El país es requerido").trim(),
+  employee_count: z.number().int().min(1).max(100000).optional()
+});
+
+// Step 3: Organization structure schema
+export const organizationStepSchema = z.object({
+  department: z.string().optional(),
+  team_size: z.number().int().min(0).max(500).optional(),
+  okr_maturity: z.enum(["beginner", "intermediate", "advanced"], {
+    required_error: "El nivel de madurez con OKRs es requerido"
+  }),
+  current_challenges: z.array(z.enum([
+    "alignment", "measurement", "focus", "communication",
+    "execution", "culture", "resources", "growth"
+  ])).min(1, "Debe seleccionar al menos un desafío actual"),
+  business_goals: z.array(z.enum([
+    "revenue_growth", "market_expansion", "product_development",
+    "operational_efficiency", "customer_satisfaction", "team_development",
+    "innovation", "sustainability"
+  ])).min(1, "Debe seleccionar al menos un objetivo de negocio")
+});
+
+// Step 4: Preferences schema
+export const preferencesStepSchema = z.object({
+  communication_style: z.enum(["formal", "informal"], {
+    required_error: "El estilo de comunicación es requerido"
+  }),
+  language: z.enum(["es", "en"], {
+    required_error: "El idioma es requerido"
+  }),
+  notification_frequency: z.enum(["daily", "weekly", "monthly"], {
+    required_error: "La frecuencia de notificaciones es requerida"
+  }),
+  focus_areas: z.array(z.enum([
+    "strategy", "execution", "analytics", "collaboration", "reporting"
+  ])).min(1, "Debe seleccionar al menos un área de enfoque"),
+  ai_assistance_level: z.enum(["minimal", "moderate", "extensive"], {
+    required_error: "El nivel de asistencia de IA es requerido"
+  })
+});
+
+// Step 5: Review schema
+export const reviewStepSchema = z.object({
+  confirmed: z.literal("true", {
+    required_error: "Debe confirmar que la información es correcta"
+  }),
+  additional_notes: z.string().optional(),
+  setup_demo: z.enum(["yes", "no", "later"]).optional(),
+  invite_team_members: z.enum(["immediately", "soon", "later", "no"]).optional()
+});
+
+// Legacy schemas for backward compatibility
 export const welcomeSchema = z.object({
   role: z.string().min(1, "Por favor selecciona tu rol"),
   customRole: z.string().optional(),
@@ -9,7 +87,6 @@ export const welcomeSchema = z.object({
   })
 });
 
-// Company information schema
 export const companySchema = z.object({
   name: z.string()
     .min(2, "El nombre de la empresa debe tener al menos 2 caracteres")
@@ -22,7 +99,6 @@ export const companySchema = z.object({
   logo: z.string().url("URL de logo inválida").optional().or(z.literal(""))
 });
 
-// Organization structure schema
 export const organizationSchema = z.object({
   teamSize: z.number()
     .min(1, "El tamaño del equipo debe ser al menos 1")
@@ -45,6 +121,15 @@ export const organizationSchema = z.object({
   })).default([])
 });
 
+// New schema mapping for step-based validation
+export const stepSchemas = {
+  1: welcomeStepSchema,
+  2: companyStepSchema,
+  3: organizationStepSchema,
+  4: preferencesStepSchema,
+  5: reviewStepSchema
+} as const;
+
 // Combined schema for all steps
 export const onboardingSchema = z.object({
   welcome: welcomeSchema,
@@ -52,7 +137,14 @@ export const onboardingSchema = z.object({
   organization: organizationSchema
 });
 
-// Individual step types
+// New step-based types
+export type WelcomeStepData = z.infer<typeof welcomeStepSchema>;
+export type CompanyStepData = z.infer<typeof companyStepSchema>;
+export type OrganizationStepData = z.infer<typeof organizationStepSchema>;
+export type PreferencesStepData = z.infer<typeof preferencesStepSchema>;
+export type ReviewStepData = z.infer<typeof reviewStepSchema>;
+
+// Legacy types for backward compatibility
 export type WelcomeFormData = z.infer<typeof welcomeSchema>;
 export type CompanyFormData = z.infer<typeof companySchema>;
 export type OrganizationFormData = z.infer<typeof organizationSchema>;

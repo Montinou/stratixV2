@@ -5,6 +5,7 @@ import { gateway } from '@ai-sdk/gateway';
 import { z } from "zod";
 import { getOnboardingSessionWithProgress, getAllIndustries } from "@/lib/database/onboarding-queries";
 import { handleUnknownError, CommonErrors } from "@/lib/api/error-handler";
+import { RateLimitUtils } from "@/lib/redis/rate-limiter";
 
 export const runtime = 'nodejs';
 
@@ -21,27 +22,6 @@ const autoCompleteSchema = z.object({
   fields_to_complete: z.array(z.string()).optional()
 });
 
-// Rate limiting
-const requestCounts = new Map<string, { count: number; resetTime: number }>();
-const AI_RATE_LIMIT = 15; // Lower limit for completion (more resource intensive)
-const AI_RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
-
-function checkAIRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const userLimit = requestCounts.get(userId);
-
-  if (!userLimit || now > userLimit.resetTime) {
-    requestCounts.set(userId, { count: 1, resetTime: now + AI_RATE_LIMIT_WINDOW });
-    return true;
-  }
-
-  if (userLimit.count >= AI_RATE_LIMIT) {
-    return false;
-  }
-
-  userLimit.count++;
-  return true;
-}
 
 async function generateSmartCompletion(
   sessionData: any,
@@ -288,9 +268,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check AI rate limiting
-    if (!checkAIRateLimit(user.id)) {
+    const rateLimitResult = await RateLimitUtils.checkAIUsageLimit(user.id, 'completion');
+    if (!rateLimitResult.allowed) {
       return new Response("Límite de solicitudes de IA excedido. Intenta de nuevo más tarde.", {
-        status: 429
+        status: 429,
+        headers: {
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+          'X-RateLimit-Reset': Math.ceil(rateLimitResult.resetTime / 1000).toString()
+        }
       });
     }
 
@@ -382,6 +367,9 @@ export async function GET(request: NextRequest) {
       return new Response("No autorizado", { status: 401 });
     }
 
+    // Get rate limit status for completion operation
+    const rateLimitStatus = await RateLimitUtils.getRateLimitStatus(user.id);
+
     // Return completion capabilities
     const capabilities = {
       available_types: [
@@ -402,8 +390,9 @@ export async function GET(request: NextRequest) {
         }
       ],
       rate_limit: {
-        requests_per_hour: AI_RATE_LIMIT,
-        current_usage: requestCounts.get(user.id)?.count || 0
+        requests_per_hour: 15, // completion limit from RateLimitUtils
+        remaining: rateLimitStatus.ai_completion.remaining,
+        reset_time: rateLimitStatus.ai_completion.resetTime
       },
       supported_fields: [
         'company_size',
