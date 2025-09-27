@@ -58,3 +58,6 @@ export function DateRangePicker({
     </Popover>
   )
 }
+
+// Export alias for compatibility
+export { DateRangePicker as DatePickerWithRange }

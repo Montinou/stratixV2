@@ -237,3 +237,8 @@ export class CompaniesService {
     await query('DELETE FROM companies WHERE id = $1', [id]);
   }
 }
+
+// Convenience function exports for backward compatibility
+export async function getUserProfile(userId: string): Promise<Profile | null> {
+  return ProfilesRepository.getById(userId);
+}
