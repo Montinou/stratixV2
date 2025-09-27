@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { neonServerClient } from '@/lib/neon-auth/server'
+import { stackServerApp } from '@/stack'
 import { ObjectivesRepository } from '@/lib/database/queries/objectives'
 import { ObjectivesService, InitiativesService, ActivitiesService } from '@/lib/database/services'
 import { getCurrentProfile } from '@/lib/actions/profiles'
+
+export const dynamic = 'force-dynamic'
 
 interface DashboardStats {
   objectives: number
@@ -14,7 +16,7 @@ interface DashboardStats {
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const user = await neonServerClient.getUser()
+    const user = await stackServerApp.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

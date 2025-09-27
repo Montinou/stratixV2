@@ -2,6 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+
 export default function VerifyEmailPage() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center p-6 md:p-10 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -23,7 +25,7 @@ export default function VerifyEmailPage() {
                 </p>
                 <div className="text-center">
                   <Button asChild>
-                    <Link href="/auth/login">Volver al inicio de sesión</Link>
+                    <Link href="/handler/sign-in">Volver al inicio de sesión</Link>
                   </Button>
                 </div>
               </div>

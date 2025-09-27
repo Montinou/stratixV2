@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuthentication } from '@/lib/database/auth';
+import { stackServerApp } from '@/stack';
 import { ProfilesRepository } from '@/lib/database/queries/profiles';
 import { SyncLoggingService } from '@/lib/services/sync-logging';
 import { z } from 'zod';
@@ -245,7 +245,7 @@ export async function logAuditEvent(event: Omit<AuditEvent, 'id' | 'timestamp'>)
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -440,7 +440,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },

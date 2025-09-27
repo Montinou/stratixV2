@@ -1,117 +1,133 @@
 "use client"
 
 import type React from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { useUser as useStackUser } from '@stackframe/stack'
 
-import { createNeonClient } from "@/lib/neon-auth/client"
-import type { User } from "@stackframe/stack"
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
-// Using real authentication implementations with API integration (client-side)
-import { StackProfileBridge } from "@/lib/auth/stack-profile-bridge-client"
-import { SessionManager } from "@/lib/auth/session-management"
-import type { Profile } from "@/lib/database/queries/profiles"
+interface Profile {
+  userId: string
+  fullName: string
+  roleType: 'corporativo' | 'gerente' | 'empleado'
+  department: string
+  companyId: string
+  tenantId: string
+  createdAt: string
+  updatedAt: string
+}
 
 interface Company {
   id: string
   name: string
-  slug: string
-  logo_url: string | null
-  settings: any
-  created_at: string
-  updated_at: string
+  description?: string
+  industry?: string
+  size?: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface AuthUser {
+  id: string
+  email: string
+  name?: string
+  avatarUrl?: string
+  stackUserId: string
 }
 
 interface AuthContextType {
-  user: User | null
+  user: AuthUser | null
   profile: Profile | null
   company: Company | null
   loading: boolean
+  isAuthenticated: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, displayName?: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const stackUser = useStackUser()
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
-  
-  // Create neon client once using useMemo to prevent recreating on every render
-  const neonClient = useMemo(() => createNeonClient(), [])
+  const [isClient, setIsClient] = useState(false)
+
+  // Handle client-side hydration
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const fetchProfile = useCallback(
-    async (stackUser: User) => {
+    async (currentUser: AuthUser) => {
       try {
-        // First check if we have cached profile data
-        const cachedProfile = SessionManager.getCachedProfile()
-        if (cachedProfile && cachedProfile.user_id === stackUser.id) {
-          return { 
-            profile: cachedProfile, 
-            company: null // TODO: Add company caching in future
+        // Fetch profile data from API using Stack Auth user ID
+        const profileResponse = await fetch(`/api/profiles/stack/${currentUser.stackUserId}`)
+        
+        let profile: Profile | null = null
+        let company: Company | null = null
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json()
+          if (profileData.success && profileData.data) {
+            profile = profileData.data
           }
         }
 
-        // Get default company ID for new profiles
-        const defaultCompanyId = SessionManager.getDefaultCompanyId()
-        
-        // Use the bridge to get or create profile
-        const profile = await StackProfileBridge.getOrCreateProfile(stackUser, defaultCompanyId)
-        
+        // If no profile exists, try to create one or this might be a new user
         if (!profile) {
-          console.warn("Could not get or create profile, using fallback")
-          const fallbackProfile = StackProfileBridge.createFallbackProfile(stackUser)
-          return { profile: fallbackProfile, company: null }
-        }
-
-        // Cache the profile for better performance
-        SessionManager.cacheProfile(profile)
-
-        // Fetch company data based on profile.companyId
-        let company: Company | null = null
-        
-        try {
-          const companyResponse = await fetch(`/api/companies/${profile.companyId}`)
-          if (companyResponse.ok) {
-            const companyResult = await companyResponse.json()
-            if (companyResult.success && companyResult.data) {
-              company = {
-                id: companyResult.data.id,
-                name: companyResult.data.name,
-                slug: companyResult.data.slug || companyResult.data.name.toLowerCase().replace(/\s+/g, '-'),
-                logo_url: companyResult.data.logoUrl || null,
-                settings: companyResult.data.settings || {},
-                created_at: companyResult.data.createdAt,
-                updated_at: companyResult.data.updatedAt,
+          console.warn("No profile found for Stack Auth user, attempting to sync user with database")
+          
+          // Try to sync user with database
+          try {
+            const syncResponse = await fetch('/api/auth/sync-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            })
+            
+            if (syncResponse.ok) {
+              const syncData = await syncResponse.json()
+              if (syncData.success && syncData.profile) {
+                profile = syncData.profile
+                company = syncData.company
               }
             }
+          } catch (syncError) {
+            console.warn("Error syncing user with database:", syncError)
           }
-        } catch (error) {
-          console.warn("Error fetching company data:", error)
-          // Continue without company data
+          
+          return { profile, company }
         }
 
-        return {
-          profile,
-          company,
+        // Fetch company data based on profile.companyId
+        if (profile?.companyId) {
+          try {
+            const companyResponse = await fetch(`/api/companies/${profile.companyId}`)
+            if (companyResponse.ok) {
+              const companyResult = await companyResponse.json()
+              if (companyResult.success && companyResult.data) {
+                company = companyResult.data
+              }
+            }
+          } catch (error) {
+            console.warn("Error fetching company data:", error)
+            // Continue without company data
+          }
         }
+
+        return { profile, company }
       } catch (error) {
         console.error("Error fetching profile:", error)
-        
-        // On error, create fallback profile from Stack user data
-        const fallbackProfile = StackProfileBridge.createFallbackProfile(stackUser)
-        return { profile: fallbackProfile, company: null }
+        return { profile: null, company: null }
       }
     },
-    [neonClient], // neonClient is stable due to useMemo
+    []
   )
 
   const refreshProfile = useCallback(async () => {
     if (user) {
-      // Clear cached profile to force fresh fetch
-      SessionManager.clearProfileCache()
       const { profile: profileData, company: companyData } = await fetchProfile(user)
       setProfile(profileData)
       setCompany(companyData)
@@ -120,16 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
-      // Handle logout cleanup through bridge
-      if (user) {
-        await StackProfileBridge.handleLogout(user.id)
+      // Sign out from Stack Auth
+      if (stackUser) {
+        await stackUser.signOut()
       }
-      
-      // Clear all session data
-      SessionManager.clearSession()
-      
-      // Sign out from Stack
-      await neonClient.signOut()
       
       // Clear local state
       setUser(null)
@@ -142,128 +152,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null)
       setCompany(null)
     }
-  }, [neonClient, user])
+  }, [stackUser])
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    try {
-      await neonClient.signInWithCredential({ email, password })
-      // User state will be updated by the auth state change listener
-    } catch (error) {
-      console.error("Error signing in:", error)
-      throw error
-    }
-  }, [neonClient])
-
-  const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
-    try {
-      await neonClient.signUpWithCredential({ 
-        email, 
-        password,
-        ...(displayName && { displayName })
-      })
-      // User state will be updated by the auth state change listener
-    } catch (error) {
-      console.error("Error signing up:", error)
-      throw error
-    }
-  }, [neonClient])
-
+  // Effect to sync Stack Auth user state with our local state
   useEffect(() => {
     let mounted = true
-    const loadingManager = SessionManager.createLoadingManager()
 
-    const getInitialSession = async () => {
-      try {
-        const user = neonClient.getUser()
-
-        if (!mounted) return
-
-        if (user) {
-          setUser(user)
-          
-          // Set loading state with manager
-          loadingManager.setLoading(setLoading, 50)
-          
-          const { profile: profileData, company: companyData } = await fetchProfile(user)
-          if (mounted) {
-            setProfile(profileData)
-            setCompany(companyData)
-            
-            // Store session state for persistence
-            SessionManager.storeSessionState(user, profileData, false)
-          }
-        }
-        
-        if (mounted) {
-          loadingManager.clearLoading(setLoading)
-        }
-      } catch (error) {
-        console.error("Error getting initial session:", error)
-        if (mounted) {
-          loadingManager.clearLoading(setLoading)
-        }
+    const initializeAuth = async () => {
+      // Only initialize auth on client-side after hydration
+      if (!isClient) {
+        return
       }
-    }
-
-    getInitialSession()
-
-    // Set up auth state change listener with session management
-    const unsubscribe = neonClient.onUserChange(async (user) => {
-      if (!mounted) return
 
       try {
-        // Handle auth state change through session manager
-        await SessionManager.handleAuthStateChange(user, (currentUser, currentProfile, loading) => {
-          if (mounted) {
-            setUser(currentUser)
-            setProfile(currentProfile)
-            setLoading(loading)
-          }
-        })
+        // stackUser is undefined during loading, null when not authenticated, or User when authenticated
+        if (stackUser === undefined) {
+          // Still loading
+          return
+        }
 
-        if (user) {
-          // User signed in - fetch profile data
-          if (mounted) {
-            setUser(user)
-            loadingManager.setLoading(setLoading, 50)
-          }
-          
-          const { profile: profileData, company: companyData } = await fetchProfile(user)
-          
-          if (mounted) {
-            setProfile(profileData)
-            setCompany(companyData)
-            
-            // Store session state for persistence
-            SessionManager.storeSessionState(user, profileData, false)
-            loadingManager.clearLoading(setLoading)
-          }
-        } else {
-          // User signed out - clear everything
+        if (stackUser === null) {
+          // Not authenticated
           if (mounted) {
             setUser(null)
             setProfile(null)
             setCompany(null)
-            loadingManager.clearLoading(setLoading)
+            setLoading(false)
+          }
+          return
+        }
+
+        // User is authenticated
+        const authUser: AuthUser = {
+          id: stackUser.id,
+          email: stackUser.primaryEmail || '',
+          name: stackUser.displayName || undefined,
+          avatarUrl: stackUser.profileImageUrl || undefined,
+          stackUserId: stackUser.id
+        }
+
+        if (mounted) {
+          setUser(authUser)
+          setLoading(false)
+
+          // Only fetch profile and company data if user is authenticated and valid
+          if (authUser.stackUserId && authUser.email) {
+            try {
+              const { profile: profileData, company: companyData } = await fetchProfile(authUser)
+
+              if (mounted) {
+                setProfile(profileData)
+                setCompany(companyData)
+              }
+            } catch (error) {
+              console.error('Error fetching profile data:', error)
+              // Continue without profile data
+            }
           }
         }
       } catch (error) {
-        console.error("Error in auth state change:", error)
+        console.error("Error initializing auth:", error)
         if (mounted) {
-          loadingManager.clearLoading(setLoading)
+          setLoading(false)
         }
       }
-    })
+    }
+
+    initializeAuth()
 
     return () => {
       mounted = false
-      loadingManager.cleanup()
-      unsubscribe()
     }
-  }, [neonClient, fetchProfile])
+  }, [stackUser, fetchProfile, isClient])
+
+  const isAuthenticated = !!user
 
   return (
-    <AuthContext.Provider value={{ user, profile, company, loading, signOut, refreshProfile, signIn, signUp }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      company, 
+      loading, 
+      isAuthenticated, 
+      signOut, 
+      refreshProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   )
@@ -271,8 +244,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
+
+  // During SSR/SSG or build time, return a safe default state
+  if (typeof window === 'undefined') {
+    return {
+      user: null,
+      profile: null,
+      company: null,
+      loading: true, // Show loading during SSR to match client-side hydration
+      isAuthenticated: false,
+      signOut: async () => {},
+      refreshProfile: async () => {}
+    }
+  }
+
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context
+}
+
+// Legacy hook for compatibility - can be removed once all components are updated
+export function useUser() {
+  const { user, loading, isAuthenticated } = useAuth()
+  
+  return {
+    user,
+    isLoading: loading,
+    isAuthenticated,
+  }
 }

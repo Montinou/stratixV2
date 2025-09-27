@@ -28,7 +28,7 @@ export default defineConfig({
   
   // Production-optimized migration configuration
   migrations: {
-    prefix: 'neondb', // Updated prefix for NeonDB
+    prefix: 'timestamp', // Use timestamp prefix for migrations
     table: '__drizzle_migrations',
     schema: 'public',
   },
@@ -42,13 +42,6 @@ export default defineConfig({
   ...(isProduction && {
     // Production-specific configuration
     breakpoints: true, // Enable migration breakpoints for safer deployments
-    
-    // Migration safety features
-    migrations: {
-      prefix: 'neondb',
-      table: '__drizzle_migrations',
-      schema: 'public',
-    },
   }),
   
   // Staging configuration

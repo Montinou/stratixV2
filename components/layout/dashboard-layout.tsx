@@ -16,7 +16,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     if (!loading && !user) {
-      redirect("/auth/login")
+      redirect("/handler/sign-in")
     }
   }, [user, loading])
 

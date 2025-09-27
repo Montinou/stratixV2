@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuthentication } from '@/lib/database/auth';
+import { stackServerApp } from '@/stack';
 import { ProfilesRepository } from '@/lib/database/queries/profiles';
 import type { CreateProfileForm, UserRole } from '@/lib/database/types';
 import { z } from 'zod';
@@ -29,9 +29,9 @@ const updateProfileSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
-    if (error || !user) {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -77,9 +77,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
-    if (error || !user) {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -156,9 +156,9 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
-    if (error || !user) {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -219,11 +219,11 @@ export async function PUT(request: NextRequest) {
  * Delete the current user's profile
  * Deletes profile based on authenticated user ID
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
-    // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
-    if (error || !user) {
+    // Verify authentication with Stack Auth
+    const user = await stackServerApp.getUser();
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }

@@ -9,6 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Force dynamic rendering for Stack Auth compatibility - using memory token store
   // Environment validation at build time
   webpack: (config, { isServer }) => {
     // Only validate on server-side builds to avoid duplication

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuthentication } from '@/lib/database/auth';
+import { stackServerApp } from '@/stack';
 import { UsersRepository } from '@/lib/database/queries/users';
 import { z } from 'zod';
 
@@ -23,7 +23,7 @@ export async function GET(
 ) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -89,7 +89,7 @@ export async function PUT(
 ) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -206,7 +206,7 @@ export async function DELETE(
 ) {
   try {
     // Verify authentication
-    const { user, error } = await verifyAuthentication(request);
+    const user = await stackServerApp.getUser();
     if (error || !user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },

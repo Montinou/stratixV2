@@ -2,12 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { InitiativesService, type Initiative } from '@/lib/database/services';
-import { getUserProfile } from '@/lib/database/auth';
-import { neonServerClient } from '@/lib/neon-auth/server';
+import { stackServerApp } from '@/stack';
 
 export async function getInitiatives(): Promise<{ data: Initiative[] | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -32,7 +31,7 @@ export async function getInitiatives(): Promise<{ data: Initiative[] | null; err
 
 export async function getInitiativesByObjective(objectiveId: string): Promise<{ data: Initiative[] | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -49,7 +48,7 @@ export async function createInitiative(
   initiativeData: Omit<Initiative, 'id' | 'created_at' | 'updated_at' | 'owner_id'>
 ): Promise<{ data: Initiative | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -72,7 +71,7 @@ export async function updateInitiative(
   updates: Partial<Initiative>
 ): Promise<{ data: Initiative | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -89,7 +88,7 @@ export async function updateInitiative(
 
 export async function deleteInitiative(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { success: false, error: 'Unauthorized' };
     }

@@ -1,11 +1,11 @@
 'use server'
 
 import { ProfilesService, type Profile } from '@/lib/database/services';
-import { neonServerClient } from '@/lib/neon-auth/server';
+import { stackServerApp } from '@/stack';
 
 export async function getProfiles(): Promise<{ data: Profile[] | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -21,7 +21,7 @@ export async function getProfiles(): Promise<{ data: Profile[] | null; error?: s
 
 export async function getCurrentProfile(): Promise<{ data: Profile | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }
@@ -38,7 +38,7 @@ export async function updateProfile(
   updates: Partial<Profile>
 ): Promise<{ data: Profile | null; error?: string }> {
   try {
-    const user = await neonServerClient.getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return { data: null, error: 'Unauthorized' };
     }

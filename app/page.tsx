@@ -3,7 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link"
 import { Target, TrendingUp, Users, BarChart3 } from "lucide-react"
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  // Stack Auth handles redirects automatically based on URLs config
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
@@ -15,10 +18,10 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-4">
             <Button asChild variant="ghost">
-              <Link href="/auth/login">Iniciar Sesión</Link>
+              <Link href="/handler/sign-in">Iniciar Sesión</Link>
             </Button>
             <Button asChild>
-              <Link href="/auth/register">Registrarse</Link>
+              <Link href="/handler/sign-up">Registrarse</Link>
             </Button>
           </div>
         </div>
@@ -36,10 +39,10 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg">
-              <Link href="/auth/register">Comenzar Ahora</Link>
+              <Link href="/handler/sign-up">Comenzar Ahora</Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href="/auth/login">Iniciar Sesión</Link>
+              <Link href="/handler/sign-in">Iniciar Sesión</Link>
             </Button>
           </div>
         </div>
@@ -104,7 +107,7 @@ export default function HomePage() {
             <h3 className="text-3xl font-bold mb-4">¿Listo para optimizar tus objetivos?</h3>
             <p className="text-xl mb-8 opacity-90">Únete a empresas que ya están transformando su gestión de OKRs</p>
             <Button asChild size="lg" variant="secondary">
-              <Link href="/auth/register">Crear Cuenta Gratuita</Link>
+              <Link href="/handler/sign-up">Crear Cuenta Gratuita</Link>
             </Button>
           </CardContent>
         </Card>

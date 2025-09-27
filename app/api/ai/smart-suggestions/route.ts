@@ -1,20 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateSmartSuggestions } from "@/lib/ai/suggestions"
-import { verifyAuthentication, verifyUserRole } from "@/lib/database/auth"
+import { stackServerApp } from "@/stack"
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify user authentication
-    const { user, error: authError } = await verifyAuthentication(request)
-    if (authError || !user) {
+    // Verify user authentication with Stack Auth
+    const user = await stackServerApp.getUser()
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if user has corporate role
-    const isCorporate = await verifyUserRole(user.id, "corporativo")
-    if (!isCorporate) {
-      return NextResponse.json({ error: "Feature only available for corporate users" }, { status: 403 })
-    }
+    // TODO: Check if user has corporate role when profile system is implemented
+    // For now, allow all authenticated users
 
     const body = await request.json()
     const { input, department } = body
