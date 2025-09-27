@@ -309,5 +309,10 @@ export const CACHE_PRESETS = {
   static: {
     ttl: 6 * 60 * 60 * 1000,
     tags: ['static', 'templates']
+  },
+  // Cache templates for 2 hours
+  templates: {
+    ttl: 2 * 60 * 60 * 1000,
+    tags: ['templates', 'okr']
   }
 } as const

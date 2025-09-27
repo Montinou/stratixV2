@@ -375,3 +375,90 @@ export type CachedAIOperation<T extends any[], R> = (...args: T) => Promise<R>
 
 // Function type for rate-limited AI operations
 export type RateLimitedAIOperation<T extends any[], R> = (...args: T) => Promise<R>
+
+// OKR Template Generation Types
+export type CompanySize = 'startup' | 'small' | 'medium' | 'large' | 'enterprise'
+export type Industry =
+  | 'technology'
+  | 'finance'
+  | 'healthcare'
+  | 'retail'
+  | 'manufacturing'
+  | 'education'
+  | 'consulting'
+  | 'marketing'
+  | 'sales'
+  | 'hr'
+  | 'operations'
+  | 'general'
+
+export interface OKRTemplateContext {
+  industry: Industry
+  companySize: CompanySize
+  department?: string
+  role?: UserRole
+  timeframe?: 'quarterly' | 'annual'
+  focusArea?: string
+  teamSize?: number
+  companyStage?: 'early' | 'growth' | 'mature'
+  specificGoals?: string[]
+}
+
+export interface KeyResult {
+  title: string
+  description: string
+  target: string
+  measurementType: 'percentage' | 'number' | 'boolean' | 'currency'
+  baseline?: string
+  frequency: 'weekly' | 'monthly' | 'quarterly'
+}
+
+export interface OKRTemplate {
+  objective: {
+    title: string
+    description: string
+    category: string
+    timeframe: 'quarterly' | 'annual'
+  }
+  keyResults: KeyResult[]
+  initiatives: string[]
+  metrics: string[]
+  risks: string[]
+  successCriteria: string[]
+  confidenceScore: number
+  industryRelevance: number
+}
+
+export interface OKRGenerationRequest {
+  context: OKRTemplateContext
+  numberOfTemplates?: number
+  customPrompt?: string
+  existingObjectives?: string[]
+}
+
+export interface OKRGenerationResponse {
+  templates: OKRTemplate[]
+  metadata: {
+    generatedAt: Date
+    model: string
+    provider: string
+    requestId: string
+    processingTime: number
+  }
+  qualityScore: number
+  suggestions: string[]
+}
+
+export interface OKRValidationResult {
+  isValid: boolean
+  score: number
+  feedback: {
+    objectiveQuality: number
+    keyResultsQuality: number
+    measurabilityScore: number
+    timelineRealism: number
+    industryAlignment: number
+  }
+  improvements: string[]
+  warnings: string[]
+}
