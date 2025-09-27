@@ -1,13 +1,29 @@
-import { generateText, gateway } from "ai"
+import { aiClient } from './gateway-client'
+import { withCache, CACHE_PRESETS } from './cache-layer'
+import { withRateLimit, getRateLimitConfig } from './rate-limiter'
+import { withErrorHandling } from './error-handler'
 
-// Create Vercel AI Gateway provider with budget-focused models
-const ai = gateway({
-  apiKey: process.env.AI_GATEWAY_API_KEY,
-})
-
-// Budget-focused model configuration
-const BUDGET_MODEL_PRIMARY = "openai/gpt-4o-mini"
-const BUDGET_MODEL_FALLBACK = "anthropic/claude-3-haiku-20240307"
+// Fallback suggestions for when AI fails
+const FALLBACK_OKR_SUGGESTIONS: AIResponse = {
+  initiatives: [
+    "Definir métricas de seguimiento específicas",
+    "Establecer reuniones de revisión periódicas",
+    "Crear plan de comunicación del progreso",
+  ],
+  activities: [
+    "Configurar dashboard de métricas",
+    "Programar revisiones semanales",
+    "Documentar procesos clave",
+    "Establecer puntos de control mensuales",
+    "Crear reportes de progreso",
+  ],
+  keyMetrics: ["Porcentaje de progreso semanal", "Número de hitos completados", "Satisfacción del equipo"],
+  timeline: "Se recomienda un período de 3-6 meses con revisiones mensuales",
+  risks: [
+    "Falta de recursos: Asegurar asignación adecuada desde el inicio",
+    "Cambios de prioridades: Mantener comunicación constante con stakeholders",
+  ],
+}
 
 interface SuggestionRequest {
   title?: string
@@ -25,7 +41,7 @@ interface AIResponse {
   risks: string[]
 }
 
-export async function generateOKRSuggestions(request: SuggestionRequest): Promise<AIResponse> {
+const generateOKRSuggestionsBase = async (request: SuggestionRequest): Promise<AIResponse> => {
   try {
     const prompt = `
 Como experto en OKRs (Objectives and Key Results), analiza la siguiente información y proporciona sugerencias específicas:
@@ -57,11 +73,9 @@ CONSIDERACIONES:
 Responde ÚNICAMENTE con el JSON válido, sin texto adicional.
     `
 
-    const { text } = await generateText({
-      model: ai(BUDGET_MODEL_PRIMARY),
-      prompt,
+    const text = await aiClient.generateText(prompt, {
       maxTokens: 1000,
-      temperature: 0.7,
+      temperature: 0.7
     })
 
     // Parse the JSON response
@@ -69,41 +83,33 @@ Responde ÚNICAMENTE con el JSON válido, sin texto adicional.
 
     // Validate the response structure
     if (!suggestions.initiatives || !suggestions.activities || !suggestions.keyMetrics) {
-      throw new Error("Invalid AI response structure")
+      console.warn('Invalid AI response structure, using fallback')
+      return FALLBACK_OKR_SUGGESTIONS
     }
 
     return suggestions
   } catch (error) {
     console.error("Error generating OKR suggestions:", error)
-
-    // Return fallback suggestions
-    return {
-      initiatives: [
-        "Definir métricas de seguimiento específicas",
-        "Establecer reuniones de revisión periódicas",
-        "Crear plan de comunicación del progreso",
-      ],
-      activities: [
-        "Configurar dashboard de métricas",
-        "Programar revisiones semanales",
-        "Documentar procesos clave",
-        "Establecer puntos de control mensuales",
-        "Crear reportes de progreso",
-      ],
-      keyMetrics: ["Porcentaje de progreso semanal", "Número de hitos completados", "Satisfacción del equipo"],
-      timeline: "Se recomienda un período de 3-6 meses con revisiones mensuales",
-      risks: [
-        "Falta de recursos: Asegurar asignación adecuada desde el inicio",
-        "Cambios de prioridades: Mantener comunicación constante con stakeholders",
-      ],
-    }
+    // Return fallback suggestions instead of throwing
+    return FALLBACK_OKR_SUGGESTIONS
   }
 }
 
-export async function generateSmartSuggestions(input: string, context: SuggestionRequest): Promise<string[]> {
+export const generateOKRSuggestions = withCache(
+  'generateOKRSuggestions',
+  withRateLimit(
+    'generateOKRSuggestions',
+    generateOKRSuggestionsBase,
+    getRateLimitConfig(),
+    (request: SuggestionRequest) => `okr_${request.userRole}_${request.department || 'general'}`
+  ),
+  CACHE_PRESETS.suggestions
+)
+
+const generateSmartSuggestionsBase = async (input: string, context: SuggestionRequest): Promise<string[]> => {
   try {
     const prompt = `
-Basándote en el texto: "${input}" y el contexto del departamento "${context.department}", 
+Basándote en el texto: "${input}" y el contexto del departamento "${context.department}",
 genera 3-5 sugerencias inteligentes para completar o mejorar este objetivo.
 
 Las sugerencias deben ser:
@@ -115,17 +121,33 @@ Las sugerencias deben ser:
 Responde con un array JSON de strings, ejemplo: ["sugerencia 1", "sugerencia 2", "sugerencia 3"]
     `
 
-    const { text } = await generateText({
-      model: ai(BUDGET_MODEL_PRIMARY),
-      prompt,
+    const text = await aiClient.generateText(prompt, {
       maxTokens: 300,
-      temperature: 0.7,
+      temperature: 0.7
     })
 
     const suggestions = JSON.parse(text.trim()) as string[]
     return Array.isArray(suggestions) ? suggestions : []
   } catch (error) {
     console.error("Error generating smart suggestions:", error)
-    return []
+    // Return fallback suggestions based on context
+    return [
+      `Establecer métricas específicas para el departamento ${context.department}`,
+      `Crear plan de seguimiento semanal para ${context.userRole}`,
+      "Definir hitos intermedios medibles",
+      "Asignar responsables y fechas límite",
+      "Documentar proceso y lecciones aprendidas"
+    ]
   }
 }
+
+export const generateSmartSuggestions = withCache(
+  'generateSmartSuggestions',
+  withRateLimit(
+    'generateSmartSuggestions',
+    generateSmartSuggestionsBase,
+    getRateLimitConfig(),
+    (input: string, context: SuggestionRequest) => `smart_${context.userRole}_${input.substring(0, 50)}`
+  ),
+  CACHE_PRESETS.suggestions
+)
