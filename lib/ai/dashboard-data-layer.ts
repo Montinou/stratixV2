@@ -1,11 +1,12 @@
-import { performanceAnalytics } from './performance-analytics'
-import { qualityTracker } from './quality-metrics'
-import { modelBenchmarking } from './benchmarking'
+import { dashboardService } from '../performance/unified-dashboard-service'
+import { metricsCollector } from '../performance/unified-performance-service'
+import { qualityService } from '../performance/unified-quality-service'
+import { benchmarkingService } from '../performance/unified-benchmarking-service'
 import { abTesting } from './ab-testing'
 import { alertingSystem } from './alerting-system'
-import type { PerformanceStats } from './performance-analytics'
-import type { QualityTrend, QualityComparison } from './quality-metrics'
-import type { BenchmarkResult, ModelBenchmarkSummary } from './benchmarking'
+import type { PerformanceStats, ModelComparison } from '../performance/unified-performance-service'
+import type { QualityTrend, ModelQualityComparison } from '../performance/unified-quality-service'
+import type { BenchmarkResult, ModelRanking } from '../performance/unified-benchmarking-service'
 import type { ABTest } from './ab-testing'
 import type { Alert, AlertSeverity } from './alerting-system'
 
@@ -490,9 +491,9 @@ export class DashboardDataLayer {
     endTime: Date,
     filters: any
   ): Promise<OverviewData> {
-    const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, filters)
+    const stats = await metricsCollector.getStats(startTime, endTime, filters)
     const previousPeriod = this.getPreviousPeriod(startTime, endTime)
-    const previousStats = performanceAnalytics.getPerformanceStats(
+    const previousStats = await metricsCollector.getStats(
       previousPeriod.start,
       previousPeriod.end,
       filters
@@ -562,8 +563,8 @@ export class DashboardDataLayer {
     endTime: Date,
     filters: any
   ): Promise<PerformanceData> {
-    const summary = performanceAnalytics.getPerformanceStats(startTime, endTime, filters)
-    const anomalies = performanceAnalytics.detectAnomalies(24)
+    const summary = await metricsCollector.getStats(startTime, endTime, filters)
+    const anomalies = await metricsCollector.detectAnomalies(24)
 
     // Get model comparison data
     const modelComparison = await this.getModelPerformanceComparison(startTime, endTime, filters)
@@ -597,7 +598,7 @@ export class DashboardDataLayer {
     endTime: Date,
     filters: any
   ): Promise<QualityData> {
-    const qualityMetrics = qualityTracker.getQualityMetrics({
+    const qualityMetrics = await qualityService.getQualityMetrics({
       startDate: startTime,
       endDate: endTime,
       ...filters
@@ -608,7 +609,7 @@ export class DashboardDataLayer {
       : 0
 
     const previousPeriod = this.getPreviousPeriod(startTime, endTime)
-    const previousQualityMetrics = qualityTracker.getQualityMetrics({
+    const previousQualityMetrics = await qualityService.getQualityMetrics({
       startDate: previousPeriod.start,
       endDate: previousPeriod.end,
       ...filters
@@ -621,8 +622,8 @@ export class DashboardDataLayer {
     const qualityChange = this.calculateChange(avgQuality, previousAvgQuality)
 
     const distribution = this.calculateQualityDistribution(qualityMetrics)
-    const trends = qualityTracker.getQualityTrends(startTime, endTime, filters)
-    const modelComparison = qualityTracker.compareModelQuality(startTime, endTime, filters.operation)
+    const trends = await qualityService.getQualityTrends(startTime, endTime, filters)
+    const modelComparison = await qualityService.compareModelQuality(startTime, endTime, filters.operation)
 
     const summary: QualitySummary = {
       averageScore: avgQuality,
@@ -648,9 +649,9 @@ export class DashboardDataLayer {
     endTime: Date,
     filters: any
   ): Promise<CostData> {
-    const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, filters)
+    const stats = await metricsCollector.getStats(startTime, endTime, filters)
     const previousPeriod = this.getPreviousPeriod(startTime, endTime)
-    const previousStats = performanceAnalytics.getPerformanceStats(
+    const previousStats = await metricsCollector.getStats(
       previousPeriod.start,
       previousPeriod.end,
       filters
@@ -688,7 +689,7 @@ export class DashboardDataLayer {
     endTime: Date,
     filters: any
   ): Promise<BenchmarkData> {
-    const results = modelBenchmarking.getBenchmarkResults({
+    const results = await benchmarkingService.getResults({
       startDate: startTime,
       endDate: endTime,
       ...(filters.model && { model: filters.model })
@@ -800,17 +801,17 @@ export class DashboardDataLayer {
     endTime: Date,
     filters: any
   ): Promise<RecommendationData> {
-    const performanceRecs = performanceAnalytics.generateOptimizationRecommendations(
+    const performanceRecs = await metricsCollector.generateOptimizationRecommendations(
       { start: startTime, end: endTime },
       'latency'
     )
 
-    const costRecs = performanceAnalytics.generateOptimizationRecommendations(
+    const costRecs = await metricsCollector.generateOptimizationRecommendations(
       { start: startTime, end: endTime },
       'cost'
     )
 
-    const qualityRecs = performanceAnalytics.generateOptimizationRecommendations(
+    const qualityRecs = await metricsCollector.generateOptimizationRecommendations(
       { start: startTime, end: endTime },
       'quality'
     )

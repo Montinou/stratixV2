@@ -1,7 +1,7 @@
-import { performanceAnalytics } from './performance-analytics'
-import { qualityTracker } from './quality-metrics'
+import { metricsCollector } from '@/lib/performance/unified-performance-service'
+import { qualityService } from '@/lib/performance/unified-quality-service'
 import { abTesting } from './ab-testing'
-import type { AIPerformanceMetrics } from './performance-analytics'
+import type { PerformanceStats } from '@/lib/performance/unified-performance-service'
 
 // Alerting interfaces
 export interface Alert {
@@ -318,8 +318,8 @@ export class AlertingSystem {
     startTime: Date,
     endTime: Date
   ): Promise<any> {
-    const stats = performanceAnalytics.getPerformanceStats(startTime, endTime)
-    const qualityMetrics = qualityTracker.getQualityMetrics({
+    const stats = await metricsCollector.getStats(startTime, endTime)
+    const qualityMetrics = await qualityService.getQualityMetrics({
       startDate: startTime,
       endDate: endTime
     })
@@ -414,7 +414,7 @@ export class AlertingSystem {
     const endTime = new Date()
     const startTime = this.parseTimeWindow(config.lookbackWindow, endTime)
 
-    const anomalies = performanceAnalytics.detectAnomalies(24, {
+    const anomalies = await metricsCollector.detectAnomalies(24, {
       latencyMultiplier: this.getSensitivityMultiplier(config.sensitivity),
       errorRateThreshold: 5.0,
       costMultiplier: this.getSensitivityMultiplier(config.sensitivity)
@@ -473,11 +473,11 @@ export class AlertingSystem {
     const operations = ['generate_okr', 'analyze_performance', 'generate_insights', 'chat_completion']
 
     for (const operation of operations) {
-      const stats = performanceAnalytics.getPerformanceStats(startTime, endTime, { operation })
+      const stats = await metricsCollector.getStats(startTime, endTime, { operation })
 
       if (stats.totalRequests < 10) continue // Not enough data
 
-      const qualityMetrics = qualityTracker.getQualityMetrics({
+      const qualityMetrics = await qualityService.getQualityMetrics({
         operation,
         startDate: startTime,
         endDate: endTime

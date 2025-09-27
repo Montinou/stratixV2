@@ -1,13 +1,17 @@
-import { 
-  pgTable, 
-  uuid, 
-  varchar, 
-  text, 
-  timestamp, 
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  timestamp,
   pgEnum,
   integer,
   index,
-  primaryKey
+  primaryKey,
+  jsonb,
+  boolean,
+  numeric,
+  bigint
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { authenticatedRole, authUid, crudPolicy } from 'drizzle-orm/neon';
@@ -18,6 +22,12 @@ export const objectiveStatusEnum = pgEnum('objective_status', ['draft', 'in_prog
 export const initiativeStatusEnum = pgEnum('initiative_status', ['planning', 'in_progress', 'completed', 'cancelled']);
 export const activityStatusEnum = pgEnum('activity_status', ['todo', 'in_progress', 'completed', 'cancelled']);
 export const priorityEnum = pgEnum('priority', ['low', 'medium', 'high']);
+
+// AI Infrastructure enums
+export const aiOperationTypeEnum = pgEnum('ai_operation_type', ['text_generation', 'chat_completion', 'embedding', 'analysis']);
+export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'anthropic', 'google', 'vercel']);
+export const benchmarkCategoryEnum = pgEnum('benchmark_category', ['text_generation', 'chat_completion', 'embedding', 'analysis']);
+export const conversationMoodEnum = pgEnum('conversation_mood', ['positive', 'neutral', 'frustrated']);
 
 // Users table - handles authentication and basic user info
 export const users = pgTable('users', {
@@ -338,6 +348,219 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
   }),
 }));
 
+// ========== AI INFRASTRUCTURE TABLES ==========
+
+// AI Rate Limiting table - stores rate limit data for users/identifiers
+export const aiRateLimits = pgTable('ai_rate_limits', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  identifier: varchar('identifier', { length: 255 }).notNull(),
+  windowStart: timestamp('window_start').notNull(),
+  windowEnd: timestamp('window_end').notNull(),
+  requestCount: integer('request_count').default(0).notNull(),
+  tokenCount: integer('token_count').default(0).notNull(),
+  lastActivity: timestamp('last_activity').defaultNow().notNull(),
+  tenantId: uuid('tenant_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  { identifierIdx: index('ai_rate_limits_identifier_idx').on(table.identifier) },
+  { windowIdx: index('ai_rate_limits_window_idx').on(table.windowStart, table.windowEnd) },
+  { tenantIdx: index('ai_rate_limits_tenant_idx').on(table.tenantId) },
+  { lastActivityIdx: index('ai_rate_limits_last_activity_idx').on(table.lastActivity) },
+]);
+
+// AI Performance Metrics table - stores performance data for AI operations
+export const aiPerformanceMetrics = pgTable('ai_performance_metrics', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  requestId: varchar('request_id', { length: 255 }).notNull().unique(),
+  operation: varchar('operation', { length: 100 }).notNull(),
+  model: varchar('model', { length: 100 }).notNull(),
+  provider: aiProviderEnum('provider').notNull(),
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
+  duration: integer('duration').notNull(), // milliseconds
+  tokensInput: integer('tokens_input').default(0).notNull(),
+  tokensOutput: integer('tokens_output').default(0).notNull(),
+  cost: numeric('cost', { precision: 10, scale: 6 }).default('0').notNull(),
+  success: boolean('success').notNull(),
+  error: text('error'),
+  qualityScore: integer('quality_score'),
+  userId: varchar('user_id', { length: 255 }),
+  metadata: jsonb('metadata'),
+  tenantId: uuid('tenant_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  { requestIdIdx: index('ai_perf_metrics_request_id_idx').on(table.requestId) },
+  { operationIdx: index('ai_perf_metrics_operation_idx').on(table.operation) },
+  { modelIdx: index('ai_perf_metrics_model_idx').on(table.model) },
+  { providerIdx: index('ai_perf_metrics_provider_idx').on(table.provider) },
+  { timeRangeIdx: index('ai_perf_metrics_time_range_idx').on(table.startTime, table.endTime) },
+  { userIdx: index('ai_perf_metrics_user_idx').on(table.userId) },
+  { tenantIdx: index('ai_perf_metrics_tenant_idx').on(table.tenantId) },
+  { successIdx: index('ai_perf_metrics_success_idx').on(table.success) },
+]);
+
+// AI Conversations table - stores conversation contexts and metadata
+export const aiConversations = pgTable('ai_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversationId: varchar('conversation_id', { length: 255 }).notNull().unique(),
+  userId: varchar('user_id', { length: 255 }).notNull(),
+  userRole: userRoleEnum('user_role').notNull(),
+  department: varchar('department', { length: 100 }),
+  companySize: varchar('company_size', { length: 50 }),
+  sessionStart: timestamp('session_start').defaultNow().notNull(),
+  lastActivity: timestamp('last_activity').defaultNow().notNull(),
+  messageCount: integer('message_count').default(0).notNull(),
+  topics: jsonb('topics'), // Array of topics as JSON
+  mood: conversationMoodEnum('mood').default('neutral'),
+  preferences: jsonb('preferences'), // User preferences as JSON
+  tenantId: uuid('tenant_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  { conversationIdIdx: index('ai_conversations_id_idx').on(table.conversationId) },
+  { userIdx: index('ai_conversations_user_idx').on(table.userId) },
+  { lastActivityIdx: index('ai_conversations_last_activity_idx').on(table.lastActivity) },
+  { tenantIdx: index('ai_conversations_tenant_idx').on(table.tenantId) },
+]);
+
+// AI Conversation Messages table - stores conversation history
+export const aiConversationMessages = pgTable('ai_conversation_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversationId: varchar('conversation_id', { length: 255 }).notNull()
+    .references(() => aiConversations.conversationId, { onDelete: 'cascade' }),
+  role: varchar('role', { length: 50 }).notNull(), // 'user', 'assistant', 'system'
+  content: text('content').notNull(),
+  metadata: jsonb('metadata'),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  tenantId: uuid('tenant_id'),
+}, (table) => [
+  { conversationIdx: index('ai_conv_messages_conversation_idx').on(table.conversationId) },
+  { timestampIdx: index('ai_conv_messages_timestamp_idx').on(table.timestamp) },
+  { tenantIdx: index('ai_conv_messages_tenant_idx').on(table.tenantId) },
+]);
+
+// AI Conversation Summaries table - stores conversation summaries
+export const aiConversationSummaries = pgTable('ai_conversation_summaries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversationId: varchar('conversation_id', { length: 255 }).notNull()
+    .references(() => aiConversations.conversationId, { onDelete: 'cascade' }),
+  keyTopics: jsonb('key_topics'), // Array of key topics
+  actionItems: jsonb('action_items'), // Array of action items
+  decisionsMade: jsonb('decisions_made'), // Array of decisions
+  questionsAsked: jsonb('questions_asked'), // Array of questions
+  progressDiscussed: jsonb('progress_discussed'), // Array of progress items
+  moodIndicators: jsonb('mood_indicators'), // Array of mood indicators
+  tenantId: uuid('tenant_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  { conversationIdx: index('ai_conv_summaries_conversation_idx').on(table.conversationId) },
+  { tenantIdx: index('ai_conv_summaries_tenant_idx').on(table.tenantId) },
+]);
+
+// AI Benchmark Suites table - stores benchmark test suites
+export const aiBenchmarkSuites = pgTable('ai_benchmark_suites', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  suiteId: varchar('suite_id', { length: 255 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  modelsToTest: jsonb('models_to_test'), // Array of model names
+  tenantId: uuid('tenant_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  { suiteIdIdx: index('ai_benchmark_suites_suite_id_idx').on(table.suiteId) },
+  { tenantIdx: index('ai_benchmark_suites_tenant_idx').on(table.tenantId) },
+]);
+
+// AI Benchmark Test Cases table - stores individual benchmark test cases
+export const aiBenchmarkTestCases = pgTable('ai_benchmark_test_cases', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  suiteId: varchar('suite_id', { length: 255 }).notNull()
+    .references(() => aiBenchmarkSuites.suiteId, { onDelete: 'cascade' }),
+  testCaseId: varchar('test_case_id', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  category: benchmarkCategoryEnum('category').notNull(),
+  prompt: text('prompt').notNull(),
+  expectedOutputType: varchar('expected_output_type', { length: 50 }).notNull(),
+  expectedLatency: integer('expected_latency').notNull(),
+  qualityCriteria: jsonb('quality_criteria'), // Quality criteria as JSON
+  metadata: jsonb('metadata'),
+  tenantId: uuid('tenant_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  { suiteIdIdx: index('ai_benchmark_test_cases_suite_id_idx').on(table.suiteId) },
+  { testCaseIdIdx: index('ai_benchmark_test_cases_test_case_id_idx').on(table.testCaseId) },
+  { categoryIdx: index('ai_benchmark_test_cases_category_idx').on(table.category) },
+  { tenantIdx: index('ai_benchmark_test_cases_tenant_idx').on(table.tenantId) },
+]);
+
+// AI Benchmark Results table - stores benchmark execution results
+export const aiBenchmarkResults = pgTable('ai_benchmark_results', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  testCaseId: varchar('test_case_id', { length: 255 }).notNull(),
+  model: varchar('model', { length: 100 }).notNull(),
+  provider: aiProviderEnum('provider').notNull(),
+  success: boolean('success').notNull(),
+  latency: integer('latency').notNull(),
+  cost: numeric('cost', { precision: 10, scale: 6 }).default('0').notNull(),
+  qualityScore: integer('quality_score').default(0).notNull(),
+  outputText: text('output_text'),
+  tokensInput: integer('tokens_input').default(0).notNull(),
+  tokensOutput: integer('tokens_output').default(0).notNull(),
+  error: text('error'),
+  metadata: jsonb('metadata'),
+  tenantId: uuid('tenant_id'),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+}, (table) => [
+  { testCaseIdIdx: index('ai_benchmark_results_test_case_id_idx').on(table.testCaseId) },
+  { modelIdx: index('ai_benchmark_results_model_idx').on(table.model) },
+  { providerIdx: index('ai_benchmark_results_provider_idx').on(table.provider) },
+  { timestampIdx: index('ai_benchmark_results_timestamp_idx').on(table.timestamp) },
+  { successIdx: index('ai_benchmark_results_success_idx').on(table.success) },
+  { tenantIdx: index('ai_benchmark_results_tenant_idx').on(table.tenantId) },
+]);
+
+// AI Infrastructure Relations
+export const aiRateLimitsRelations = relations(aiRateLimits, ({ one }) => ({}));
+
+export const aiPerformanceMetricsRelations = relations(aiPerformanceMetrics, ({ one }) => ({}));
+
+export const aiConversationsRelations = relations(aiConversations, ({ many }) => ({
+  messages: many(aiConversationMessages),
+  summaries: many(aiConversationSummaries),
+}));
+
+export const aiConversationMessagesRelations = relations(aiConversationMessages, ({ one }) => ({
+  conversation: one(aiConversations, {
+    fields: [aiConversationMessages.conversationId],
+    references: [aiConversations.conversationId],
+  }),
+}));
+
+export const aiConversationSummariesRelations = relations(aiConversationSummaries, ({ one }) => ({
+  conversation: one(aiConversations, {
+    fields: [aiConversationSummaries.conversationId],
+    references: [aiConversations.conversationId],
+  }),
+}));
+
+export const aiBenchmarkSuitesRelations = relations(aiBenchmarkSuites, ({ many }) => ({
+  testCases: many(aiBenchmarkTestCases),
+}));
+
+export const aiBenchmarkTestCasesRelations = relations(aiBenchmarkTestCases, ({ one }) => ({
+  suite: one(aiBenchmarkSuites, {
+    fields: [aiBenchmarkTestCases.suiteId],
+    references: [aiBenchmarkSuites.suiteId],
+  }),
+}));
+
+export const aiBenchmarkResultsRelations = relations(aiBenchmarkResults, ({ one }) => ({}));
+
 // Export all tables for use in queries and migrations
 export const schema = {
   users,
@@ -346,6 +569,15 @@ export const schema = {
   objectives,
   initiatives,
   activities,
+  // AI Infrastructure tables
+  aiRateLimits,
+  aiPerformanceMetrics,
+  aiConversations,
+  aiConversationMessages,
+  aiConversationSummaries,
+  aiBenchmarkSuites,
+  aiBenchmarkTestCases,
+  aiBenchmarkResults,
   // Relations
   usersRelations,
   companiesRelations,
@@ -353,10 +585,24 @@ export const schema = {
   objectivesRelations,
   initiativesRelations,
   activitiesRelations,
+  // AI Infrastructure Relations
+  aiRateLimitsRelations,
+  aiPerformanceMetricsRelations,
+  aiConversationsRelations,
+  aiConversationMessagesRelations,
+  aiConversationSummariesRelations,
+  aiBenchmarkSuitesRelations,
+  aiBenchmarkTestCasesRelations,
+  aiBenchmarkResultsRelations,
   // Enums
   userRoleEnum,
   objectiveStatusEnum,
   initiativeStatusEnum,
   activityStatusEnum,
   priorityEnum,
+  // AI Infrastructure Enums
+  aiOperationTypeEnum,
+  aiProviderEnum,
+  benchmarkCategoryEnum,
+  conversationMoodEnum,
 };

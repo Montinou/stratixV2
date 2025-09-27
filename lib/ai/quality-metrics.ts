@@ -1,6 +1,7 @@
 import { aiClient } from './gateway-client'
-import { performanceAnalytics } from './performance-analytics'
-import type { AIPerformanceMetrics } from './performance-analytics'
+import { metricsCollector } from '@/lib/performance/unified-performance-service'
+import { qualityService } from '@/lib/performance/unified-quality-service'
+import type { PerformanceStats } from '@/lib/performance/unified-performance-service'
 
 // Quality metrics interfaces
 export interface QualityMetrics {
@@ -867,7 +868,7 @@ export async function trackQuality(
   userId?: string,
   metadata?: Record<string, any>
 ): Promise<QualityMetrics> {
-  return qualityTracker.evaluateResponse(
+  return qualityService.evaluateResponse(
     requestId,
     operation,
     model,
