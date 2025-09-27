@@ -1,7 +1,7 @@
 ---
 created: 2025-09-24T05:32:18Z
-last_updated: 2025-09-27T15:15:56Z
-version: 2.1
+last_updated: 2025-09-27T19:27:01Z
+version: 2.2
 author: Claude Code PM System
 ---
 
@@ -77,10 +77,14 @@ author: Claude Code PM System
 {
   "@stackframe/stack": "^2.8.39",
   "@vercel/analytics": "latest",
+  "@vercel/edge-config": "^1.4.0",
   "next": "14.2.16",
   "react": "^18",
   "react-dom": "^18",
   "typescript": "^5",
+  "ioredis": "^5.8.0",
+  "redis": "^5.8.2",
+  "@types/ioredis": "^4.28.10",
   "zustand": "^4.0.0", // Added for wizard state management
   "swr": "^2.0.0", // Added for AI cache management
   "jsonwebtoken": "^9.0.0", // Added for invitation tokens
