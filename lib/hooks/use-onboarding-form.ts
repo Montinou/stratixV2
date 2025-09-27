@@ -9,13 +9,15 @@ import {
   CompanyFormData,
   OrganizationFormData
 } from "@/lib/validations/onboarding-schemas";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Welcome step form hook
 export function useWelcomeForm(): UseFormReturn<WelcomeFormData> & {
-  onSubmit: (data: WelcomeFormData) => void;
+  onSubmit: (data: WelcomeFormData) => Promise<void>;
+  isSubmitting: boolean;
 } {
-  const { stepData, setStepData, completeStep, nextStep } = useOnboardingStore();
+  const { stepData, setStepData, completeStep, nextStep, setLoading } = useOnboardingStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<WelcomeFormData>({
     resolver: zodResolver(welcomeSchema),
@@ -28,8 +30,8 @@ export function useWelcomeForm(): UseFormReturn<WelcomeFormData> & {
 
   // Load saved data on mount
   useEffect(() => {
-    const welcomeData = stepData.welcome as any;
-    if (welcomeData.role || welcomeData.experienceLevel) {
+    const welcomeData = stepData.welcome;
+    if (welcomeData?.role || welcomeData?.experienceLevel) {
       form.reset({
         role: welcomeData.role || "",
         customRole: welcomeData.customRole || "",
@@ -38,26 +40,46 @@ export function useWelcomeForm(): UseFormReturn<WelcomeFormData> & {
     }
   }, [form, stepData.welcome]);
 
-  const onSubmit = useCallback((data: WelcomeFormData) => {
-    setStepData('welcome', {
-      ...data,
-      hasSeenWelcome: true
-    });
-    completeStep(1);
-    nextStep();
-  }, [setStepData, completeStep, nextStep]);
+  const onSubmit = useCallback(async (data: WelcomeFormData) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setLoading(true);
+
+    try {
+      // Simulate network delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setStepData('welcome', {
+        ...data,
+        hasSeenWelcome: true
+      });
+      completeStep(1);
+      nextStep();
+    } catch (error) {
+      console.error('Error submitting welcome form:', error);
+      // Error is handled by error boundary
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+      setLoading(false);
+    }
+  }, [setStepData, completeStep, nextStep, setLoading, isSubmitting]);
 
   return {
     ...form,
-    onSubmit
+    onSubmit,
+    isSubmitting
   };
 }
 
 // Company step form hook
 export function useCompanyForm(): UseFormReturn<CompanyFormData> & {
-  onSubmit: (data: CompanyFormData) => void;
+  onSubmit: (data: CompanyFormData) => Promise<void>;
+  isSubmitting: boolean;
 } {
-  const { stepData, setStepData, completeStep, nextStep } = useOnboardingStore();
+  const { stepData, setStepData, completeStep, nextStep, setLoading } = useOnboardingStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -84,23 +106,42 @@ export function useCompanyForm(): UseFormReturn<CompanyFormData> & {
     }
   }, [form, stepData.company]);
 
-  const onSubmit = useCallback((data: CompanyFormData) => {
-    setStepData('company', data);
-    completeStep(2);
-    nextStep();
-  }, [setStepData, completeStep, nextStep]);
+  const onSubmit = useCallback(async (data: CompanyFormData) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setLoading(true);
+
+    try {
+      // Simulate network delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      setStepData('company', data);
+      completeStep(2);
+      nextStep();
+    } catch (error) {
+      console.error('Error submitting company form:', error);
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+      setLoading(false);
+    }
+  }, [setStepData, completeStep, nextStep, setLoading, isSubmitting]);
 
   return {
     ...form,
-    onSubmit
+    onSubmit,
+    isSubmitting
   };
 }
 
 // Organization step form hook
 export function useOrganizationForm(): UseFormReturn<OrganizationFormData> & {
-  onSubmit: (data: OrganizationFormData) => void;
+  onSubmit: (data: OrganizationFormData) => Promise<void>;
+  isSubmitting: boolean;
 } {
-  const { stepData, setStepData, completeStep, nextStep } = useOnboardingStore();
+  const { stepData, setStepData, completeStep, nextStep, setLoading } = useOnboardingStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationSchema),
@@ -116,8 +157,8 @@ export function useOrganizationForm(): UseFormReturn<OrganizationFormData> & {
 
   // Load saved data on mount
   useEffect(() => {
-    const orgData = stepData.organization as any;
-    if (orgData.teamSize || orgData.structure) {
+    const orgData = stepData.organization;
+    if (orgData?.teamSize || orgData?.structure) {
       form.reset({
         teamSize: orgData.teamSize || 5,
         structure: orgData.structure || "hierarchical",
@@ -129,24 +170,41 @@ export function useOrganizationForm(): UseFormReturn<OrganizationFormData> & {
     }
   }, [form, stepData.organization]);
 
-  const onSubmit = useCallback((data: OrganizationFormData) => {
-    setStepData('organization', {
-      departments: data.departments,
-      structure: data.structure,
-      ...data
-    });
-    completeStep(3);
-    nextStep();
-  }, [setStepData, completeStep, nextStep]);
+  const onSubmit = useCallback(async (data: OrganizationFormData) => {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setLoading(true);
+
+    try {
+      // Simulate network delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setStepData('organization', {
+        departments: data.departments,
+        structure: data.structure,
+        ...data
+      });
+      completeStep(3);
+      nextStep();
+    } catch (error) {
+      console.error('Error submitting organization form:', error);
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+      setLoading(false);
+    }
+  }, [setStepData, completeStep, nextStep, setLoading, isSubmitting]);
 
   return {
     ...form,
-    onSubmit
+    onSubmit,
+    isSubmitting
   };
 }
 
 // Auto-save functionality hook
-export function useAutoSave<T>(
+export function useAutoSave<T extends Record<string, any>>(
   form: UseFormReturn<T>,
   stepKey: 'welcome' | 'company' | 'organization',
   debounceMs: number = 1000
@@ -157,7 +215,14 @@ export function useAutoSave<T>(
     const subscription = form.watch((data) => {
       const timeoutId = setTimeout(() => {
         if (data && Object.keys(data).length > 0) {
-          setStepData(stepKey, data as any);
+          // Type-safe way to set step data based on step key
+          if (stepKey === 'welcome' && data) {
+            setStepData(stepKey, data as Partial<WelcomeFormData>);
+          } else if (stepKey === 'company' && data) {
+            setStepData(stepKey, data as Partial<CompanyFormData>);
+          } else if (stepKey === 'organization' && data) {
+            setStepData(stepKey, data as Partial<OrganizationFormData>);
+          }
         }
       }, debounceMs);
 

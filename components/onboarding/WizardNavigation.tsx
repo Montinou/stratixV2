@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/lib/stores/onboarding-store";
 import { WIZARD_STEPS } from "@/lib/types/onboarding";
 import { cn } from "@/lib/utils";
+import { useState, useEffect, useCallback } from "react";
 
 interface WizardNavigationProps {
   currentStep: number;
@@ -36,12 +37,18 @@ export function WizardNavigation({
 }: WizardNavigationProps) {
   const router = useRouter();
   const { nextStep, previousStep, completeStep } = useOnboardingStore();
+  const [isNextHovered, setIsNextHovered] = useState(false);
+  const [isPreviousHovered, setIsPreviousHovered] = useState(false);
+  const [buttonClickState, setButtonClickState] = useState<'next' | 'previous' | 'skip' | null>(null);
 
   const isFirstStep = currentStep === 1;
   const isLastStep = currentStep === WIZARD_STEPS.length;
   const currentStepConfig = WIZARD_STEPS[currentStep - 1];
 
   const handlePrevious = () => {
+    setButtonClickState('previous');
+    setTimeout(() => setButtonClickState(null), 200);
+
     if (onPrevious) {
       onPrevious();
     } else if (!isFirstStep) {
@@ -52,6 +59,9 @@ export function WizardNavigation({
   };
 
   const handleNext = async () => {
+    setButtonClickState('next');
+    setTimeout(() => setButtonClickState(null), 200);
+
     if (onNext) {
       await onNext();
     } else if (!isLastStep) {
@@ -66,6 +76,9 @@ export function WizardNavigation({
   };
 
   const handleSkip = () => {
+    setButtonClickState('skip');
+    setTimeout(() => setButtonClickState(null), 200);
+
     if (onSkip) {
       onSkip();
     } else if (!isLastStep && currentStepConfig?.canSkip) {
@@ -81,17 +94,43 @@ export function WizardNavigation({
   const defaultPreviousLabel = "Anterior";
 
   return (
-    <div className={cn("flex items-center justify-between gap-4", className)}>
+    <nav
+      id="wizard-navigation"
+      className={cn(
+        "flex items-center justify-between gap-4 animate-gpu",
+        "transition-all duration-300 ease-spring",
+        className
+      )}
+      role="navigation"
+      aria-label="Navegación del onboarding"
+    >
       {/* Previous Button */}
       <Button
         variant="outline"
         onClick={handlePrevious}
         disabled={isFirstStep || isLoading}
-        className="flex items-center gap-2"
+        onMouseEnter={() => setIsPreviousHovered(true)}
+        onMouseLeave={() => setIsPreviousHovered(false)}
+        className={cn(
+          "flex items-center gap-2 button-scale animate-gpu",
+          "transition-all duration-200 ease-spring",
+          buttonClickState === 'previous' && "animate-scale-in",
+          isPreviousHovered && "shadow-md",
+          isFirstStep && "opacity-50 cursor-not-allowed"
+        )}
         aria-label={`Ir al paso anterior: ${isFirstStep ? 'No disponible' : WIZARD_STEPS[currentStep - 2]?.title}`}
+        aria-describedby={isFirstStep ? "prev-disabled-desc" : undefined}
       >
-        <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-        {previousLabel || defaultPreviousLabel}
+        <ChevronLeft
+          className={cn(
+            "w-4 h-4 transition-transform duration-200",
+            isPreviousHovered && !isFirstStep && "transform -translate-x-0.5"
+          )}
+          aria-hidden="true"
+        />
+        <span className="transition-all duration-200">
+          {previousLabel || defaultPreviousLabel}
+        </span>
       </Button>
 
       {/* Skip Button - Only show if step can be skipped */}
@@ -100,11 +139,24 @@ export function WizardNavigation({
           variant="ghost"
           onClick={handleSkip}
           disabled={isLoading}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          className={cn(
+            "flex items-center gap-2 text-muted-foreground hover:text-foreground",
+            "button-scale animate-gpu transition-all duration-200 ease-spring",
+            buttonClickState === 'skip' && "animate-scale-in",
+            "hover:bg-muted/50"
+          )}
           aria-label={`Omitir paso actual: ${currentStepConfig.title}`}
         >
-          <SkipForward className="w-4 h-4" aria-hidden="true" />
-          {skipLabel}
+          <SkipForward
+            className={cn(
+              "w-4 h-4 transition-transform duration-200",
+              "hover:translate-x-0.5"
+            )}
+            aria-hidden="true"
+          />
+          <span className="transition-all duration-200">
+            {skipLabel}
+          </span>
         </Button>
       )}
 
@@ -115,22 +167,66 @@ export function WizardNavigation({
       <Button
         onClick={handleNext}
         disabled={!canProceed || isLoading}
-        className="flex items-center gap-2 min-w-[120px]"
+        onMouseEnter={() => setIsNextHovered(true)}
+        onMouseLeave={() => setIsNextHovered(false)}
+        className={cn(
+          "flex items-center gap-2 min-w-[120px] button-scale animate-gpu",
+          "transition-all duration-200 ease-spring relative overflow-hidden",
+          buttonClickState === 'next' && "animate-scale-in",
+          isNextHovered && "shadow-lg",
+          isLastStep && "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800",
+          !canProceed && "opacity-50 cursor-not-allowed"
+        )}
         aria-label={`${nextLabel || defaultNextLabel}${!isLastStep ? `: ir a ${WIZARD_STEPS[currentStep]?.title}` : ''}`}
       >
-        {isLoading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
-            Procesando...
-          </>
-        ) : (
-          <>
-            {nextLabel || defaultNextLabel}
-            {!isLastStep && <ChevronRight className="w-4 h-4" aria-hidden="true" />}
-          </>
+        {/* Success shimmer for last step */}
+        {isLastStep && isNextHovered && (
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent w-1/3 animate-shimmer" />
         )}
+
+        <div className="relative z-10 flex items-center gap-2">
+          {isLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+              <span className="transition-all duration-200">Procesando...</span>
+            </>
+          ) : (
+            <>
+              <span className="transition-all duration-200">
+                {nextLabel || defaultNextLabel}
+              </span>
+              {!isLastStep && (
+                <ChevronRight
+                  className={cn(
+                    "w-4 h-4 transition-transform duration-200",
+                    isNextHovered && "transform translate-x-0.5"
+                  )}
+                  aria-hidden="true"
+                />
+              )}
+            </>
+          )}
+        </div>
       </Button>
-    </div>
+
+      {/* Hidden accessibility descriptions */}
+      {isFirstStep && (
+        <div id="prev-disabled-desc" className="sr-only">
+          Estás en el primer paso del onboarding
+        </div>
+      )}
+
+      {!canProceed && (
+        <div id="next-disabled-desc" className="sr-only">
+          Completa todos los campos requeridos para continuar
+        </div>
+      )}
+
+      {/* Keyboard shortcuts help */}
+      <div className="sr-only">
+        Atajos de teclado: Ctrl + flecha derecha para siguiente, Ctrl + flecha izquierda para anterior, Escape para salir
+      </div>
+    </nav>
   );
 }
 
@@ -151,7 +247,7 @@ export function useWizardKeyboardNavigation({
   const router = useRouter();
   const { nextStep, previousStep, completeStep } = useOnboardingStore();
 
-  const handleKeyDown = async (event: KeyboardEvent) => {
+  const handleKeyDown = useCallback(async (event: KeyboardEvent) => {
     // Only handle if not in an input field
     if (event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement ||
@@ -194,7 +290,7 @@ export function useWizardKeyboardNavigation({
         router.push('/dashboard');
         break;
     }
-  };
+  }, [currentStep, canProceed, isLoading, onNext, onPrevious, router, nextStep, previousStep, completeStep]);
 
   return { handleKeyDown };
 }

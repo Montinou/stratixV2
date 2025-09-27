@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, ReactNode } from "react";
+import { useEffect, ReactNode, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useOnboardingStore, canAccessStep } from "@/lib/stores/onboarding-store";
 import { WIZARD_STEPS } from "@/lib/types/onboarding";
 import { ProgressIndicator } from "./ProgressIndicator";
 import { WizardNavigation, useWizardKeyboardNavigation } from "./WizardNavigation";
 import { AccessibilityProvider, SkipLink } from "./AccessibilityProvider";
+import { ErrorBoundaryWrapper } from "./ErrorBoundary";
 import { cn } from "@/lib/utils";
 
 interface WizardContainerProps {
@@ -50,10 +51,18 @@ export function WizardContainer({
     clearError
   } = useOnboardingStore();
 
-  // Sync store step with current step prop
+  // Use ref to prevent infinite update loops
+  const isUpdatingStep = useRef(false);
+
+  // Sync store step with current step prop - prevent infinite updates
   useEffect(() => {
-    if (storeCurrentStep !== currentStep) {
+    if (storeCurrentStep !== currentStep && !isUpdatingStep.current) {
+      isUpdatingStep.current = true;
       goToStep(currentStep);
+      // Reset the flag after a short delay to allow for state updates
+      setTimeout(() => {
+        isUpdatingStep.current = false;
+      }, 100);
     }
   }, [currentStep, storeCurrentStep, goToStep]);
 
@@ -130,7 +139,15 @@ export function WizardContainer({
           aria-label="Contenido principal del onboarding"
         >
           <div className="w-full max-w-4xl mx-auto">
-            {children}
+            <ErrorBoundaryWrapper
+              resetKeys={[currentStep]}
+              onError={(error, errorInfo) => {
+                console.error(`Error in wizard step ${currentStep}:`, error, errorInfo);
+                setError('wizard', `Error en el paso ${currentStep}: ${error.message}`);
+              }}
+            >
+              {children}
+            </ErrorBoundaryWrapper>
           </div>
         </main>
 
