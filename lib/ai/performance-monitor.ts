@@ -3,6 +3,8 @@
  * Comprehensive performance tracking, bottleneck detection, and analytics
  */
 
+import { aiCacheOptimization } from './cache-optimization'
+
 export interface PerformanceMetrics {
   responseTime: number
   cacheHitRatio: number
@@ -224,17 +226,17 @@ export class AIPerformanceMonitor {
   }
 
   /**
-   * Get cache statistics
+   * Get cache statistics from the AI cache optimization system
    */
   private async getCacheStats(): Promise<{ hitRate: number; size: number }> {
     try {
-      // This would integrate with the actual cache implementation
-      // For now, return mock data
+      const cacheStats = aiCacheOptimization.getAdvancedStats()
       return {
-        hitRate: 0.75, // 75% cache hit rate
-        size: 1000
+        hitRate: cacheStats.hitRate,
+        size: cacheStats.size
       }
-    } catch {
+    } catch (error) {
+      console.error('Failed to retrieve cache statistics:', error)
       return { hitRate: 0, size: 0 }
     }
   }

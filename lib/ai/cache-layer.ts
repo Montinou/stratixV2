@@ -25,6 +25,10 @@ export class AICacheLayer {
   private readonly maxSize = 1000 // Maximum cache entries
   private cleanupInterval: NodeJS.Timeout | null = null
 
+  // Track hits and misses for accurate hit rate calculation
+  private totalHits = 0
+  private totalMisses = 0
+
   private constructor() {
     // Start cleanup interval every 10 minutes
     this.cleanupInterval = setInterval(() => {
@@ -84,6 +88,7 @@ export class AICacheLayer {
     const entry = this.cache.get(key)
 
     if (!entry) {
+      this.totalMisses++
       return null
     }
 
@@ -92,11 +97,13 @@ export class AICacheLayer {
     const entryTime = entry.timestamp.getTime()
     if (now - entryTime > entry.ttl) {
       this.cache.delete(key)
+      this.totalMisses++
       return null
     }
 
     // Update hit count
     entry.hits++
+    this.totalHits++
 
     return entry.data as T
   }
@@ -136,6 +143,8 @@ export class AICacheLayer {
    */
   public clear(): void {
     this.cache.clear()
+    this.totalHits = 0
+    this.totalMisses = 0
   }
 
   /**
@@ -173,11 +182,9 @@ export class AICacheLayer {
       ttl: number
     }> = []
 
-    let totalHits = 0
     const now = Date.now()
 
     for (const [key, entry] of this.cache.entries()) {
-      totalHits += entry.hits
       entries.push({
         operation: key.substring(0, 20) + '...', // Truncated key for display
         hits: entry.hits,
@@ -189,7 +196,9 @@ export class AICacheLayer {
     // Sort by hits (most popular first)
     entries.sort((a, b) => b.hits - a.hits)
 
-    const hitRate = this.cache.size > 0 ? totalHits / this.cache.size : 0
+    // Calculate hit rate as hits / (hits + misses), handling division by zero
+    const totalRequests = this.totalHits + this.totalMisses
+    const hitRate = totalRequests > 0 ? this.totalHits / totalRequests : 0
 
     return {
       size: this.cache.size,
@@ -249,6 +258,8 @@ export class AICacheLayer {
       this.cleanupInterval = null
     }
     this.cache.clear()
+    this.totalHits = 0
+    this.totalMisses = 0
   }
 }
 
