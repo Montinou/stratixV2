@@ -1,7 +1,7 @@
 ---
 created: 2025-09-24T05:32:18Z
-last_updated: 2025-09-27T19:27:01Z
-version: 2.2
+last_updated: 2025-09-27T23:11:47Z
+version: 2.3
 author: Claude Code PM System
 ---
 
@@ -72,23 +72,42 @@ author: Claude Code PM System
 }
 ```
 
-### Enhanced Production Dependencies
+### Enhanced Production Dependencies (Updated - Sep 2025)
 ```json
 {
   "@stackframe/stack": "^2.8.39",
   "@vercel/analytics": "latest",
   "@vercel/edge-config": "^1.4.0",
-  "next": "14.2.16",
+  "next": "^14.2.33",
   "react": "^18",
   "react-dom": "^18",
   "typescript": "^5",
   "ioredis": "^5.8.0",
   "redis": "^5.8.2",
   "@types/ioredis": "^4.28.10",
-  "zustand": "^4.0.0", // Added for wizard state management
-  "swr": "^2.0.0", // Added for AI cache management
-  "jsonwebtoken": "^9.0.0", // Added for invitation tokens
-  "@types/jsonwebtoken": "^9.0.0"
+  "zustand": "^5.0.8",
+  "lru-cache": "^11.2.2",
+  "jsonwebtoken": "^9.0.2",
+  "@types/jsonwebtoken": "^9.0.10",
+  "react-hook-form": "^7.63.0",
+  "@dnd-kit/core": "^6.3.1",
+  "@dnd-kit/sortable": "^10.0.0",
+  "@dnd-kit/utilities": "^3.2.2"
+}
+```
+
+### New Testing & Quality Dependencies (Sep 2025)
+```json
+{
+  "jest": "^29.7.0",
+  "jest-environment-jsdom": "^29.7.0",
+  "@testing-library/react": "^16.3.0",
+  "@testing-library/jest-dom": "^6.8.0",
+  "@testing-library/user-event": "^14.5.2",
+  "@types/jest": "^29.5.12",
+  "@axe-core/react": "^4.10.2",
+  "axe-core": "^4.10.3",
+  "jest-axe": "^10.0.0"
 }
 ```
 
@@ -101,7 +120,7 @@ author: Claude Code PM System
 
 ## Development Environment (Enhanced for AI)
 
-### Enhanced NPM Scripts
+### Enhanced NPM Scripts (Updated Sep 2025)
 ```bash
 # Core Development
 npm run dev                    # Next.js development server with AI endpoints
@@ -109,27 +128,25 @@ npm run build                  # Production build with AI optimizations
 npm run start                  # Start production server with AI services
 npm run lint                   # ESLint with AI code patterns
 
-# AI Development & Testing
-npm run ai:test                # Test AI Gateway connectivity (planned)
-npm run ai:cost-check          # Monitor AI usage costs (planned)
-npm run ai:cache-clear         # Clear AI response cache (planned)
+# Testing & Quality (✅ IMPLEMENTED)
+npm run test                   # Run Jest test suite
+npm run test:watch             # Watch mode for tests
+npm run test:coverage          # Generate coverage reports
+npm run test:ci                # CI-optimized test run
 
 # Database Operations (Enhanced for AI schema)
 npm run migrate                # Execute database migrations (including AI tables)
 npm run migrate:with-seed      # Run migrations with AI sample data
-npm run migrate:ai-schema      # Deploy AI-specific schema extensions (planned)
+npm run migrate:validate       # Validate migration status
 
-# Onboarding & Wizard
-npm run onboarding:test        # Test wizard functionality (planned)
-npm run onboarding:reset       # Reset onboarding sessions (planned)
+# Deployment & Health Checks
+npm run deploy:health-check    # Validate deployment health
+npm run deploy:migration       # Pre-build migration check
 
-# Invitation System
-npm run invitations:test       # Test Brevo integration (planned)
-npm run invitations:cleanup    # Clean expired invitations (planned)
-
-# Brevo Integration
-npm run brevo:test             # Test Brevo API connectivity (planned)
-npm run brevo:templates        # Sync email templates (planned)
+# Development Tools (✅ IMPLEMENTED)
+# Storybook integration for component development
+# Lighthouse performance testing
+# Accessibility validation scripts
 ```
 
 ### Build Configuration (AI-Optimized)
@@ -322,23 +339,29 @@ interface CacheLayer {
 
 ## Development Tools & Workflow (AI-Enhanced)
 
-### Code Quality (Extended)
+### Code Quality (✅ IMPLEMENTED - Sep 2025)
 - **AI Type Safety**: Comprehensive TypeScript for AI interactions
-- **Prompt Validation**: Testing framework for AI prompts
-- **Cost Testing**: Simulated AI calls for development
-- **Email Testing**: Brevo sandbox integration for development
+- **Testing Framework**: Jest + Testing Library + Jest-axe for accessibility
+- **Component Testing**: Individual component test coverage
+- **Integration Testing**: Full onboarding flow testing
+- **Accessibility Testing**: Automated a11y validation with axe-core
+- **Performance Testing**: Lighthouse-based performance validation
+- **Visual Testing**: Storybook with comprehensive component documentation
 
-### Development Workflow (Enhanced)
-- **AI Development**: Local AI Gateway proxy for development
-- **Wizard Testing**: Specialized testing for onboarding flows
-- **Email Testing**: Brevo test mode for invitation flows
-- **Performance Profiling**: AI response time monitoring
+### Development Workflow (✅ ENHANCED - Sep 2025)
+- **Test-Driven Development**: Comprehensive test suite for all features
+- **Component Development**: Storybook-driven component development
+- **Accessibility-First**: WCAG compliance built into development workflow
+- **Performance Monitoring**: Lighthouse CI integration
+- **Code Quality**: ESLint + TypeScript strict mode
 
-### Component Development (AI-Focused)
-- **AI Component Library**: Specialized components for AI interactions
-- **Wizard Components**: Reusable onboarding flow components
-- **Invitation Components**: Brevo-integrated UI components
-- **Testing Framework**: Comprehensive testing for AI features
+### Component Development (✅ IMPLEMENTED - Sep 2025)
+- **AI Component Library**: Complete library for AI interactions
+- **Onboarding Components**: Full 4-step wizard component system
+- **Accessibility Components**: WCAG-compliant UI components
+- **Animation System**: Framer Motion-based animation library
+- **Testing Infrastructure**: Complete testing utilities and setup
+- **Storybook Documentation**: Interactive component documentation
 
 ## Integration Architecture (3 PRDs Focus)
 
