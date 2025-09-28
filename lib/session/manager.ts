@@ -483,6 +483,24 @@ export class OnboardingSessionManager {
   }
 
   /**
+   * Update session activity timestamp
+   */
+  public static async updateActivity(sessionId: string): Promise<void> {
+    try {
+      const instance = OnboardingSessionManager.getInstance();
+      const session = await instance.getSession(sessionId);
+
+      if (session) {
+        await instance.updateSession(sessionId, {
+          lastActivity: Date.now()
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update session activity:', error);
+    }
+  }
+
+  /**
    * Validate step completion
    */
   private async validateStepCompletion(stepNumber: number, stepData: Record<string, any>): Promise<boolean> {

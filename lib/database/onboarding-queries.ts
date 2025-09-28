@@ -71,6 +71,19 @@ export async function getUserActiveSession(
   return result[0] || null;
 }
 
+export async function getOnboardingSessionByUserId(
+  userId: string
+): Promise<OnboardingSession | null> {
+  const result = await authenticatedQuery<OnboardingSession>(
+    `SELECT * FROM onboarding_sessions
+     WHERE user_id = $1
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+
+  return result[0] || null;
+}
+
 export async function updateOnboardingSession(
   sessionId: string,
   updates: Partial<Pick<OnboardingSession, 'status' | 'current_step' | 'form_data' | 'ai_suggestions' | 'ai_analysis' | 'completion_percentage'>>
@@ -577,4 +590,34 @@ export async function getOnboardingAnalytics(
     step_completion_rates: stepStats,
     industry_distribution: industryStats
   };
+}
+
+// ============================================================================
+// ADDITIONAL HELPER FUNCTIONS FOR STATUS API
+// ============================================================================
+
+export async function getUserActiveOrganizations(
+  userId: string
+): Promise<OrganizationMember[]> {
+  const result = await authenticatedQuery<OrganizationMember>(
+    `SELECT om.*, o.name as organization_name
+     FROM organization_members om
+     JOIN organizations o ON om.organization_id = o.id
+     WHERE om.user_id = $1 AND om.status = 'active'
+     ORDER BY om.role DESC, om.joined_at ASC`,
+    [userId]
+  );
+
+  return result;
+}
+
+export async function getOrganizationById(
+  organizationId: string
+): Promise<Organization | null> {
+  const result = await authenticatedQuery<Organization>(
+    `SELECT * FROM organizations WHERE id = $1`,
+    [organizationId]
+  );
+
+  return result[0] || null;
 }

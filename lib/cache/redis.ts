@@ -581,6 +581,63 @@ export class OnboardingRedisCache {
       };
     }
   }
+
+  /**
+   * Onboarding Status Cache Methods
+   */
+
+  /**
+   * Cache onboarding status response
+   */
+  public async setOnboardingStatus(
+    userId: string,
+    status: any,
+    ttlSeconds: number = 300
+  ): Promise<void> {
+    if (!this.enabled) return;
+
+    try {
+      await this.cacheManager.set(
+        'onboarding_status',
+        { userId },
+        status,
+        {
+          l1: Math.min(ttlSeconds * 1000, 5 * 60 * 1000), // Max 5 minutes L1
+          l2: ttlSeconds * 1000,
+          l3: ttlSeconds * 2 * 1000 // Extended L3 cache
+        }
+      );
+    } catch (error) {
+      console.error('Failed to cache onboarding status:', error);
+    }
+  }
+
+  /**
+   * Get cached onboarding status
+   */
+  public async getOnboardingStatus(userId: string): Promise<any | null> {
+    if (!this.enabled) return null;
+
+    try {
+      return await this.cacheManager.get('onboarding_status', { userId });
+    } catch (error) {
+      console.error('Failed to get onboarding status from cache:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Invalidate onboarding status cache
+   */
+  public async invalidateOnboardingStatus(userId: string): Promise<void> {
+    if (!this.enabled) return;
+
+    try {
+      await this.cacheManager.delete('onboarding_status', { userId });
+    } catch (error) {
+      console.error('Failed to invalidate onboarding status:', error);
+    }
+  }
 }
 
 // Export singleton instance
