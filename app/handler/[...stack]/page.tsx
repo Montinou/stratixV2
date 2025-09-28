@@ -1,8 +1,8 @@
 import { StackHandler } from "@stackframe/stack";
-import { stackClientApp } from "@/stack";
+import { stackServerApp } from "@/stack";
 
 export const dynamic = 'force-dynamic'
 
 export default function Handler(props: any) {
-  return <StackHandler fullPage app={stackClientApp} {...props} />;
+  return <StackHandler fullPage app={stackServerApp} routeProps={props} />;
 }

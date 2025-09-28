@@ -21,12 +21,14 @@ export async function getProfiles(): Promise<{ data: Profile[] | null; error?: s
 
 export async function getCurrentProfile(): Promise<{ data: Profile | null; error?: string }> {
   try {
-    const user = await stackServerApp.getUser();
-    if (!user) {
+    const stackUser = await stackServerApp.getUser();
+    if (!stackUser) {
       return { data: null, error: 'Unauthorized' };
     }
 
-    const profile = await ProfilesService.getByUserId(user.id);
+    // Use Stack Auth user ID directly with Neon Auth standard approach
+    // The neon_auth.users_sync table automatically syncs with Stack Auth
+    const profile = await ProfilesService.getByUserId(stackUser.id);
     return { data: profile };
   } catch (error) {
     console.error('Error fetching current profile:', error);

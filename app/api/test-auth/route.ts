@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedDrizzleClient, testAuthenticatedConnection } from '@/lib/database/client';
-import { users, profiles } from '@/lib/database/schema';
+import { profiles } from '@/lib/database/schema';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,10 +33,8 @@ export async function GET(request: NextRequest) {
       .from(profiles)
       .limit(5);
 
-    const userCount = await db
-      .select()
-      .from(users)
-      .limit(5);
+    // Test query for neon_auth.users_sync table
+    const authUsersCount = await db.execute(`SELECT COUNT(*) as count FROM neon_auth.users_sync`);
 
     return NextResponse.json({
       success: true,
@@ -44,9 +42,8 @@ export async function GET(request: NextRequest) {
       data: {
         connectionTest: true,
         profilesFound: userProfiles.length,
-        usersFound: userCount.length,
-        profiles: userProfiles,
-        users: userCount
+        authUsersCount: authUsersCount.rows[0]?.count || 0,
+        profiles: userProfiles
       }
     });
 

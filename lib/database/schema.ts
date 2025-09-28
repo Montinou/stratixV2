@@ -29,36 +29,9 @@ export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'anthropic', 'goo
 export const benchmarkCategoryEnum = pgEnum('benchmark_category', ['text_generation', 'chat_completion', 'embedding', 'analysis']);
 export const conversationMoodEnum = pgEnum('conversation_mood', ['positive', 'neutral', 'frustrated']);
 
-// Users table - handles authentication and basic user info
-export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  // Stack Auth integration - link to auth.user_id()
-  stackUserId: varchar('stack_user_id', { length: 255 })
-    .unique()
-    .notNull()
-    .default(sql`(auth.user_id())`),
-  email: varchar('email', { length: 255 }).notNull().unique(),
-  name: varchar('name', { length: 255 }),
-  avatarUrl: varchar('avatar_url', { length: 500 }),
-  // Legacy fields (to be removed after migration)
-  passwordHash: varchar('password_hash', { length: 255 }),
-  emailConfirmed: timestamp('email_confirmed'),
-  // Multi-tenancy support
-  tenantId: uuid('tenant_id'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => [
-  // Indexes
-  { emailIdx: index('users_email_idx').on(table.email) },
-  { stackUserIdx: index('users_stack_user_idx').on(table.stackUserId) },
-  { tenantIdx: index('users_tenant_idx').on(table.tenantId) },
-  // RLS Policy - users can only access their own record
-  crudPolicy({
-    role: authenticatedRole,
-    read: authUid(table.stackUserId),
-    modify: authUid(table.stackUserId),
-  }),
-]);
+// NOTE: Using standard Neon Auth approach - no custom users table needed
+// The neon_auth.users_sync table automatically syncs with Stack Auth
+// and provides all user information we need
 
 // Companies table - organization information
 export const companies = pgTable('companies', {
@@ -76,26 +49,25 @@ export const companies = pgTable('companies', {
   crudPolicy({
     role: authenticatedRole,
     read: sql`EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE company_id = ${table.id} 
-      AND user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      SELECT 1 FROM profiles
+      WHERE company_id = ${table.id}
+      AND user_id = auth.user_id()
     )`,
     modify: sql`EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE company_id = ${table.id} 
-      AND user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      SELECT 1 FROM profiles
+      WHERE company_id = ${table.id}
+      AND user_id = auth.user_id()
       AND role_type = 'corporativo'
     )`,
   }),
 ]);
 
-// Profiles table - detailed user profile information linked to auth users
+// Profiles table - detailed user profile information linked to Neon Auth users
 export const profiles = pgTable('profiles', {
-  userId: uuid('user_id')
+  userId: varchar('user_id', { length: 255 })
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' })
     .primaryKey()
-    .default(sql`(SELECT id FROM users WHERE stack_user_id = auth.user_id())`),
+    .default(sql`auth.user_id()`), // Direct reference to neon_auth.users_sync.id
   fullName: varchar('full_name', { length: 255 }).notNull(),
   roleType: userRoleEnum('role_type').notNull(),
   department: varchar('department', { length: 100 }).notNull(),
@@ -110,11 +82,11 @@ export const profiles = pgTable('profiles', {
   { roleIdx: index('profiles_role_idx').on(table.roleType) },
   { departmentIdx: index('profiles_department_idx').on(table.department) },
   { tenantIdx: index('profiles_tenant_idx').on(table.tenantId) },
-  // RLS Policy - users can only access their own profile
+  // RLS Policy - users can only access their own profile (standard Neon Auth)
   crudPolicy({
     role: authenticatedRole,
-    read: sql`${table.userId} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())`,
-    modify: sql`${table.userId} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())`,
+    read: sql`${table.userId} = auth.user_id()`,
+    modify: sql`${table.userId} = auth.user_id()`,
   }),
 ]);
 
@@ -129,10 +101,9 @@ export const objectives = pgTable('objectives', {
   progress: integer('progress').default(0),
   startDate: timestamp('start_date').notNull(),
   endDate: timestamp('end_date').notNull(),
-  ownerId: uuid('owner_id')
+  ownerId: varchar('owner_id', { length: 255 })
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' })
-    .default(sql`(SELECT id FROM users WHERE stack_user_id = auth.user_id())`),
+    .default(sql`auth.user_id()`), // Direct reference to neon_auth.users_sync.id
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
   // Multi-tenancy support
   tenantId: uuid('tenant_id').notNull(),
@@ -152,21 +123,21 @@ export const objectives = pgTable('objectives', {
   crudPolicy({
     role: authenticatedRole,
     read: sql`
-      ${table.ownerId} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      ${table.ownerId} = auth.user_id()
       OR EXISTS (
-        SELECT 1 FROM profiles 
-        WHERE user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+        SELECT 1 FROM profiles
+        WHERE user_id = auth.user_id()
         AND (
-          role_type = 'corporativo' 
+          role_type = 'corporativo'
           OR (role_type = 'gerente' AND department = ${table.department})
         )
       )
     `,
     modify: sql`
-      ${table.ownerId} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      ${table.ownerId} = auth.user_id()
       OR EXISTS (
         SELECT 1 FROM profiles 
-        WHERE user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+        WHERE user_id = auth.user_id()
         AND role_type = 'corporativo'
       )
     `,
@@ -184,10 +155,9 @@ export const initiatives = pgTable('initiatives', {
   progress: integer('progress').default(0),
   startDate: timestamp('start_date').notNull(),
   endDate: timestamp('end_date').notNull(),
-  ownerId: uuid('owner_id')
+  ownerId: varchar('owner_id', { length: 255 })
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' })
-    .default(sql`(SELECT id FROM users WHERE stack_user_id = auth.user_id())`),
+    .default(sql`auth.user_id()`),
   // Multi-tenancy support
   tenantId: uuid('tenant_id').notNull(),
   // Soft delete support
@@ -205,11 +175,11 @@ export const initiatives = pgTable('initiatives', {
   crudPolicy({
     role: authenticatedRole,
     read: sql`
-      ${table.ownerId} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      ${table.ownerId} = auth.user_id()
       OR EXISTS (
         SELECT 1 FROM objectives o, profiles p
         WHERE o.id = ${table.objectiveId}
-        AND p.user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+        AND p.user_id = auth.user_id()
         AND (
           o.owner_id = p.user_id
           OR p.role_type = 'corporativo' 
@@ -218,10 +188,10 @@ export const initiatives = pgTable('initiatives', {
       )
     `,
     modify: sql`
-      ${table.ownerId} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      ${table.ownerId} = auth.user_id()
       OR EXISTS (
         SELECT 1 FROM profiles 
-        WHERE user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+        WHERE user_id = auth.user_id()
         AND role_type = 'corporativo'
       )
     `,
@@ -237,10 +207,9 @@ export const activities = pgTable('activities', {
   status: activityStatusEnum('status').notNull().default('todo'),
   priority: priorityEnum('priority').notNull().default('medium'),
   dueDate: timestamp('due_date').notNull(),
-  assignedTo: uuid('assigned_to')
+  assignedTo: varchar('assigned_to', { length: 255 })
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' })
-    .default(sql`(SELECT id FROM users WHERE stack_user_id = auth.user_id())`),
+    .default(sql`auth.user_id()`),
   // Multi-tenancy support
   tenantId: uuid('tenant_id').notNull(),
   // Soft delete support
@@ -258,12 +227,12 @@ export const activities = pgTable('activities', {
   crudPolicy({
     role: authenticatedRole,
     read: sql`
-      ${table.assignedTo} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      ${table.assignedTo} = auth.user_id()
       OR EXISTS (
         SELECT 1 FROM initiatives i, objectives o, profiles p
         WHERE i.id = ${table.initiativeId}
         AND o.id = i.objective_id
-        AND p.user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+        AND p.user_id = auth.user_id()
         AND (
           i.owner_id = p.user_id
           OR o.owner_id = p.user_id
@@ -273,10 +242,10 @@ export const activities = pgTable('activities', {
       )
     `,
     modify: sql`
-      ${table.assignedTo} = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+      ${table.assignedTo} = auth.user_id()
       OR EXISTS (
         SELECT 1 FROM profiles 
-        WHERE user_id = (SELECT id FROM users WHERE stack_user_id = auth.user_id())
+        WHERE user_id = auth.user_id()
         AND role_type IN ('corporativo', 'gerente')
       )
     `,
@@ -284,15 +253,7 @@ export const activities = pgTable('activities', {
 ]);
 
 // Relations definitions for type-safe joins
-export const usersRelations = relations(users, ({ one, many }) => ({
-  profile: one(profiles, {
-    fields: [users.id],
-    references: [profiles.userId],
-  }),
-  ownedObjectives: many(objectives),
-  ownedInitiatives: many(initiatives),
-  assignedActivities: many(activities),
-}));
+// Note: No users relations needed - using standard Neon Auth with neon_auth.users_sync
 
 export const companiesRelations = relations(companies, ({ many }) => ({
   profiles: many(profiles),
@@ -300,11 +261,7 @@ export const companiesRelations = relations(companies, ({ many }) => ({
 }));
 
 export const profilesRelations = relations(profiles, ({ one }) => ({
-  user: one(users, {
-    fields: [profiles.userId],
-    references: [users.id],
-  }),
-
+  // Note: No user relation needed - userId directly references neon_auth.users_sync.id
   company: one(companies, {
     fields: [profiles.companyId],
     references: [companies.id],
@@ -312,10 +269,7 @@ export const profilesRelations = relations(profiles, ({ one }) => ({
 }));
 
 export const objectivesRelations = relations(objectives, ({ one, many }) => ({
-  owner: one(users, {
-    fields: [objectives.ownerId],
-    references: [users.id],
-  }),
+  // Note: No owner relation needed - ownerId directly references neon_auth.users_sync.id
   company: one(companies, {
     fields: [objectives.companyId],
     references: [companies.id],
@@ -329,11 +283,7 @@ export const initiativesRelations = relations(initiatives, ({ one, many }) => ({
     fields: [initiatives.objectiveId],
     references: [objectives.id],
   }),
-  owner: one(users, {
-    fields: [initiatives.ownerId],
-    references: [users.id],
-
-  }),
+  // Note: No owner relation needed - ownerId directly references neon_auth.users_sync.id
   activities: many(activities),
 }));
 
@@ -342,10 +292,7 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
     fields: [activities.initiativeId],
     references: [initiatives.id],
   }),
-  assignee: one(users, {
-    fields: [activities.assignedTo],
-    references: [users.id],
-  }),
+  // Note: No assignee relation needed - assignedTo directly references neon_auth.users_sync.id
 }));
 
 // ========== AI INFRASTRUCTURE TABLES ==========
@@ -563,7 +510,7 @@ export const aiBenchmarkResultsRelations = relations(aiBenchmarkResults, ({ one 
 
 // Export all tables for use in queries and migrations
 export const schema = {
-  users,
+  // Note: No users table needed - using standard Neon Auth with neon_auth.users_sync
   companies,
   profiles,
   objectives,
@@ -579,7 +526,7 @@ export const schema = {
   aiBenchmarkTestCases,
   aiBenchmarkResults,
   // Relations
-  usersRelations,
+  // Note: No usersRelations needed - using standard Neon Auth
   companiesRelations,
   profilesRelations,
   objectivesRelations,

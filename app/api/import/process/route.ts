@@ -4,7 +4,7 @@ import { join } from 'path';
 import * as XLSX from 'xlsx';
 import Papa, { ParseResult } from 'papaparse';
 import { getDrizzleDb } from '@/lib/database/client';
-import { objectives, initiatives, activities, profiles, users } from '@/lib/database/schema';
+import { objectives, initiatives, activities, profiles } from '@/lib/database/schema';
 import { eq, and } from 'drizzle-orm';
 import type { ImportTemplate, ImportResult, ImportError } from '@/lib/types/import';
 

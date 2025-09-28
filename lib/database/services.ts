@@ -1,5 +1,5 @@
 // Import all repositories for clean service layer integration
-import { ProfilesRepository, type Profile } from './queries/profiles';
+import { profilesRepository, type Profile } from './queries/profiles';
 import { ObjectivesRepository, type Objective } from './queries/objectives';
 import { InitiativesRepository, type InitiativeWithRelations } from './queries/initiatives';
 import { ActivitiesRepository, type Activity } from './queries/activities';
@@ -167,28 +167,28 @@ export class ProfilesService {
    * Get profile by user ID - delegates to repository
    */
   static async getByUserId(userId: string): Promise<Profile | null> {
-    return ProfilesRepository.getByUserId(userId);
+    return profilesRepository.getByUserId(userId);
   }
 
   /**
    * Get all profiles, optionally filtered by company - delegates to repository
    */
   static async getAll(companyId?: string): Promise<Profile[]> {
-    return ProfilesRepository.getAll(companyId);
+    return profilesRepository.getAll({ companyId });
   }
 
   /**
    * Create a new profile - delegates to repository
    */
   static async create(profile: Omit<Profile, 'created_at' | 'updated_at'>): Promise<Profile> {
-    return ProfilesRepository.create(profile);
+    return profilesRepository.create(profile);
   }
 
   /**
    * Update an existing profile - delegates to repository
    */
   static async update(userId: string, updates: Partial<Profile>): Promise<Profile> {
-    return ProfilesRepository.update(userId, updates);
+    return profilesRepository.update(userId, updates);
   }
 }
 
@@ -240,5 +240,5 @@ export class CompaniesService {
 
 // Convenience function exports for backward compatibility
 export async function getUserProfile(userId: string): Promise<Profile | null> {
-  return ProfilesRepository.getById(userId);
+  return profilesRepository.getByUserId(userId);
 }

@@ -8,6 +8,7 @@ import {
   addOrganizationMember,
   getIndustryById
 } from "@/lib/database/onboarding-queries";
+import { ProfilesService } from "@/lib/database/services";
 import type {
   CompleteOnboardingRequest,
   CompleteOnboardingResponse,
@@ -17,11 +18,35 @@ import { handleUnknownError, CommonErrors } from "@/lib/api/error-handler";
 
 export const runtime = 'nodejs';
 
-// Request validation schema
+// Request validation schemas
 const completeOnboardingSchema = z.object({
   session_id: z.string().uuid('ID de sesión inválido'),
   final_data: z.record(z.any()).optional(),
   create_organization: z.boolean().default(true)
+});
+
+// Simple completion schema for direct frontend integration
+const simpleCompletionSchema = z.object({
+  data: z.object({
+    welcome: z.object({
+      role: z.string(),
+      customRole: z.string().optional(),
+      experienceLevel: z.string()
+    }).optional(),
+    company: z.object({
+      name: z.string(),
+      industry: z.string(),
+      size: z.string(),
+      description: z.string().optional()
+    }).optional(),
+    organization: z.object({
+      teamSize: z.number(),
+      structure: z.string(),
+      methodology: z.string(),
+      collaborationStyle: z.string(),
+      departments: z.array(z.string()).optional()
+    }).optional()
+  })
 });
 
 function generateAISummary(formData: OnboardingFormData, industry?: any): string {
@@ -215,6 +240,85 @@ function generateNextSteps(formData: OnboardingFormData): string[] {
   return steps.slice(0, 6);
 }
 
+async function handleSimpleCompletion(body: any, stackUser: any) {
+  try {
+    // Validate the simple completion data
+    const validatedData = simpleCompletionSchema.parse(body);
+    const { data } = validatedData;
+
+    // Using standard Neon Auth approach - user data comes from neon_auth.users_sync
+    // No need to manage users table, Stack Auth handles this automatically
+
+    // Check if user already has a profile to avoid duplication
+    const existingProfile = await ProfilesService.getByUserId(stackUser.id);
+    if (existingProfile) {
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Profile already exists",
+        profile: existingProfile
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    let companyId: string | null = null;
+
+    // Create a basic company if company data is provided
+    if (data.company?.name) {
+      const { CompaniesService } = await import("@/lib/database/services");
+      const company = await CompaniesService.create({
+        name: data.company.name,
+        industry: data.company.industry,
+        size: data.company.size,
+        description: data.company.description
+      });
+      companyId = company.id;
+    }
+
+    // Create user profile using Stack Auth user ID directly (Neon Auth standard pattern)
+    const profile = await ProfilesService.create({
+      userId: stackUser.id,
+      fullName: stackUser.displayName || stackUser.primaryEmail || "User",
+      roleType: mapRoleToUserRole(data.welcome?.role || "individual"),
+      department: data.organization?.departments?.[0] || "General",
+      companyId: companyId || "" // Use empty string if no company
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: "Onboarding completed successfully",
+      profile,
+      company_id: companyId
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error("Error in simple completion:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: "Failed to complete onboarding"
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+function mapRoleToUserRole(role: string): "corporativo" | "gerente" | "empleado" {
+  switch (role) {
+    case "ceo":
+    case "custom":
+      return "corporativo";
+    case "manager":
+    case "team_lead":
+      return "gerente";
+    case "individual":
+    default:
+      return "empleado";
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
@@ -223,10 +327,16 @@ export async function POST(request: NextRequest) {
       return new Response("No autorizado", { status: 401 });
     }
 
-    // Parse and validate request
+    // Parse request body
     const body = await request.json();
-    const validatedRequest = completeOnboardingSchema.parse(body);
 
+    // Check if this is a simple completion or session-based completion
+    if (body.data && !body.session_id) {
+      return await handleSimpleCompletion(body, user);
+    }
+
+    // Handle traditional session-based completion
+    const validatedRequest = completeOnboardingSchema.parse(body);
     const { session_id, final_data, create_organization } = validatedRequest;
 
     // Get session with progress

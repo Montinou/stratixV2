@@ -1,6 +1,6 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { getDrizzleDb } from '../client';
-import { profiles, users, companies } from '../schema';
+import { profiles, companies } from '../schema';
 import type { 
   Profile, 
   InsertProfile, 
@@ -11,12 +11,12 @@ import type {
   UserRole 
 } from '../types';
 
-export class ProfilesRepository {
+class ProfilesRepository {
   private db = getDrizzleDb();
 
   /**
    * Get profile by user ID with company information
-   * Maintains exact API compatibility for authentication flow
+   * Uses standard Neon Auth approach - user info comes from neon_auth.users_sync
    */
   async getByUserId(userId: string): Promise<ProfileWithCompany | null> {
     try {
@@ -29,12 +29,6 @@ export class ProfilesRepository {
           companyId: profiles.companyId,
           createdAt: profiles.createdAt,
           updatedAt: profiles.updatedAt,
-          // User information
-          user_id: users.id,
-          user_email: users.email,
-          user_email_confirmed: users.emailConfirmed,
-          user_created_at: users.createdAt,
-          user_updated_at: users.updatedAt,
           // Company information
           company_id: companies.id,
           company_name: companies.name,
@@ -45,7 +39,6 @@ export class ProfilesRepository {
           company_updated_at: companies.updatedAt,
         })
         .from(profiles)
-        .leftJoin(users, eq(profiles.userId, users.id))
         .leftJoin(companies, eq(profiles.companyId, companies.id))
         .where(eq(profiles.userId, userId))
         .limit(1);
@@ -64,16 +57,9 @@ export class ProfilesRepository {
         companyId: row.companyId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
-        // Include user info for backward compatibility
-        user: row.user_id ? {
-          id: row.user_id,
-          email: row.user_email!,
-          passwordHash: null, // Don't expose password hash
-          emailConfirmed: row.user_email_confirmed,
-          createdAt: row.user_created_at!,
-          updatedAt: row.user_updated_at!,
-        } : undefined,
-        // Include company info 
+        // User info comes from neon_auth.users_sync, not needed here
+        user: undefined,
+        // Include company info
         company: row.company_id ? {
           id: row.company_id,
           name: row.company_name!,
@@ -109,12 +95,6 @@ export class ProfilesRepository {
           companyId: profiles.companyId,
           createdAt: profiles.createdAt,
           updatedAt: profiles.updatedAt,
-          // User information
-          user_id: users.id,
-          user_email: users.email,
-          user_email_confirmed: users.emailConfirmed,
-          user_created_at: users.createdAt,
-          user_updated_at: users.updatedAt,
           // Company information
           company_id: companies.id,
           company_name: companies.name,
@@ -125,7 +105,6 @@ export class ProfilesRepository {
           company_updated_at: companies.updatedAt,
         })
         .from(profiles)
-        .leftJoin(users, eq(profiles.userId, users.id))
         .leftJoin(companies, eq(profiles.companyId, companies.id))
         .orderBy(desc(profiles.createdAt));
 
@@ -155,16 +134,9 @@ export class ProfilesRepository {
         companyId: row.companyId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
-        // Include user info for backward compatibility
-        user: row.user_id ? {
-          id: row.user_id,
-          email: row.user_email!,
-          passwordHash: null, // Don't expose password hash
-          emailConfirmed: row.user_email_confirmed,
-          createdAt: row.user_created_at!,
-          updatedAt: row.user_updated_at!,
-        } : undefined,
-        // Include company info 
+        // User info comes from neon_auth.users_sync, not needed here
+        user: undefined,
+        // Include company info
         company: row.company_id ? {
           id: row.company_id,
           name: row.company_name!,
@@ -293,12 +265,6 @@ export class ProfilesRepository {
           companyId: profiles.companyId,
           createdAt: profiles.createdAt,
           updatedAt: profiles.updatedAt,
-          // User information
-          user_id: users.id,
-          user_email: users.email,
-          user_email_confirmed: users.emailConfirmed,
-          user_created_at: users.createdAt,
-          user_updated_at: users.updatedAt,
           // Company information
           company_id: companies.id,
           company_name: companies.name,
@@ -309,7 +275,6 @@ export class ProfilesRepository {
           company_updated_at: companies.updatedAt,
         })
         .from(profiles)
-        .leftJoin(users, eq(profiles.userId, users.id))
         .leftJoin(companies, eq(profiles.companyId, companies.id))
         .where(eq(profiles.department, department))
         .orderBy(desc(profiles.createdAt));
@@ -332,16 +297,9 @@ export class ProfilesRepository {
         companyId: row.companyId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
-        // Include user info for backward compatibility
-        user: row.user_id ? {
-          id: row.user_id,
-          email: row.user_email!,
-          passwordHash: null, // Don't expose password hash
-          emailConfirmed: row.user_email_confirmed,
-          createdAt: row.user_created_at!,
-          updatedAt: row.user_updated_at!,
-        } : undefined,
-        // Include company info 
+        // User info comes from neon_auth.users_sync, not needed here
+        user: undefined,
+        // Include company info
         company: row.company_id ? {
           id: row.company_id,
           name: row.company_name!,
@@ -444,3 +402,4 @@ export async function getProfileById(userId: string): Promise<Profile | null> {
 
 // Export the repository instance for direct use
 export { profilesRepository };
+export default profilesRepository;

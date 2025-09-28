@@ -1,5 +1,5 @@
 import type { User } from "@stackframe/stack"
-import { ProfilesRepository, type Profile } from "@/lib/database/queries/profiles"
+import { profilesRepository, type Profile } from "@/lib/database/queries/profiles"
 import { ProfileSyncService } from "@/lib/database/services/profile-sync"
 import type { ProfileSyncResult } from "@/lib/types/auth-integration"
 
@@ -46,23 +46,23 @@ export class StackProfileBridge {
       // Fallback to direct repository access if sync service fails
       console.warn('ProfileSyncService failed, falling back to direct repository access:', syncResult.error)
       
-      const existingProfile = await ProfilesRepository.getByUserId(stackUser.id)
-      
+      const existingProfile = await profilesRepository.getByUserId(stackUser.id)
+
       if (existingProfile) {
         // Profile exists, sync any updated data from Stack
         const shouldUpdate = this.shouldSyncProfile(existingProfile, stackUser)
-        
+
         if (shouldUpdate) {
           const updates = this.getProfileUpdates(existingProfile, stackUser)
-          return await ProfilesRepository.update(stackUser.id, updates)
+          return await profilesRepository.update(stackUser.id, updates)
         }
-        
+
         return existingProfile
       }
 
       // Profile doesn't exist, create new one using fallback method
       const newProfileData = this.stackUserToProfile(stackUser, defaultCompanyId)
-      return await ProfilesRepository.create(newProfileData)
+      return await profilesRepository.create(newProfileData)
       
     } catch (error) {
       console.error('Error in getOrCreateProfile:', error)

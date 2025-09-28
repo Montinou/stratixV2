@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDrizzleDb } from '@/lib/database/client';
-import { profiles, users } from '@/lib/database/schema';
+import { profiles } from '@/lib/database/schema';
 import { eq } from 'drizzle-orm';
 
 // In-memory storage for import status tracking
