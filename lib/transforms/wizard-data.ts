@@ -1,843 +1,512 @@
-/**
- * Data Transformation Pipeline for Onboarding Wizard
- *
- * Transforms and processes onboarding wizard data into structured database
- * formats with AI enhancement, data cleaning, and validation integration.
- *
- * Features:
- * - Multi-step data transformation
- * - AI-powered data enhancement
- * - Database schema mapping
- * - Data cleaning and normalization
- * - Performance optimization
- * - Error handling and rollback
- */
-
-import {
-  createOnboardingSession,
-  updateOnboardingSession,
-  createOrganization,
-  addOrganizationMember,
-  getUserActiveOrganizations
-} from '@/lib/database/onboarding-queries';
-import { OnboardingAIService } from '@/lib/ai/service-connection';
-import { onboardingCache } from '@/lib/cache/redis';
-import { trackEvent } from '@/lib/monitoring/analytics';
-import { createValidationService } from '@/lib/validation/onboarding';
+import { InsightsGenerator } from '@/lib/ai/insights-generator'
+import { AnalyticsEngine } from '@/lib/ai/analytics-engine'
 import type {
+  OnboardingFormData,
   OnboardingSession,
-  Organization,
-  OrganizationMember,
-  OnboardingStatus,
-  OrganizationSize
-} from '@/lib/database/onboarding-types';
-
-// Transformation result interfaces
-export interface TransformationResult {
-  success: boolean;
-  data: TransformedData;
-  errors: TransformationError[];
-  warnings: TransformationWarning[];
-  metadata: TransformationMetadata;
-}
-
-export interface TransformedData {
-  userProfile: UserProfileData;
-  organization: OrganizationData;
-  objectives: ObjectiveData[];
-  keyResults: KeyResultData[];
-  teamStructure: TeamStructureData;
-  preferences: UserPreferencesData;
-}
-
-export interface TransformationError {
-  step: number;
-  field: string;
-  code: string;
-  message: string;
-  originalValue?: any;
-  context?: Record<string, any>;
-}
-
-export interface TransformationWarning {
-  step: number;
-  field: string;
-  message: string;
-  suggestion?: string;
-}
-
-export interface TransformationMetadata {
-  transformedAt: string;
-  transformedBy: string;
-  processingTime: number;
-  aiEnhanced: boolean;
-  stepsProcessed: number[];
-  validationPassed: boolean;
-}
-
-// Transformed data types
-export interface UserProfileData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  jobTitle?: string;
-  phoneNumber?: string;
-  timezone: string;
-  language: 'es' | 'en';
-  communicationPreferences: {
-    emailNotifications: boolean;
-    smsNotifications: boolean;
-    pushNotifications: boolean;
-    weeklyReports: boolean;
-  };
-}
-
-export interface OrganizationData {
-  name: string;
-  industry: string;
-  size: OrganizationSize;
-  employeeCount: number;
-  website?: string;
-  description?: string;
-  country: string;
-  city?: string;
-  foundedYear?: number;
-  departments: string[];
-  aiInsights: Record<string, any>;
-  businessGoals: string[];
-  currentChallenges: string[];
-  okrMaturity: string;
-}
-
-export interface ObjectiveData {
-  title: string;
-  description: string;
-  owner: string;
-  priority: 'high' | 'medium' | 'low';
-  category: string;
-  timeHorizon: string;
-  status: 'draft' | 'active' | 'completed';
-  parentId?: string;
-  departmentId?: string;
-}
-
-export interface KeyResultData {
-  objectiveId: string;
-  title: string;
-  description?: string;
-  metric: string;
-  target: string;
-  unit: string;
-  baseline: string;
-  owner: string;
-  status: 'draft' | 'active' | 'completed';
-  trackingFrequency: 'daily' | 'weekly' | 'monthly';
-}
-
-export interface TeamStructureData {
-  departments: DepartmentData[];
-  roles: RoleData[];
-  hierarchyLevels: number;
-  reportingStructure: Record<string, string>;
-}
-
-export interface DepartmentData {
-  name: string;
-  description?: string;
-  parentId?: string;
-  headOfDepartment?: string;
-  memberCount: number;
-}
-
-export interface RoleData {
-  name: string;
-  description?: string;
-  departmentId: string;
-  level: number;
-  permissions: string[];
-}
-
-export interface UserPreferencesData {
-  okrCycle: 'quarterly' | 'monthly' | 'bi-annual' | 'annual';
-  reviewFrequency: 'weekly' | 'bi-weekly' | 'monthly';
-  trackingPreferences: {
-    updateFrequency: 'daily' | 'weekly' | 'bi-weekly';
-    notificationSettings: {
-      deadlineReminders: boolean;
-      progressAlerts: boolean;
-      teamUpdates: boolean;
-    };
-    reportingFormat: 'dashboard' | 'email' | 'presentation';
-  };
-  launchPreferences: {
-    sendInvitations: boolean;
-    scheduleKickoff: boolean;
-    enableNotifications: boolean;
-    setupIntegrations: boolean;
-  };
-}
-
-// Transformation configuration
-export interface TransformationConfig {
-  enableAI: boolean;
-  enableValidation: boolean;
-  enableCache: boolean;
-  enableAnalytics: boolean;
-  language: 'es' | 'en';
-  strictMode: boolean;
-  aiTimeout: number;
-  batchSize: number;
-}
-
-const DEFAULT_CONFIG: TransformationConfig = {
-  enableAI: true,
-  enableValidation: true,
-  enableCache: true,
-  enableAnalytics: true,
-  language: 'es',
-  strictMode: false,
-  aiTimeout: 10000,
-  batchSize: 10
-};
+  OnboardingProgress
+} from '@/lib/database/onboarding-types'
+import type { AnalyticsRequest, AnalyticsResponse } from '@/lib/ai/analytics-engine'
 
 /**
- * Main Data Transformation Pipeline Class
+ * WizardDataTransformer
+ * Transforms wizard onboarding data into actionable insights and analytics
+ * Integrates with existing AI services for generating recommendations
  */
-export class WizardDataTransformationPipeline {
-  private config: TransformationConfig;
-  private aiService: OnboardingAIService;
-  private validationService: any;
+export class WizardDataTransformer {
+  private insightsGenerator: InsightsGenerator
+  private analyticsEngine: AnalyticsEngine
 
-  constructor(config?: Partial<TransformationConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
-    this.aiService = OnboardingAIService.getInstance();
-    this.validationService = createValidationService({
-      enableAI: this.config.enableAI,
-      language: this.config.language
-    });
+  constructor() {
+    this.analyticsEngine = new AnalyticsEngine()
+    this.insightsGenerator = new InsightsGenerator(this.analyticsEngine)
   }
 
   /**
-   * Transform wizard data to database format
+   * Transform onboarding data into analytics insights
    */
-  public async transformWizardData(
-    sessionData: Record<number, Record<string, any>>,
-    context: {
-      userId: string;
-      sessionId: string;
-      organizationId?: string;
-    }
-  ): Promise<TransformationResult> {
-    const startTime = Date.now();
-
+  async generateOnboardingInsights(
+    session: OnboardingSession,
+    progress: OnboardingProgress[],
+    userId: string
+  ): Promise<AnalyticsResponse> {
     try {
-      // Validate input data if enabled
-      if (this.config.enableValidation) {
-        const validationResult = await this.validationService.validateComplete(
-          sessionData,
-          context
-        );
-
-        if (!validationResult.isValid && this.config.strictMode) {
-          return {
-            success: false,
-            data: {} as TransformedData,
-            errors: validationResult.errors.map((err: any) => ({
-              step: 0,
-              field: err.field,
-              code: err.code,
-              message: err.message
-            })),
-            warnings: [],
-            metadata: {
-              transformedAt: new Date().toISOString(),
-              transformedBy: 'WizardDataTransformationPipeline',
-              processingTime: Date.now() - startTime,
-              aiEnhanced: false,
-              stepsProcessed: [],
-              validationPassed: false
-            }
-          };
-        }
-      }
-
-      // Transform each step
-      const transformedData = await this.performStepTransformations(sessionData, context);
-
-      // Enhance with AI if enabled
-      if (this.config.enableAI) {
-        await this.enhanceWithAI(transformedData, context);
-      }
-
-      // Post-process and validate
-      const finalData = await this.postProcessData(transformedData, context);
-
-      const result: TransformationResult = {
-        success: true,
-        data: finalData,
-        errors: [],
-        warnings: [],
-        metadata: {
-          transformedAt: new Date().toISOString(),
-          transformedBy: 'WizardDataTransformationPipeline',
-          processingTime: Date.now() - startTime,
-          aiEnhanced: this.config.enableAI,
-          stepsProcessed: Object.keys(sessionData).map(Number),
-          validationPassed: true
-        }
-      };
-
-      // Cache result
-      if (this.config.enableCache) {
-        await this.cacheTransformationResult(context.sessionId, result);
-      }
-
-      // Track transformation
-      if (this.config.enableAnalytics) {
-        await this.trackTransformation(result, context);
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error('Data transformation error:', error);
-
-      const errorResult: TransformationResult = {
-        success: false,
-        data: {} as TransformedData,
-        errors: [{
-          step: 0,
-          field: '_system',
-          code: 'TRANSFORMATION_ERROR',
-          message: 'Error interno de transformación',
-          context: { error: error instanceof Error ? error.message : 'Unknown error' }
-        }],
-        warnings: [],
-        metadata: {
-          transformedAt: new Date().toISOString(),
-          transformedBy: 'WizardDataTransformationPipeline',
-          processingTime: Date.now() - startTime,
-          aiEnhanced: false,
-          stepsProcessed: [],
-          validationPassed: false
-        }
-      };
-
-      if (this.config.enableAnalytics) {
-        await this.trackTransformation(errorResult, context);
-      }
-
-      return errorResult;
-    }
-  }
-
-  /**
-   * Save transformed data to database
-   */
-  public async saveToDatabase(
-    transformedData: TransformedData,
-    context: {
-      userId: string;
-      sessionId: string;
-      organizationId?: string;
-    }
-  ): Promise<{
-    success: boolean;
-    organizationId?: string;
-    objectiveIds?: string[];
-    errors?: any[];
-  }> {
-    try {
-      // Create or update organization
-      let organizationId = context.organizationId;
-
-      if (!organizationId) {
-        const organization = await createOrganization({
-          name: transformedData.organization.name,
-          industry: transformedData.organization.industry,
-          size: transformedData.organization.size,
-          employeeCount: transformedData.organization.employeeCount,
-          website: transformedData.organization.website,
-          description: transformedData.organization.description,
-          country: transformedData.organization.country,
-          city: transformedData.organization.city,
-          foundedYear: transformedData.organization.foundedYear,
-          businessGoals: transformedData.organization.businessGoals,
-          currentChallenges: transformedData.organization.currentChallenges,
-          okrMaturity: transformedData.organization.okrMaturity,
-          createdBy: context.userId
-        });
-
-        organizationId = organization.id;
-
-        // Add user as organization owner
-        await addOrganizationMember(
-          organizationId,
-          context.userId,
-          'org_owner',
-          transformedData.userProfile.jobTitle
-        );
-      }
-
-      // Update session as completed
-      await updateOnboardingSession(context.sessionId, {
-        status: 'completed' as OnboardingStatus,
-        completion_percentage: 100,
-        form_data: {
-          userProfile: transformedData.userProfile,
-          organization: transformedData.organization,
-          objectives: transformedData.objectives,
-          preferences: transformedData.preferences
-        }
-      });
-
-      // TODO: Create objectives and key results in OKR tables
-      // This would require additional OKR table schemas
-
-      // Clear cache
-      if (this.config.enableCache) {
-        await onboardingCache.invalidateOnboardingStatus(context.userId);
-      }
-
-      // Track completion
-      if (this.config.enableAnalytics) {
-        await trackEvent('onboarding_data_saved', {
-          userId: context.userId,
-          sessionId: context.sessionId,
-          organizationId,
-          objectiveCount: transformedData.objectives.length,
-          keyResultCount: transformedData.keyResults.length
-        });
-      }
-
-      return {
-        success: true,
-        organizationId,
-        objectiveIds: [], // Would be populated when OKR tables are created
-        errors: []
-      };
-
-    } catch (error) {
-      console.error('Error saving to database:', error);
-      return {
-        success: false,
-        errors: [error]
-      };
-    }
-  }
-
-  /**
-   * Transform data for each step
-   */
-  private async performStepTransformations(
-    sessionData: Record<number, Record<string, any>>,
-    context: any
-  ): Promise<TransformedData> {
-    const step1 = sessionData[1] || {};
-    const step2 = sessionData[2] || {};
-    const step3 = sessionData[3] || {};
-    const step4 = sessionData[4] || {};
-    const step5 = sessionData[5] || {};
-
-    // Transform Step 1: User Profile
-    const userProfile: UserProfileData = {
-      firstName: step1.firstName || '',
-      lastName: step1.lastName || '',
-      email: step1.email || '',
-      jobTitle: step1.jobTitle,
-      phoneNumber: step1.phoneNumber,
-      timezone: step1.timezone || 'America/Mexico_City',
-      language: step1.language || 'es',
-      communicationPreferences: {
-        emailNotifications: step1.communicationPreferences?.emailNotifications ?? true,
-        smsNotifications: step1.communicationPreferences?.smsNotifications ?? false,
-        pushNotifications: step1.communicationPreferences?.pushNotifications ?? true,
-        weeklyReports: step1.communicationPreferences?.weeklyReports ?? true
-      }
-    };
-
-    // Transform Step 2: Organization
-    const organization: OrganizationData = {
-      name: step2.organizationName || '',
-      industry: step2.industry || '',
-      size: step2.organizationSize || 'small',
-      employeeCount: step2.employeeCount || 1,
-      website: step2.website,
-      description: step2.description,
-      country: step2.country || '',
-      city: step2.city,
-      foundedYear: step2.foundedYear,
-      departments: step2.departments || [],
-      aiInsights: {},
-      businessGoals: step3.businessGoals || [],
-      currentChallenges: step3.currentChallenges || [],
-      okrMaturity: step3.okrMaturity || 'beginner'
-    };
-
-    // Transform Step 3 & 4: Objectives and Key Results
-    const objectives: ObjectiveData[] = [];
-    const keyResults: KeyResultData[] = [];
-
-    if (step4.objectives) {
-      for (const [index, obj] of step4.objectives.entries()) {
-        const objectiveId = `obj_${context.sessionId}_${index}`;
-
-        objectives.push({
-          title: obj.title || '',
-          description: obj.description || '',
-          owner: obj.owner || context.userId,
-          priority: obj.priority || 'medium',
-          category: obj.category || 'business',
-          timeHorizon: step3.timeHorizon || 'quarterly',
-          status: 'draft',
-          parentId: undefined,
-          departmentId: undefined
-        });
-
-        if (obj.keyResults) {
-          for (const [krIndex, kr] of obj.keyResults.entries()) {
-            keyResults.push({
-              objectiveId,
-              title: kr.title || '',
-              description: kr.description,
-              metric: kr.metric || '',
-              target: kr.target || '',
-              unit: kr.unit || '',
-              baseline: kr.baseline || '0',
-              owner: kr.owner || obj.owner || context.userId,
-              status: 'draft',
-              trackingFrequency: 'weekly'
-            });
-          }
-        }
-      }
-    }
-
-    // Transform Step 4: Team Structure
-    const teamStructure: TeamStructureData = {
-      departments: step2.departments?.map((dept: string, index: number) => ({
-        name: dept,
-        description: `Department: ${dept}`,
-        parentId: undefined,
-        headOfDepartment: index === 0 ? context.userId : undefined,
-        memberCount: Math.ceil(step2.employeeCount / step2.departments.length) || 1
-      })) || [],
-      roles: [
-        {
-          name: userProfile.jobTitle || 'Manager',
-          description: 'Leadership role',
-          departmentId: 'dept_1',
-          level: 1,
-          permissions: ['read', 'write', 'admin']
-        }
-      ],
-      hierarchyLevels: Math.min(Math.ceil(Math.log2(step2.employeeCount || 1)), 5),
-      reportingStructure: {}
-    };
-
-    // Transform Step 4 & 5: Preferences
-    const preferences: UserPreferencesData = {
-      okrCycle: step4.okrCycle || 'quarterly',
-      reviewFrequency: step4.reviewFrequency || 'weekly',
-      trackingPreferences: {
-        updateFrequency: step4.trackingPreferences?.updateFrequency || 'weekly',
-        notificationSettings: {
-          deadlineReminders: step4.trackingPreferences?.notificationSettings?.deadlineReminders ?? true,
-          progressAlerts: step4.trackingPreferences?.notificationSettings?.progressAlerts ?? true,
-          teamUpdates: step4.trackingPreferences?.notificationSettings?.teamUpdates ?? true
+      // Prepare analytics request based on onboarding data
+      const analyticsRequest: AnalyticsRequest = {
+        userId,
+        timeRange: {
+          start: new Date(session.created_at),
+          end: new Date()
         },
-        reportingFormat: step4.trackingPreferences?.reportingFormat || 'dashboard'
+        analysisType: 'comprehensive', // Use comprehensive analysis for onboarding
+        filters: {
+          departments: this.extractDepartments(session.form_data),
+          status: ['in_progress', 'completed'],
+          priority: ['high', 'medium', 'low']
+        },
+        includeMetrics: true,
+        includePredictions: true,
+        includeRecommendations: true
+      }
+
+      // Generate insights using the existing AI service
+      return await this.insightsGenerator.generateInsights(analyticsRequest, userId)
+    } catch (error) {
+      console.error('Error generating onboarding insights:', error)
+      throw new Error(`Failed to generate onboarding insights: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Transform wizard form data into structured organization data
+   */
+  transformWizardToOrgData(formData: OnboardingFormData): {
+    organization: any;
+    recommendations: any[];
+    nextSteps: string[];
+  } {
+    const { welcome, company, organization: orgData, preferences } = formData
+
+    // Transform company data
+    const organization = {
+      name: company?.company_name,
+      industry: company?.industry_id,
+      size: company?.company_size,
+      description: company?.description,
+      country: company?.country,
+      website: company?.website,
+      okr_maturity: orgData?.okr_maturity,
+      current_challenges: orgData?.current_challenges || [],
+      business_goals: orgData?.business_goals || [],
+      user_preferences: {
+        communication_style: preferences?.communication_style,
+        language: preferences?.language,
+        ai_assistance_level: preferences?.ai_assistance_level
       },
-      launchPreferences: {
-        sendInvitations: step5.launchPreferences?.sendInvitations ?? false,
-        scheduleKickoff: step5.launchPreferences?.scheduleKickoff ?? false,
-        enableNotifications: step5.launchPreferences?.enableNotifications ?? true,
-        setupIntegrations: step5.launchPreferences?.setupIntegrations ?? false
+      primary_contact: {
+        name: welcome?.full_name,
+        job_title: welcome?.job_title,
+        experience_level: welcome?.experience_with_okr,
+        primary_goal: welcome?.primary_goal,
+        urgency_level: welcome?.urgency_level
       }
-    };
+    }
+
+    // Generate recommendations based on form data
+    const recommendations = this.generateRecommendations(formData)
+
+    // Generate next steps
+    const nextSteps = this.generateNextSteps(formData)
 
     return {
-      userProfile,
       organization,
-      objectives,
-      keyResults,
-      teamStructure,
-      preferences
-    };
+      recommendations,
+      nextSteps
+    }
   }
 
   /**
-   * Enhance data with AI insights
+   * Extract completion analytics from onboarding progress
    */
-  private async enhanceWithAI(
-    data: TransformedData,
-    context: any
-  ): Promise<void> {
-    try {
-      // Generate AI insights for organization
-      const organizationPrompt = `
-        Analyza esta organización y genera insights estratégicos:
-        - Nombre: ${data.organization.name}
-        - Industria: ${data.organization.industry}
-        - Tamaño: ${data.organization.size}
-        - Empleados: ${data.organization.employeeCount}
-        - Objetivos: ${data.organization.businessGoals.join(', ')}
-        - Desafíos: ${data.organization.currentChallenges.join(', ')}
-      `;
+  extractCompletionAnalytics(session: OnboardingSession, progress: OnboardingProgress[]): {
+    completionRate: number;
+    timeSpent: number;
+    stepAnalytics: Array<{
+      stepNumber: number;
+      stepName: string;
+      completed: boolean;
+      timeSpent: number;
+      validationScore: number;
+    }>;
+    riskFactors: string[];
+  } {
+    const completedSteps = progress.filter(p => p.completed).length
+    const completionRate = (completedSteps / session.total_steps) * 100
 
-      const aiInsights = await this.aiService.generateInsights(
-        organizationPrompt,
-        {
-          industry: data.organization.industry,
-          organizationSize: data.organization.size,
-          okrMaturity: data.organization.okrMaturity
-        }
-      );
-
-      data.organization.aiInsights = {
-        strategicRecommendations: aiInsights,
-        industryBenchmarks: {},
-        growthOpportunities: {},
-        riskFactors: {},
-        generatedAt: new Date().toISOString()
-      };
-
-      // Enhance objectives with AI suggestions
-      for (const objective of data.objectives) {
-        const objectivePrompt = `
-          Mejora este objetivo para que sea más específico y medible:
-          - Título: ${objective.title}
-          - Descripción: ${objective.description}
-          - Industria: ${data.organization.industry}
-          - Contexto organizacional: ${data.organization.businessGoals.join(', ')}
-        `;
-
-        try {
-          const enhancedObjective = await this.aiService.generateSuggestions(
-            objectivePrompt,
-            { timeout: this.config.aiTimeout }
-          );
-
-          // Apply AI enhancements if they improve the objective
-          if (enhancedObjective && enhancedObjective.length > objective.description.length) {
-            objective.description = enhancedObjective;
-          }
-        } catch (error) {
-          console.warn('Failed to enhance objective with AI:', error);
-        }
+    // Calculate total time spent
+    const totalTime = progress.reduce((total, step) => {
+      if (step.completion_time) {
+        const start = new Date(step.created_at).getTime()
+        const end = new Date(step.completion_time).getTime()
+        return total + (end - start)
       }
+      return total
+    }, 0)
 
-    } catch (error) {
-      console.error('AI enhancement error:', error);
-      // Continue without AI enhancement
-    }
-  }
+    // Extract step analytics
+    const stepAnalytics = progress.map(step => ({
+      stepNumber: step.step_number,
+      stepName: step.step_name,
+      completed: step.completed,
+      timeSpent: step.completion_time
+        ? new Date(step.completion_time).getTime() - new Date(step.created_at).getTime()
+        : 0,
+      validationScore: this.calculateValidationScore(step)
+    }))
 
-  /**
-   * Post-process and clean data
-   */
-  private async postProcessData(
-    data: TransformedData,
-    context: any
-  ): Promise<TransformedData> {
-    // Clean and normalize text fields
-    data.userProfile.firstName = this.cleanText(data.userProfile.firstName);
-    data.userProfile.lastName = this.cleanText(data.userProfile.lastName);
-    data.organization.name = this.cleanText(data.organization.name);
+    // Identify risk factors
+    const riskFactors = this.identifyRiskFactors(session, stepAnalytics)
 
-    // Normalize URLs
-    if (data.organization.website) {
-      data.organization.website = this.normalizeUrl(data.organization.website);
-    }
-
-    // Validate and clean objectives
-    data.objectives = data.objectives.filter(obj =>
-      obj.title.trim().length > 0 && obj.description.trim().length > 0
-    );
-
-    // Validate and clean key results
-    data.keyResults = data.keyResults.filter(kr =>
-      kr.title.trim().length > 0 && kr.metric.trim().length > 0
-    );
-
-    // Set default values for required fields
-    if (!data.organization.country) {
-      data.organization.country = 'México';
-    }
-
-    if (!data.userProfile.timezone) {
-      data.userProfile.timezone = 'America/Mexico_City';
-    }
-
-    return data;
-  }
-
-  /**
-   * Clean text fields
-   */
-  private cleanText(text: string): string {
-    if (!text) return '';
-
-    return text
-      .trim()
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .replace(/[^\w\sáéíóúÁÉÍÓÚñÑ\-.,]/g, '') // Remove special characters
-      .substring(0, 200); // Limit length
-  }
-
-  /**
-   * Normalize URL format
-   */
-  private normalizeUrl(url: string): string {
-    if (!url) return '';
-
-    let normalized = url.trim();
-
-    // Add protocol if missing
-    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-      normalized = 'https://' + normalized;
-    }
-
-    // Remove trailing slash
-    normalized = normalized.replace(/\/$/, '');
-
-    return normalized;
-  }
-
-  /**
-   * Cache transformation result
-   */
-  private async cacheTransformationResult(
-    sessionId: string,
-    result: TransformationResult
-  ): Promise<void> {
-    try {
-      await onboardingCache.set(`transformation_${sessionId}`, result, 3600); // 1 hour cache
-    } catch (error) {
-      console.error('Failed to cache transformation result:', error);
-    }
-  }
-
-  /**
-   * Track transformation for analytics
-   */
-  private async trackTransformation(
-    result: TransformationResult,
-    context: any
-  ): Promise<void> {
-    try {
-      await trackEvent('onboarding_data_transformed', {
-        sessionId: context.sessionId,
-        userId: context.userId,
-        success: result.success,
-        processingTime: result.metadata.processingTime,
-        aiEnhanced: result.metadata.aiEnhanced,
-        stepsProcessed: result.metadata.stepsProcessed.length,
-        objectiveCount: result.data.objectives?.length || 0,
-        keyResultCount: result.data.keyResults?.length || 0,
-        errorCount: result.errors.length,
-        warningCount: result.warnings.length
-      });
-    } catch (error) {
-      console.error('Failed to track transformation:', error);
-    }
-  }
-}
-
-/**
- * Utility functions for data transformation
- */
-
-/**
- * Transform wizard step data to specific format
- */
-export async function transformStepData(
-  stepNumber: number,
-  stepData: Record<string, any>,
-  context?: any
-): Promise<Record<string, any>> {
-  const pipeline = new WizardDataTransformationPipeline();
-
-  // Create temporary session data for transformation
-  const sessionData = { [stepNumber]: stepData };
-
-  const result = await pipeline.transformWizardData(sessionData, {
-    userId: context?.userId || 'temp',
-    sessionId: context?.sessionId || 'temp'
-  });
-
-  if (result.success) {
-    return result.data;
-  } else {
-    throw new Error(`Transformation failed: ${result.errors.map(e => e.message).join(', ')}`);
-  }
-}
-
-/**
- * Validate and transform complete session data
- */
-export async function transformCompleteSession(
-  sessionData: Record<number, Record<string, any>>,
-  context: {
-    userId: string;
-    sessionId: string;
-    organizationId?: string;
-  }
-): Promise<TransformationResult> {
-  const pipeline = new WizardDataTransformationPipeline();
-  return pipeline.transformWizardData(sessionData, context);
-}
-
-/**
- * Save transformed data and complete onboarding
- */
-export async function completeOnboarding(
-  sessionData: Record<number, Record<string, any>>,
-  context: {
-    userId: string;
-    sessionId: string;
-    organizationId?: string;
-  }
-): Promise<{
-  success: boolean;
-  organizationId?: string;
-  objectiveIds?: string[];
-  errors?: any[];
-}> {
-  const pipeline = new WizardDataTransformationPipeline();
-
-  // Transform data
-  const transformationResult = await pipeline.transformWizardData(sessionData, context);
-
-  if (!transformationResult.success) {
     return {
-      success: false,
-      errors: transformationResult.errors
-    };
+      completionRate,
+      timeSpent: totalTime,
+      stepAnalytics,
+      riskFactors
+    }
   }
 
-  // Save to database
-  return pipeline.saveToDatabase(transformationResult.data, context);
+  /**
+   * Transform onboarding data for OKR initialization
+   */
+  transformForOKRSetup(formData: OnboardingFormData): {
+    suggestedObjectives: any[];
+    teamStructure: any;
+    priorityMatrix: any;
+  } {
+    const { welcome, company, organization: orgData } = formData
+
+    // Generate suggested objectives based on industry and goals
+    const suggestedObjectives = this.generateSuggestedObjectives(
+      company?.industry_id,
+      orgData?.business_goals || [],
+      welcome?.experience_with_okr,
+      welcome?.primary_goal
+    )
+
+    // Suggest team structure based on company size and industry
+    const teamStructure = this.suggestTeamStructure(
+      company?.company_size,
+      company?.industry_id,
+      orgData?.current_challenges || []
+    )
+
+    // Create priority matrix based on urgency and business goals
+    const priorityMatrix = this.createPriorityMatrix(
+      welcome?.urgency_level,
+      orgData?.business_goals || [],
+      orgData?.current_challenges || []
+    )
+
+    return {
+      suggestedObjectives,
+      teamStructure,
+      priorityMatrix
+    }
+  }
+
+  /**
+   * Private helper methods
+   */
+
+  private extractDepartments(formData: any): string[] {
+    // Extract potential departments from form data
+    const departments = ['General'] // Default department
+
+    if (formData?.company?.industry_id) {
+      // Add industry-specific departments
+      departments.push(...this.getIndustryDepartments(formData.company.industry_id))
+    }
+
+    return departments
+  }
+
+  private getIndustryDepartments(industryId: string): string[] {
+    const industryDepartments: Record<string, string[]> = {
+      'technology': ['Desarrollo', 'Producto', 'Marketing', 'Ventas'],
+      'healthcare': ['Medicina', 'Administración', 'Investigación'],
+      'finance': ['Riesgo', 'Inversiones', 'Cumplimiento', 'Operaciones'],
+      'retail': ['Ventas', 'Marketing', 'Operaciones', 'Logística'],
+      'manufacturing': ['Producción', 'Calidad', 'Logística', 'Mantenimiento']
+    }
+
+    return industryDepartments[industryId] || ['Operaciones', 'Administración']
+  }
+
+  private generateRecommendations(formData: OnboardingFormData): any[] {
+    const recommendations = []
+    const { welcome, company, organization: orgData } = formData
+
+    // Experience-based recommendations
+    if (welcome?.experience_with_okr === 'none') {
+      recommendations.push({
+        type: 'learning',
+        title: 'Capacitación en OKRs',
+        description: 'Recomendamos comenzar con capacitación básica en metodología OKRs',
+        priority: 'high',
+        timeline: '1-2 semanas'
+      })
+    }
+
+    // Company size-based recommendations
+    if (company?.company_size === 'startup') {
+      recommendations.push({
+        type: 'strategy',
+        title: 'Enfoque en métricas de tracción',
+        description: 'Para startups, prioriza métricas de crecimiento y validación de mercado',
+        priority: 'high',
+        timeline: 'Inmediato'
+      })
+    }
+
+    // Industry-specific recommendations
+    if (company?.industry_id === 'technology') {
+      recommendations.push({
+        type: 'process',
+        title: 'Integración con metodologías ágiles',
+        description: 'Alinea los OKRs con sprints y entregas de producto',
+        priority: 'medium',
+        timeline: '2-4 semanas'
+      })
+    }
+
+    // Challenge-based recommendations
+    if (orgData?.current_challenges?.includes('alignment')) {
+      recommendations.push({
+        type: 'alignment',
+        title: 'Sesiones de alineación estratégica',
+        description: 'Implementa reuniones regulares de alineación entre equipos',
+        priority: 'high',
+        timeline: 'Semanal'
+      })
+    }
+
+    return recommendations
+  }
+
+  private generateNextSteps(formData: OnboardingFormData): string[] {
+    const steps = []
+    const { welcome, preferences } = formData
+
+    // Always include basic setup steps
+    steps.push('Revisar OKRs sugeridos para tu industria')
+    steps.push('Configurar tu primer objetivo en el dashboard')
+
+    // Add AI-specific steps if AI assistance is enabled
+    if (preferences?.ai_assistance_level === 'extensive') {
+      steps.unshift('Activar notificaciones de IA para sugerencias proactivas')
+    }
+
+    // Add experience-based steps
+    if (welcome?.experience_with_okr === 'none') {
+      steps.push('Completar tutorial de metodología OKRs')
+    }
+
+    // Add collaboration steps
+    steps.push('Invitar a tu equipo a colaborar')
+    steps.push('Configurar métricas y reportes automáticos')
+
+    return steps
+  }
+
+  private calculateValidationScore(step: OnboardingProgress): number {
+    if (!step.ai_validation) return 50 // Default score if no validation
+
+    const validation = step.ai_validation as any
+
+    let score = 100
+
+    // Reduce score based on errors and warnings
+    if (validation.errors?.length > 0) {
+      score -= validation.errors.length * 20
+    }
+
+    if (validation.warnings?.length > 0) {
+      score -= validation.warnings.length * 10
+    }
+
+    return Math.max(0, score)
+  }
+
+  private identifyRiskFactors(session: OnboardingSession, stepAnalytics: any[]): string[] {
+    const risks = []
+
+    // Check completion rate
+    const completedSteps = stepAnalytics.filter(step => step.completed).length
+    const completionRate = (completedSteps / session.total_steps) * 100
+
+    if (completionRate < 50) {
+      risks.push('Baja tasa de finalización del onboarding')
+    }
+
+    // Check for rushed completion
+    const avgTimePerStep = stepAnalytics.reduce((sum, step) => sum + step.timeSpent, 0) / stepAnalytics.length
+    if (avgTimePerStep < 60000) { // Less than 1 minute per step
+      risks.push('Onboarding completado demasiado rápido, posible falta de detalle')
+    }
+
+    // Check validation scores
+    const avgValidationScore = stepAnalytics.reduce((sum, step) => sum + step.validationScore, 0) / stepAnalytics.length
+    if (avgValidationScore < 70) {
+      risks.push('Múltiples errores de validación, datos incompletos')
+    }
+
+    // Check for incomplete mandatory steps
+    const incompleteSteps = stepAnalytics.filter(step => !step.completed).length
+    if (incompleteSteps > 0) {
+      risks.push(`${incompleteSteps} pasos obligatorios sin completar`)
+    }
+
+    return risks
+  }
+
+  private generateSuggestedObjectives(
+    industryId?: string,
+    businessGoals: string[] = [],
+    experienceLevel?: string,
+    primaryGoal?: string
+  ): any[] {
+    const objectives = []
+
+    // Industry-specific objectives
+    if (industryId === 'technology') {
+      objectives.push({
+        title: 'Acelerar desarrollo de producto',
+        description: 'Reducir tiempo de lanzamiento de nuevas funcionalidades',
+        keyResults: [
+          'Reducir ciclo de desarrollo en 30%',
+          'Aumentar satisfacción del desarrollador a 85%',
+          'Implementar 5 funcionalidades críticas'
+        ],
+        priority: 'high'
+      })
+    }
+
+    // Experience-based objectives
+    if (experienceLevel === 'none') {
+      objectives.push({
+        title: 'Establecer cultura OKR',
+        description: 'Implementar metodología OKRs en toda la organización',
+        keyResults: [
+          '100% del equipo capacitado en OKRs',
+          'Definir 3 objetivos organizacionales',
+          'Alcanzar 80% de adopción en equipos'
+        ],
+        priority: 'high'
+      })
+    }
+
+    // Business goal-based objectives
+    if (businessGoals.includes('growth')) {
+      objectives.push({
+        title: 'Acelerar crecimiento del negocio',
+        description: 'Incrementar ingresos y base de clientes',
+        keyResults: [
+          'Aumentar ingresos mensuales en 25%',
+          'Adquirir 100 nuevos clientes',
+          'Mejorar retención de clientes a 95%'
+        ],
+        priority: 'high'
+      })
+    }
+
+    return objectives
+  }
+
+  private suggestTeamStructure(
+    companySize?: string,
+    industryId?: string,
+    challenges: string[] = []
+  ): any {
+    const structure = {
+      departments: [] as string[],
+      roles: [] as any[],
+      hierarchy: 'flat' as 'flat' | 'hierarchical'
+    }
+
+    // Size-based structure
+    if (companySize === 'startup') {
+      structure.departments = ['Producto', 'Desarrollo', 'Marketing']
+      structure.hierarchy = 'flat'
+      structure.roles = [
+        { title: 'Product Owner', department: 'Producto', level: 'lead' },
+        { title: 'Tech Lead', department: 'Desarrollo', level: 'lead' },
+        { title: 'Marketing Lead', department: 'Marketing', level: 'lead' }
+      ]
+    } else if (companySize === 'enterprise') {
+      structure.departments = ['Estrategia', 'Operaciones', 'Tecnología', 'Recursos Humanos', 'Finanzas']
+      structure.hierarchy = 'hierarchical'
+      structure.roles = [
+        { title: 'Director de Estrategia', department: 'Estrategia', level: 'executive' },
+        { title: 'Director de Operaciones', department: 'Operaciones', level: 'executive' },
+        { title: 'CTO', department: 'Tecnología', level: 'executive' }
+      ]
+    }
+
+    // Industry adjustments
+    if (industryId === 'technology') {
+      if (!structure.departments.includes('Desarrollo')) {
+        structure.departments.push('Desarrollo')
+      }
+      if (!structure.departments.includes('Producto')) {
+        structure.departments.push('Producto')
+      }
+    }
+
+    return structure
+  }
+
+  private createPriorityMatrix(
+    urgencyLevel?: string,
+    businessGoals: string[] = [],
+    challenges: string[] = []
+  ): any {
+    const matrix = {
+      high_priority: [] as string[],
+      medium_priority: [] as string[],
+      low_priority: [] as string[]
+    }
+
+    // Urgency-based prioritization
+    if (urgencyLevel === 'urgent') {
+      matrix.high_priority.push('Implementación inmediata de OKRs críticos')
+      matrix.high_priority.push('Resolución de bloqueos organizacionales')
+    }
+
+    // Goal-based prioritization
+    if (businessGoals.includes('growth')) {
+      matrix.high_priority.push('Objetivos de crecimiento e ingresos')
+    }
+
+    if (businessGoals.includes('efficiency')) {
+      matrix.medium_priority.push('Optimización de procesos internos')
+    }
+
+    // Challenge-based prioritization
+    if (challenges.includes('alignment')) {
+      matrix.high_priority.push('Alineación estratégica entre equipos')
+    }
+
+    if (challenges.includes('communication')) {
+      matrix.medium_priority.push('Mejora en comunicación organizacional')
+    }
+
+    // Fill remaining priorities
+    matrix.low_priority.push('Optimización de herramientas secundarias')
+    matrix.low_priority.push('Capacitación avanzada en metodologías')
+
+    return matrix
+  }
 }
 
 /**
- * Factory function to create transformation pipeline
+ * Factory function to create a new wizard data transformer
  */
-export function createTransformationPipeline(
-  config?: Partial<TransformationConfig>
-): WizardDataTransformationPipeline {
-  return new WizardDataTransformationPipeline(config);
+export function createWizardDataTransformer(): WizardDataTransformer {
+  return new WizardDataTransformer()
 }
 
-// Export types for external use
-export type {
-  TransformationConfig,
-  TransformationResult,
-  TransformedData,
-  UserProfileData,
-  OrganizationData,
-  ObjectiveData,
-  KeyResultData,
-  TeamStructureData,
-  UserPreferencesData
-};
+/**
+ * Convenience function for quick onboarding insights generation
+ */
+export async function generateQuickOnboardingInsights(
+  session: OnboardingSession,
+  progress: OnboardingProgress[],
+  userId: string
+): Promise<AnalyticsResponse> {
+  const transformer = createWizardDataTransformer()
+  return transformer.generateOnboardingInsights(session, progress, userId)
+}
+
+/**
+ * Export singleton instance for reuse
+ */
+export const wizardDataTransformer = new WizardDataTransformer()
