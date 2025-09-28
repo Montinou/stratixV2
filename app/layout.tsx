@@ -1,6 +1,6 @@
 import type React from "react"
 import { StackProvider, StackTheme } from "@stackframe/stack"
-import { stackClientApp } from "@/stack"
+import { stackClientApp } from "../stack/client"
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
@@ -36,13 +36,13 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <ThemeProvider>
-          <StackProvider app={stackClientApp}>
-            <StackTheme>
+        <StackProvider app={stackClientApp}>
+          <StackTheme>
+            <ThemeProvider>
               {children}
-            </StackTheme>
-          </StackProvider>
-        </ThemeProvider>
+            </ThemeProvider>
+          </StackTheme>
+        </StackProvider>
         <Analytics />
       </body>
     </html>

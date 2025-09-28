@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '../../stack/server';
 import { profilesRepository } from '@/lib/database/queries/profiles';
 import type { User } from "@stackframe/stack";
 import type { ProfileWithCompany } from '@/lib/database/types';
