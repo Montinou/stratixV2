@@ -611,13 +611,3 @@ export async function getUserActiveOrganizations(
   return result;
 }
 
-export async function getOrganizationById(
-  organizationId: string
-): Promise<Organization | null> {
-  const result = await authenticatedQuery<Organization>(
-    `SELECT * FROM organizations WHERE id = $1`,
-    [organizationId]
-  );
-
-  return result[0] || null;
-}
