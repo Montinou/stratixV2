@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack';
-import { ProfilesRepository } from '@/lib/database/queries/profiles';
+import { profilesRepository } from '@/lib/database/queries/profiles';
 import type { CreateProfileForm, UserRole } from '@/lib/database/types';
 import { z } from 'zod';
-
-const profilesRepository = new ProfilesRepository();
 
 // Validation schema for profile creation
 const createProfileSchema = z.object({

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack';
-import { ProfilesRepository } from '@/lib/database/queries/profiles';
-
-const profilesRepository = new ProfilesRepository();
+import { profilesRepository } from '@/lib/database/queries/profiles';
 
 /**
  * GET /api/profiles/[userId]

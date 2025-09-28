@@ -297,9 +297,8 @@ export class ProfileLifecycleService implements ProfileLifecycleManager {
       }
 
       // Use ProfilesRepository for proper deletion
-      const { ProfilesRepository } = await import('@/lib/database/queries/profiles')
-      const profilesRepo = new ProfilesRepository()
-      await profilesRepo.delete(userId)
+      const { profilesRepository } = await import('@/lib/database/queries/profiles')
+      await profilesRepository.delete(userId)
       
       console.log(`Successfully deleted profile for user ${userId}`)
       

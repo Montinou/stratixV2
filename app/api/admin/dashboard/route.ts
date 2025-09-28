@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack';
-import { ProfilesRepository } from '@/lib/database/queries/profiles';
+import { profilesRepository } from '@/lib/database/queries/profiles';
 import { CompaniesRepository } from '@/lib/database/queries/companies';
 import { SessionManagementService } from '@/lib/services/session-management';
 import { SyncLoggingService } from '@/lib/services/sync-logging';
 
-const profilesRepository = new ProfilesRepository();
 const companiesRepository = new CompaniesRepository();
 
 // Check if user has admin permissions

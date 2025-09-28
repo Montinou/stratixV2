@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack';
-import { ProfilesRepository } from '@/lib/database/queries/profiles';
+import { profilesRepository } from '@/lib/database/queries/profiles';
 import { SyncLoggingService } from '@/lib/services/sync-logging';
 import { z } from 'zod';
-
-const profilesRepository = new ProfilesRepository();
 
 // Validation schemas
 const auditFilterSchema = z.object({
@@ -246,7 +244,7 @@ export async function GET(request: NextRequest) {
   try {
     // Verify authentication
     const user = await stackServerApp.getUser();
-    if (error || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
@@ -441,7 +439,7 @@ export async function POST(request: NextRequest) {
   try {
     // Verify authentication
     const user = await stackServerApp.getUser();
-    if (error || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
