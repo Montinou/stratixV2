@@ -47,9 +47,26 @@ export function useWelcomeForm(): UseFormReturn<WelcomeFormData> & {
     setLoading(true);
 
     try {
-      // Simulate network delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Save to backend API
+      const response = await fetch('/api/onboarding/step', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          step: 1,
+          data: {
+            ...data,
+            hasSeenWelcome: true
+          }
+        }),
+      });
 
+      if (!response.ok) {
+        throw new Error('Failed to save welcome step');
+      }
+
+      // Save to local state
       setStepData('welcome', {
         ...data,
         hasSeenWelcome: true
@@ -113,9 +130,23 @@ export function useCompanyForm(): UseFormReturn<CompanyFormData> & {
     setLoading(true);
 
     try {
-      // Simulate network delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Save to backend API
+      const response = await fetch('/api/onboarding/step', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          step: 2,
+          data
+        }),
+      });
 
+      if (!response.ok) {
+        throw new Error('Failed to save company step');
+      }
+
+      // Save to local state
       setStepData('company', data);
       completeStep(2);
       nextStep();
@@ -177,9 +208,27 @@ export function useOrganizationForm(): UseFormReturn<OrganizationFormData> & {
     setLoading(true);
 
     try {
-      // Simulate network delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save to backend API
+      const response = await fetch('/api/onboarding/step', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          step: 3,
+          data: {
+            departments: data.departments,
+            structure: data.structure,
+            ...data
+          }
+        }),
+      });
 
+      if (!response.ok) {
+        throw new Error('Failed to save organization step');
+      }
+
+      // Save to local state
       setStepData('organization', {
         departments: data.departments,
         structure: data.structure,

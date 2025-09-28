@@ -14,17 +14,9 @@ export default async function DashboardPage() {
     // Get user profile
     const { data: profile, error } = await getCurrentProfile()
 
-    // If no profile exists, show onboarding message
+    // If no profile exists, redirect to onboarding
     if (!profile) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center space-y-4">
-            <h1 className="text-2xl font-bold">¡Bienvenido {user.displayName || user.primaryEmail}!</h1>
-            <p className="text-muted-foreground">Tu perfil será configurado próximamente.</p>
-            <p className="text-sm text-muted-foreground">Onboarding en desarrollo...</p>
-          </div>
-        </div>
-      )
+      redirect("/onboarding")
     }
 
     return <DashboardContent profile={profile} />

@@ -285,12 +285,54 @@ export function CompletionStepComponent() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleStartBuilding = () => {
-    router.push("/dashboard");
+  const handleStartBuilding = async () => {
+    try {
+      // Complete onboarding and create profile
+      const response = await fetch('/api/onboarding/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: stepData
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to complete onboarding');
+      }
+
+      router.push("/dashboard");
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      // For now, still redirect to dashboard even if completion fails
+      router.push("/dashboard");
+    }
   };
 
-  const handleCreateFirstOKR = () => {
-    router.push("/objectives/new");
+  const handleCreateFirstOKR = async () => {
+    try {
+      // Complete onboarding and create profile
+      const response = await fetch('/api/onboarding/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: stepData
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to complete onboarding');
+      }
+
+      router.push("/objectives/new");
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      // For now, still redirect to objectives even if completion fails
+      router.push("/objectives/new");
+    }
   };
 
   // Generate personalized recommendations based on setup
