@@ -184,3 +184,8 @@ INSERT INTO todos (task, user_id)
 </Steps>
 
 <NeedHelp />
+- DATABASE_URL="postgresql://neondb_owner:npg_IbwFloKe6Y7g@ep-withered-unit-adrt571v-pooler.c-2.us-east-1.aws.neon.tech/n
+  eondb?sslmode=require"
+  NEON_PROJECT_ID="late-bird-77264469"
+  NEXT_PUBLIC_STACK_PROJECT_ID="3db87554-ace0-4151-9d12-63dd5e21022d"
+  STACK_SECRET_SERVER_KEY="ssk_5zvnp9nba3tvwnc88rgz5f8gza78t5xmqg5n1nnz7vd80"
