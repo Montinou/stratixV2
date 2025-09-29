@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { StackProvider, StackTheme } from '@stackframe/stack';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { stackServerApp } from '../stack';
+import { stackClientApp } from '../stack';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { appConfig } from '@/config/app';
@@ -29,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <StackProvider app={stackServerApp}>
+        <StackProvider app={stackClientApp}>
           <StackTheme>
             <SidebarProvider defaultOpen={false}>{children}</SidebarProvider>
           </StackTheme>
