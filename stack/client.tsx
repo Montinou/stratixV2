@@ -20,6 +20,6 @@ export const stackClientApp = new StackClientApp({
     afterSignIn: '/tools',
     afterSignUp: '/tools',
   },
-  ...(projectId && { projectId }),
-  ...(publishableClientKey && { publishableClientKey }),
+  projectId: projectId || '',
+  publishableClientKey: publishableClientKey || '',
 });

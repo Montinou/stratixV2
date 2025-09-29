@@ -22,7 +22,7 @@ export const stackServerApp = new StackServerApp({
     afterSignIn: '/tools',
     afterSignUp: '/tools',
   },
-  ...(projectId && { projectId }),
-  ...(publishableClientKey && { publishableClientKey }),
-  ...(secretServerKey && { secretServerKey }),
+  projectId: projectId || '',
+  publishableClientKey: publishableClientKey || '',
+  secretServerKey: secretServerKey || '',
 });
