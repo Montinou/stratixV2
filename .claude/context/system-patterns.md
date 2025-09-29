@@ -1,610 +1,282 @@
 ---
-created: 2025-09-24T05:32:18Z
-last_updated: 2025-09-27T23:11:47Z
-version: 2.1
+created: 2025-09-29T04:50:25Z
+last_updated: 2025-09-29T04:50:25Z
+version: 1.0
 author: Claude Code PM System
 ---
 
-# System Patterns & Architecture
+# System Patterns
 
-## Design Patterns for 3 PRDs Implementation
+## Architectural Patterns
 
-### AI-First Architecture Patterns
+### App Router Pattern (Next.js 15)
+The application follows Next.js 15 App Router conventions with server-side rendering and component-based routing:
 
-#### Motor AI Completo Patterns
-- **Gateway Pattern**: Unified AI Gateway client abstracts multiple AI providers
-- **Caching Proxy Pattern**: Intelligent caching layer with TTL and cost optimization
-- **Rate Limiting Pattern**: Token bucket algorithm for cost control and fair usage
-- **Prompt Template Pattern**: Industry-specific prompt management with versioning
-- **Circuit Breaker Pattern**: Graceful degradation when AI services unavailable
-
-#### Progressive Enhancement Pattern (Frontend Onboarding)
-- **Core Functionality**: Basic wizard works without AI
-- **Enhanced Experience**: AI assistance layered on top
-- **Feature Detection**: Runtime detection of AI availability
-- **Graceful Fallback**: Seamless fallback to non-AI experience
-- **Incremental Loading**: AI components loaded on demand
-
-#### Event Sourcing Pattern (Invitation System)
-- **Immutable Events**: All invitation state changes as events
-- **Event Replay**: Reconstruct current state from event history
-- **Audit Trail**: Complete history for compliance and debugging
-- **Webhook Integration**: External events (Brevo) integrated into event stream
-- **CQRS Implementation**: Separate read/write models for performance
-
-### Component Architecture Patterns
-
-#### AI-Enhanced Component Composition
 ```typescript
-// Smart Component Pattern - AI-enhanced components
-interface SmartComponent<T> {
-  baseComponent: React.Component<T>;
-  aiEnhancement?: AIEnhancement;
-  fallbackBehavior: FallbackBehavior;
-  progressiveEnhancement: boolean;
-}
-
-// Example: Smart Form Field
-<SmartFormField
-  type="text"
-  name="company_name"
-  aiSuggestions={true}
-  placeholder="Nombre de tu empresa"
-  validation={companyNameSchema}
-  aiPrompt="suggest company names for {industry}"
-  fallbackPlaceholder="Ingresa el nombre de tu empresa"
-/>
-```
-
-#### Wizard State Management Pattern
-```typescript
-// Zustand store for wizard state
-interface OnboardingState {
-  currentStep: number;
-  formData: Record<string, any>;
-  aiSuggestions: Record<string, any>;
-  progress: number;
-  isAIEnabled: boolean;
-
-  // Actions
-  nextStep: () => void;
-  previousStep: () => void;
-  updateFormData: (step: string, data: any) => void;
-  saveProgress: () => Promise<void>;
-  loadSession: (userId: string) => Promise<void>;
+// app/layout.tsx - Root layout pattern
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <StackProvider>
+          <StackTheme>
+            {children}
+          </StackTheme>
+        </StackProvider>
+      </body>
+    </html>
+  )
 }
 ```
 
-#### Invitation Management Pattern
-```typescript
-// Event-driven invitation state
-type InvitationEvent =
-  | { type: 'CREATED'; payload: InvitationData }
-  | { type: 'SENT'; payload: { messageId: string } }
-  | { type: 'DELIVERED'; payload: BrevoEvent }
-  | { type: 'VIEWED'; payload: { timestamp: Date } }
-  | { type: 'ACCEPTED'; payload: { userId: string } }
-  | { type: 'EXPIRED'; payload: { reason: string } };
+### Authentication Pattern (Stack Auth)
+Centralized authentication using Stack Auth with provider pattern:
 
-// Event reducer pattern
-function invitationReducer(state: InvitationState, event: InvitationEvent): InvitationState {
-  switch (event.type) {
-    case 'SENT':
-      return { ...state, status: 'sent', sentAt: new Date(), messageId: event.payload.messageId };
-    case 'VIEWED':
-      return { ...state, status: 'viewed', viewedAt: event.payload.timestamp };
-    // ... other cases
+```typescript
+// Pattern: Authentication provider wrapping
+<StackProvider>
+  <StackTheme>
+    <AuthenticatedApp />
+  </StackTheme>
+</StackProvider>
+
+// Pattern: Hook-based user access
+const user = useUser({ or: "redirect" });
+```
+
+### Database Access Pattern (Drizzle ORM)
+Type-safe database operations with connection pooling:
+
+```typescript
+// Pattern: Serverless connection with pooling
+import { neon } from '@neondatabase/serverless';
+const sql = neon(process.env.DATABASE_URL!);
+
+// Pattern: Type-safe queries
+const results = await db.select().from(table).where(eq(table.id, userId));
+```
+
+## Component Patterns
+
+### shadcn/ui Component Pattern
+Consistent component architecture using Class Variance Authority:
+
+```typescript
+// Pattern: Component with variants
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md text-sm font-medium",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
   }
+)
+```
+
+### Form Handling Pattern
+React Hook Form with Zod validation:
+
+```typescript
+// Pattern: Form with validation schema
+const formSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+})
+
+const form = useForm<z.infer<typeof formSchema>>({
+  resolver: zodResolver(formSchema),
+  defaultValues: {
+    title: "",
+    description: "",
+  },
+})
+```
+
+### Server Action Pattern
+API routes following RESTful conventions:
+
+```typescript
+// Pattern: API route with authentication
+export async function GET(request: Request) {
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Business logic here
+  return NextResponse.json(data);
 }
 ```
 
-### State Management Patterns
+## State Management Patterns
 
-#### AI Interaction State Pattern
+### Local State Pattern
+Component-level state management with React hooks:
+
 ```typescript
-// Custom hook for AI interactions
-function useAI() {
-  const [state, setState] = useState<AIState>({
-    isLoading: false,
-    response: null,
-    error: null,
-    cost: 0
-  });
+// Pattern: Local state with effects
+const [data, setData] = useState<DataType[]>([]);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState<string | null>(null);
 
-  const generateOKR = useCallback(async (industry: string) => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+useEffect(() => {
+  fetchData();
+}, []);
+```
 
-    try {
-      // Check cache first
-      const cached = await aiCache.get(`okr_${industry}`);
-      if (cached) {
-        setState(prev => ({ ...prev, response: cached, isLoading: false }));
-        return cached;
-      }
+### Context Provider Pattern
+Global state management for theme and authentication:
 
-      // Generate with AI Gateway
-      const response = await aiGateway.generateOKRTemplate(industry);
+```typescript
+// Pattern: Context with provider
+const ThemeContext = createContext<{
+  theme: Theme;
+  toggleTheme: () => void;
+}>({
+  theme: 'light',
+  toggleTheme: () => {},
+});
 
-      // Cache the response
-      await aiCache.set(`okr_${industry}`, response, AI_CACHE_TTL);
+export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  // Provider implementation
+};
+```
 
-      setState(prev => ({
-        ...prev,
-        response,
-        isLoading: false,
-        cost: prev.cost + response.cost
-      }));
+## Data Flow Patterns
 
-      return response;
-    } catch (error) {
-      setState(prev => ({ ...prev, error, isLoading: false }));
-      throw error;
-    }
-  }, []);
+### Server-to-Client Data Flow
+1. **API Route** → Database query with Drizzle
+2. **Client Component** → Fetch from API route
+3. **State Update** → React state management
+4. **UI Update** → Component re-render
 
-  return { ...state, generateOKR };
+### Authentication Flow
+1. **User Action** → Login attempt
+2. **Stack Auth** → Authentication verification
+3. **Session Creation** → Server-side session management
+4. **Route Protection** → Middleware validation
+5. **Component Access** → User context availability
+
+### Form Submission Flow
+1. **User Input** → Form field changes
+2. **Validation** → Zod schema validation
+3. **Submit Handler** → API call with validated data
+4. **Database Update** → Drizzle ORM operation
+5. **UI Feedback** → Success/error messaging
+
+## Error Handling Patterns
+
+### API Error Pattern
+Consistent error handling across API routes:
+
+```typescript
+// Pattern: Standardized error responses
+try {
+  const result = await operation();
+  return NextResponse.json(result);
+} catch (error) {
+  console.error('Operation failed:', error);
+  return NextResponse.json(
+    { error: 'Internal server error' },
+    { status: 500 }
+  );
 }
 ```
 
-#### Form State with AI Enhancement Pattern
+### Client-Side Error Pattern
+Error boundaries and error state management:
+
 ```typescript
-// React Hook Form with AI validation
-function useSmartForm<T>(schema: ZodSchema<T>) {
-  const form = useForm<T>({
-    resolver: zodResolver(schema),
-    mode: 'onChange'
-  });
+// Pattern: Error state handling
+const [error, setError] = useState<string | null>(null);
 
-  const { generateSuggestion, validateWithAI } = useAI();
-
-  const enhanceField = useCallback(async (fieldName: string, context: any) => {
-    if (!AI_ENABLED) return;
-
-    const suggestion = await generateSuggestion(fieldName, context);
-
-    // Update form with AI suggestion
-    form.setValue(fieldName, suggestion.value);
-
-    // Add visual indicator for AI assistance
-    setFieldEnhancement(fieldName, suggestion);
-  }, [form]);
-
-  return { ...form, enhanceField };
-}
-```
-
-### Data Flow Architecture (Enhanced)
-
-#### AI-Enhanced Data Flow
-```
-User Input → Form Validation → AI Enhancement → Cache Check → AI Gateway → Response Caching → UI Update
-     ↓              ↓               ↓              ↓            ↓              ↓           ↓
-Spanish UX → Zod Schema → Smart Suggestions → Cost Control → Gemini 2.0 → Smart Cache → Progressive UI
-     ↓              ↓               ↓              ↓            ↓              ↓           ↓
-Auth Context → Field Validation → Context Aware → Rate Limit → Model Router → TTL Management → State Update
-```
-
-#### Onboarding Wizard Flow
-```
-Welcome Step → Company Info → Organization Setup → OKR Creation → Completion
-    ↓              ↓              ↓                ↓              ↓
-Value Prop → AI Industry → AI Department → AI Templates → Success + Redirect
-    ↓              ↓              ↓                ↓              ↓
-30 seconds → 2 minutes → 1 minute → 2 minutes → Immediate
-    ↓              ↓              ↓                ↓              ↓
-Pure UI → Form + AI → Visual Builder → Conversational → Auto-Login
-```
-
-#### Invitation System Flow
-```
-Invitation Form → Validation → Brevo Queue → Email Sending → Event Tracking → State Update
-       ↓             ↓           ↓             ↓              ↓              ↓
-Multi-email → Zod Schema → Batch Process → API Call → Webhook → Event Store
-       ↓             ↓           ↓             ↓              ↓              ↓
-Role Assignment → Domain Check → Rate Limit → Template → Delivery → UI Refresh
-```
-
-## Integration Patterns
-
-### AI Gateway Integration Pattern
-```typescript
-// Unified AI client with provider abstraction
-class AIGatewayClient {
-  private providers: AIProvider[];
-  private cache: CacheLayer;
-  private rateLimiter: RateLimiter;
-  private costTracker: CostTracker;
-
-  async generateResponse(prompt: string, context: AIContext): Promise<AIResponse> {
-    // Check rate limits
-    await this.rateLimiter.checkLimit(context.userId);
-
-    // Check cache first
-    const cacheKey = this.generateCacheKey(prompt, context);
-    const cached = await this.cache.get(cacheKey);
-    if (cached) return cached;
-
-    // Route to best provider based on cost and availability
-    const provider = this.selectOptimalProvider(context);
-
-    // Generate response
-    const response = await provider.generate(prompt, context);
-
-    // Track cost
-    await this.costTracker.recordUsage(context.userId, response.cost);
-
-    // Cache response
-    await this.cache.set(cacheKey, response, this.calculateTTL(response));
-
-    return response;
+const handleSubmit = async (data: FormData) => {
+  try {
+    setError(null);
+    await submitData(data);
+  } catch (err) {
+    setError('Failed to submit data');
   }
-
-  private selectOptimalProvider(context: AIContext): AIProvider {
-    // Cost-based routing with fallbacks
-    if (context.budget === 'economy') return this.providers.find(p => p.name === 'gemini-flash');
-    if (context.complexity === 'high') return this.providers.find(p => p.name === 'gpt-4');
-    return this.providers.find(p => p.name === 'gemini-2.0-flash'); // Default
-  }
-}
-```
-
-### Brevo Integration Pattern
-```typescript
-// Email service with event sourcing
-class BrevoInvitationService {
-  private brevoClient: BrevoClient;
-  private eventStore: EventStore;
-  private queueManager: QueueManager;
-
-  async sendInvitation(invitation: InvitationData): Promise<void> {
-    // Add to queue for batch processing
-    await this.queueManager.enqueue('send_invitation', invitation);
-  }
-
-  async processBatch(invitations: InvitationData[]): Promise<void> {
-    for (const invitation of invitations) {
-      try {
-        // Send via Brevo API
-        const result = await this.brevoClient.sendTransactionalEmail({
-          to: [{ email: invitation.email }],
-          templateId: this.getTemplateId(invitation.role),
-          params: this.buildTemplateParams(invitation)
-        });
-
-        // Record success event
-        await this.eventStore.append(invitation.id, {
-          type: 'SENT',
-          payload: { messageId: result.messageId },
-          timestamp: new Date()
-        });
-
-      } catch (error) {
-        // Record failure event
-        await this.eventStore.append(invitation.id, {
-          type: 'SEND_FAILED',
-          payload: { error: error.message },
-          timestamp: new Date()
-        });
-      }
-    }
-  }
-
-  async handleWebhook(event: BrevoWebhookEvent): Promise<void> {
-    // Map Brevo event to our event format
-    const invitationEvent = this.mapBrevoEvent(event);
-
-    // Store in event stream
-    await this.eventStore.append(event.messageId, invitationEvent);
-
-    // Update invitation state
-    await this.updateInvitationState(event.messageId, invitationEvent);
-  }
-}
-```
-
-### Progressive Enhancement Pattern
-```typescript
-// Progressive enhancement for AI features
-function withAIEnhancement<T>(Component: React.ComponentType<T>) {
-  return function EnhancedComponent(props: T & { aiEnabled?: boolean }) {
-    const { aiEnabled = true, ...componentProps } = props;
-    const [isAIAvailable, setIsAIAvailable] = useState(false);
-
-    useEffect(() => {
-      // Test AI availability
-      if (aiEnabled && AI_GATEWAY_API_KEY) {
-        aiGateway.healthCheck()
-          .then(() => setIsAIAvailable(true))
-          .catch(() => setIsAIAvailable(false));
-      }
-    }, [aiEnabled]);
-
-    return (
-      <AIContext.Provider value={{ available: isAIAvailable, enabled: aiEnabled }}>
-        <Component {...componentProps as T} />
-      </AIContext.Provider>
-    );
-  };
-}
-
-// Usage
-const SmartOnboardingWizard = withAIEnhancement(OnboardingWizard);
-```
-
-## Performance Patterns
-
-### Caching Strategies for AI
-
-#### Multi-Layer Caching Pattern
-```typescript
-// L1: Browser cache (short-term, user-specific)
-// L2: Redis cache (medium-term, shared)
-// L3: Database cache (long-term, persistent)
-
-class MultiLayerCache {
-  private l1: Map<string, CachedResponse> = new Map();
-  private l2: RedisClient;
-  private l3: DatabaseCache;
-
-  async get(key: string): Promise<CachedResponse | null> {
-    // Check L1 first
-    if (this.l1.has(key)) {
-      return this.l1.get(key)!;
-    }
-
-    // Check L2
-    const l2Result = await this.l2.get(key);
-    if (l2Result) {
-      this.l1.set(key, l2Result); // Promote to L1
-      return l2Result;
-    }
-
-    // Check L3
-    const l3Result = await this.l3.get(key);
-    if (l3Result) {
-      await this.l2.set(key, l3Result, 3600); // Promote to L2
-      this.l1.set(key, l3Result); // Promote to L1
-      return l3Result;
-    }
-
-    return null;
-  }
-
-  async set(key: string, value: CachedResponse, ttl: number): Promise<void> {
-    this.l1.set(key, value);
-    await this.l2.set(key, value, ttl);
-    await this.l3.set(key, value, ttl * 24); // Longer TTL for L3
-  }
-}
-```
-
-#### Cost-Aware Caching Pattern
-```typescript
-// Cache decisions based on cost and usage patterns
-class CostAwareCacheManager {
-  calculateCacheTTL(response: AIResponse, context: CacheContext): number {
-    const baseTTL = 3600; // 1 hour
-
-    // High-cost responses get longer cache
-    const costMultiplier = Math.min(response.cost / 10, 5); // Max 5x
-
-    // Frequently requested content gets longer cache
-    const popularityMultiplier = context.hitCount > 100 ? 2 : 1;
-
-    // User-specific vs. global cacheable
-    const scopeMultiplier = context.isUserSpecific ? 0.5 : 2;
-
-    return baseTTL * costMultiplier * popularityMultiplier * scopeMultiplier;
-  }
-
-  shouldCache(response: AIResponse): boolean {
-    // Cache expensive responses
-    if (response.cost > 5) return true;
-
-    // Cache successful responses
-    if (response.success && response.quality > 0.8) return true;
-
-    // Don't cache errors or low-quality responses
-    return false;
-  }
-}
-```
-
-### Database Performance Patterns
-
-#### Optimized Queries for AI Workloads
-```sql
--- Efficient AI interaction queries with proper indexing
--- Query frequent AI interactions by user and type
-SELECT ai.*, u.email
-FROM ai_interactions ai
-JOIN users u ON ai.user_id = u.id
-WHERE ai.user_id = $1 AND ai.type = $2
-ORDER BY ai.created_at DESC
-LIMIT 10;
-
--- Index: idx_ai_interactions_user_type (user_id, type, created_at)
-
--- Query cached responses with TTL check
-SELECT response_data, hit_count
-FROM ai_cache
-WHERE cache_key = $1 AND expires_at > NOW();
-
--- Index: idx_ai_cache_key_expires (cache_key, expires_at)
-
--- Aggregate cost data by organization
-SELECT
-  o.name as organization_name,
-  SUM(ai.cost_cents) as total_cost_cents,
-  COUNT(*) as interaction_count,
-  AVG(ai.processing_time_ms) as avg_processing_time
-FROM ai_interactions ai
-JOIN organizations o ON ai.organization_id = o.id
-WHERE ai.created_at >= NOW() - INTERVAL '30 days'
-GROUP BY o.id, o.name
-ORDER BY total_cost_cents DESC;
-
--- Invitation system with event sourcing performance
--- Get invitation with latest status
-SELECT DISTINCT ON (i.id)
-  i.*,
-  ie.event_type as latest_event,
-  ie.created_at as latest_event_time
-FROM invitations i
-LEFT JOIN invitation_events ie ON i.id = ie.invitation_id
-WHERE i.organization_id = $1
-ORDER BY i.id, ie.created_at DESC;
+};
 ```
 
 ## Security Patterns
 
-### AI Security Pattern
+### Access Control Pattern
+Role-based access control throughout the application:
+
 ```typescript
-// Secure AI interactions with user context validation
-class SecureAIService {
-  async generateResponse(prompt: string, context: UserContext): Promise<AIResponse> {
-    // Validate user permissions
-    if (!await this.hasAIAccess(context.userId)) {
-      throw new Error('AI access not permitted');
-    }
+// Pattern: Role-based component rendering
+if (!hasAccess(user.role, 'admin')) {
+  return <AccessDenied />;
+}
 
-    // Sanitize prompt to prevent injection
-    const sanitizedPrompt = this.sanitizePrompt(prompt);
-
-    // Add user context for personalization while maintaining privacy
-    const enhancedPrompt = this.addSecureContext(sanitizedPrompt, context);
-
-    // Generate response
-    const response = await this.aiGateway.generate(enhancedPrompt);
-
-    // Log interaction for audit
-    await this.auditLogger.log({
-      userId: context.userId,
-      action: 'AI_GENERATE',
-      prompt: this.hashPrompt(prompt), // Hash for privacy
-      cost: response.cost,
-      timestamp: new Date()
-    });
-
-    return response;
-  }
-
-  private sanitizePrompt(prompt: string): string {
-    // Remove potential injection patterns
-    return prompt
-      .replace(/\b(system|assistant|user):/gi, '') // Remove role indicators
-      .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .trim();
-  }
-
-  private addSecureContext(prompt: string, context: UserContext): string {
-    // Add context without exposing sensitive data
-    return `Context: Industry=${context.industry}, Company Size=${context.companySize}, Language=Spanish\n\nUser Request: ${prompt}`;
-  }
+// Pattern: API route protection
+const user = await getUser();
+if (!user || !hasPermission(user, 'write')) {
+  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
 ```
 
-### Invitation Security Pattern
+### Environment Variable Pattern
+Secure configuration management:
+
 ```typescript
-// Secure invitation tokens with expiration and validation
-class InvitationTokenService {
-  generateSecureToken(invitation: InvitationData): string {
-    const payload = {
-      invitationId: invitation.id,
-      organizationId: invitation.organizationId,
-      email: invitation.email,
-      role: invitation.role,
-      expiresAt: invitation.expiresAt.getTime()
-    };
+// Pattern: Environment validation
+const requiredEnvVars = [
+  'DATABASE_URL',
+  'NEXT_PUBLIC_STACK_PROJECT_ID',
+  'STACK_SECRET_SERVER_KEY',
+];
 
-    return jwt.sign(payload, JWT_SECRET, {
-      algorithm: 'HS256',
-      expiresIn: '7d'
-    });
+requiredEnvVars.forEach(envVar => {
+  if (!process.env[envVar]) {
+    throw new Error(`Missing required environment variable: ${envVar}`);
   }
-
-  async validateToken(token: string): Promise<InvitationValidation> {
-    try {
-      const payload = jwt.verify(token, JWT_SECRET) as InvitationTokenPayload;
-
-      // Check if invitation still exists and is valid
-      const invitation = await this.getInvitation(payload.invitationId);
-
-      if (!invitation) {
-        return { valid: false, reason: 'Invitation not found' };
-      }
-
-      if (invitation.status !== 'sent' && invitation.status !== 'viewed') {
-        return { valid: false, reason: 'Invitation no longer valid' };
-      }
-
-      if (new Date() > invitation.expiresAt) {
-        return { valid: false, reason: 'Invitation expired' };
-      }
-
-      return { valid: true, invitation };
-    } catch (error) {
-      return { valid: false, reason: 'Invalid token' };
-    }
-  }
-}
+});
 ```
 
-## Error Handling Patterns
+## Performance Patterns
 
-### AI Error Handling with Graceful Degradation
+### Database Connection Pattern
+Connection pooling and efficient queries:
+
 ```typescript
-// Resilient AI service with multiple fallback strategies
-class ResilientAIService {
-  async generateWithFallback(prompt: string, context: AIContext): Promise<AIResponse> {
-    const strategies = [
-      () => this.tryPrimaryAI(prompt, context),
-      () => this.trySecondaryAI(prompt, context),
-      () => this.tryTemplateBasedResponse(prompt, context),
-      () => this.tryStaticResponse(prompt, context)
-    ];
-
-    for (const strategy of strategies) {
-      try {
-        const response = await strategy();
-        if (response.success) return response;
-      } catch (error) {
-        console.warn('AI strategy failed:', error.message);
-      }
-    }
-
-    // Final fallback: disable AI features gracefully
-    return this.getManualFallback(context);
-  }
-
-  private async tryPrimaryAI(prompt: string, context: AIContext): Promise<AIResponse> {
-    return await this.aiGateway.generate(prompt, { model: 'gemini-2.0-flash' });
-  }
-
-  private async trySecondaryAI(prompt: string, context: AIContext): Promise<AIResponse> {
-    return await this.aiGateway.generate(prompt, { model: 'gpt-3.5-turbo' });
-  }
-
-  private async tryTemplateBasedResponse(prompt: string, context: AIContext): Promise<AIResponse> {
-    // Use pre-built templates based on context
-    const template = this.templateManager.getTemplate(context.industry, context.type);
-    return { success: true, data: template, cost: 0, source: 'template' };
-  }
-
-  private getManualFallback(context: AIContext): AIResponse {
-    return {
-      success: true,
-      data: { message: 'AI asistente no disponible. Continúa manualmente.' },
-      cost: 0,
-      source: 'manual'
-    };
-  }
-}
+// Pattern: Connection management
+const db = neon(process.env.DATABASE_URL!, {
+  poolSize: 10,
+  connectionTimeoutMillis: 5000,
+});
 ```
 
----
+### Component Optimization Pattern
+Memoization and lazy loading:
 
-**Last Updated**: 2025-09-27T05:59:12Z
-**Version**: 2.0 - Complete system patterns for AI-powered onboarding with 3 PRDs implementation
-**Key Focus**: Progressive enhancement, event sourcing, AI gateway patterns, and cost-aware caching
+```typescript
+// Pattern: Memoized expensive components
+const ExpensiveComponent = memo(({ data }: { data: ComplexData }) => {
+  const processedData = useMemo(() => processData(data), [data]);
+  return <div>{/* Rendered content */}</div>;
+});
+
+// Pattern: Lazy loading
+const LazyComponent = lazy(() => import('./HeavyComponent'));
+```
+
+These patterns ensure consistency, maintainability, and scalability throughout the StratixV2 OKR Management System while leveraging modern React and Next.js best practices.

@@ -1,644 +1,272 @@
+import { Redis } from 'ioredis';
+
 /**
- * Redis Caching Layer for Onboarding Infrastructure
- * Specialized caching for onboarding workflow with session management,
- * AI response caching, and dynamic content optimization
+ * Redis cache client adapted for internal tooling template
+ * Provides graceful fallbacks when Redis is unavailable
  */
 
-import { getRedisClient } from '@/lib/redis/client';
-import { MultiTierCacheManager } from '@/lib/redis/cache-manager';
-import { isFeatureEnabled } from './edge-config';
-import type { OnboardingStepInfo } from '@/lib/database/onboarding-types';
+let redis: Redis | null = null;
 
-export interface OnboardingCacheEntry {
-  userId: string;
-  sessionId: string;
-  currentStep: number;
-  stepData: Record<string, any>;
-  completedSteps: number[];
-  timestamp: number;
-  expiresAt: number;
-  version: string;
-}
-
-export interface AICacheEntry {
-  prompt: string;
-  response: string;
-  model: string;
-  timestamp: number;
-  context: Record<string, any>;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-}
-
-export interface DynamicContentCache {
-  contentType: 'step_suggestions' | 'ai_hints' | 'personalized_content' | 'validation_rules';
-  userId: string;
-  stepNumber: number;
-  content: any;
-  personalizationLevel: 'low' | 'medium' | 'high';
-  timestamp: number;
-}
-
-export class OnboardingRedisCache {
-  private static instance: OnboardingRedisCache;
-  private cacheManager: MultiTierCacheManager;
-  private redisClient: any;
-  private enabled: boolean = true;
-
-  private constructor() {
-    this.cacheManager = MultiTierCacheManager.getInstance({
-      namespace: 'onboarding',
-      l1TTL: 2 * 60 * 1000, // 2 minutes for frequently accessed data
-      l2TTL: 15 * 60 * 1000, // 15 minutes for session data
-      l3TTL: 2 * 60 * 60 * 1000, // 2 hours for AI responses
-      compress: true,
-      maxL1Size: 200,
-      priority: 'speed'
+// Initialize Redis client if URL is provided
+if (process.env.REDIS_URL) {
+  try {
+    redis = new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 3,
+      retryDelayOnFailover: 100,
+      lazyConnect: true,
+      connectTimeout: 5000,
     });
 
-    this.initializeRedis();
-  }
+    redis.on('error', (error) => {
+      console.warn('Redis connection error:', error.message);
+      // Don't throw error to maintain graceful fallback
+    });
 
-  public static getInstance(): OnboardingRedisCache {
-    if (!OnboardingRedisCache.instance) {
-      OnboardingRedisCache.instance = new OnboardingRedisCache();
-    }
-    return OnboardingRedisCache.instance;
+    redis.on('connect', () => {
+      console.log('Redis connected successfully');
+    });
+  } catch (error) {
+    console.warn('Failed to initialize Redis:', error);
+    redis = null;
   }
+}
 
-  private async initializeRedis(): Promise<void> {
-    try {
-      this.enabled = await isFeatureEnabled('redis_caching');
-      if (!this.enabled) {
-        console.log('Redis caching disabled by feature flag');
-        return;
-      }
-
-      this.redisClient = getRedisClient();
-      console.log('✅ Onboarding Redis cache initialized');
-    } catch (error) {
-      console.warn('⚠️ Redis cache initialization failed, operating in fallback mode:', error);
-      this.enabled = false;
-    }
-  }
+export class CacheService {
+  private static readonly DEFAULT_TTL = 300; // 5 minutes
 
   /**
-   * Session Management Cache Operations
+   * Get value from cache with graceful fallback
    */
-
-  /**
-   * Store onboarding session data
-   */
-  public async setOnboardingSession(
-    sessionId: string,
-    userId: string,
-    sessionData: Partial<OnboardingCacheEntry>
-  ): Promise<void> {
-    if (!this.enabled) return;
+  static async get<T>(key: string): Promise<T | null> {
+    if (!redis) return null;
 
     try {
-      const entry: OnboardingCacheEntry = {
-        sessionId,
-        userId,
-        currentStep: sessionData.currentStep || 1,
-        stepData: sessionData.stepData || {},
-        completedSteps: sessionData.completedSteps || [],
-        timestamp: Date.now(),
-        expiresAt: Date.now() + (2 * 60 * 60 * 1000), // 2 hours
-        version: '1.0',
-        ...sessionData
-      };
-
-      await this.cacheManager.set(
-        'session',
-        { sessionId, userId },
-        entry,
-        {
-          l1: 2 * 60 * 1000, // 2 minutes
-          l2: 15 * 60 * 1000, // 15 minutes
-          l3: 2 * 60 * 60 * 1000 // 2 hours
-        }
-      );
-
-      // Also store by userId for quick lookup
-      await this.cacheManager.set(
-        'user_session',
-        { userId },
-        { sessionId, lastActivity: Date.now() },
-        { l1: 5 * 60 * 1000, l2: 30 * 60 * 1000 }
-      );
-
-      console.debug(`Onboarding session cached: ${sessionId} for user: ${userId}`);
+      const value = await redis.get(key);
+      return value ? JSON.parse(value) : null;
     } catch (error) {
-      console.error('Failed to cache onboarding session:', error);
-    }
-  }
-
-  /**
-   * Get onboarding session data
-   */
-  public async getOnboardingSession(
-    sessionId: string,
-    userId?: string
-  ): Promise<OnboardingCacheEntry | null> {
-    if (!this.enabled) return null;
-
-    try {
-      const session = await this.cacheManager.get<OnboardingCacheEntry>(
-        'session',
-        { sessionId, userId: userId || 'unknown' }
-      );
-
-      if (session && session.expiresAt > Date.now()) {
-        return session;
-      }
-
-      if (session && session.expiresAt <= Date.now()) {
-        // Session expired, clean it up
-        await this.deleteOnboardingSession(sessionId, userId);
-        return null;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Failed to get onboarding session:', error);
+      console.warn('Redis get error:', error);
       return null;
     }
   }
 
   /**
-   * Get user's current session
+   * Set value in cache with TTL
    */
-  public async getUserCurrentSession(userId: string): Promise<string | null> {
-    if (!this.enabled) return null;
+  static async set(key: string, value: unknown, ttlSeconds = this.DEFAULT_TTL): Promise<void> {
+    if (!redis) return;
 
     try {
-      const userSession = await this.cacheManager.get<{ sessionId: string; lastActivity: number }>(
-        'user_session',
-        { userId }
-      );
-
-      return userSession?.sessionId || null;
+      await redis.setex(key, ttlSeconds, JSON.stringify(value));
     } catch (error) {
-      console.error('Failed to get user current session:', error);
-      return null;
+      console.warn('Redis set error:', error);
+      // Graceful fallback - don't throw error
     }
   }
 
   /**
-   * Update session step progress
+   * Delete key from cache
    */
-  public async updateSessionProgress(
-    sessionId: string,
-    userId: string,
-    currentStep: number,
-    stepData: Record<string, any>,
-    completedSteps: number[]
-  ): Promise<void> {
-    if (!this.enabled) return;
+  static async del(key: string): Promise<void> {
+    if (!redis) return;
 
     try {
-      const existing = await this.getOnboardingSession(sessionId, userId);
-      if (!existing) {
-        console.warn(`Session not found for update: ${sessionId}`);
-        return;
+      await redis.del(key);
+    } catch (error) {
+      console.warn('Redis del error:', error);
+    }
+  }
+
+  /**
+   * Delete multiple keys by pattern
+   */
+  static async delPattern(pattern: string): Promise<void> {
+    if (!redis) return;
+
+    try {
+      const keys = await redis.keys(pattern);
+      if (keys.length > 0) {
+        await redis.del(...keys);
       }
-
-      const updated: OnboardingCacheEntry = {
-        ...existing,
-        currentStep,
-        stepData: { ...existing.stepData, ...stepData },
-        completedSteps,
-        timestamp: Date.now()
-      };
-
-      await this.setOnboardingSession(sessionId, userId, updated);
     } catch (error) {
-      console.error('Failed to update session progress:', error);
+      console.warn('Redis delPattern error:', error);
     }
   }
 
   /**
-   * Delete onboarding session
+   * Check if Redis is available
    */
-  public async deleteOnboardingSession(sessionId: string, userId?: string): Promise<void> {
-    if (!this.enabled) return;
+  static isAvailable(): boolean {
+    return redis !== null && redis.status === 'ready';
+  }
+
+  /**
+   * Cache wrapper for function calls
+   */
+  static async cached<T>(
+    key: string,
+    fn: () => Promise<T>,
+    ttlSeconds = this.DEFAULT_TTL
+  ): Promise<T> {
+    // Try to get from cache first
+    const cached = await this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Execute function and cache result
+    const result = await fn();
+    await this.set(key, result, ttlSeconds);
+    return result;
+  }
+
+  /**
+   * Generate cache keys for OKR entities
+   */
+  static generateKey(type: string, ...identifiers: string[]): string {
+    return `stratix:${type}:${identifiers.join(':')}`;
+  }
+
+  /**
+   * Cache OKR-specific data
+   */
+  static async cacheObjectives(companyId: string, tenantId: string, data: unknown): Promise<void> {
+    const key = this.generateKey('objectives', companyId, tenantId);
+    await this.set(key, data, 300); // 5 minutes
+  }
+
+  static async getCachedObjectives(companyId: string, tenantId: string): Promise<unknown> {
+    const key = this.generateKey('objectives', companyId, tenantId);
+    return await this.get(key);
+  }
+
+  static async cacheUserDashboard(userId: string, data: unknown): Promise<void> {
+    const key = this.generateKey('dashboard', userId);
+    await this.set(key, data, 180); // 3 minutes
+  }
+
+  static async getCachedUserDashboard(userId: string): Promise<unknown> {
+    const key = this.generateKey('dashboard', userId);
+    return await this.get(key);
+  }
+
+  static async cacheAnalytics(companyId: string, tenantId: string, data: unknown): Promise<void> {
+    const key = this.generateKey('analytics', companyId, tenantId);
+    await this.set(key, data, 600); // 10 minutes
+  }
+
+  static async getCachedAnalytics(companyId: string, tenantId: string): Promise<unknown> {
+    const key = this.generateKey('analytics', companyId, tenantId);
+    return await this.get(key);
+  }
+
+  /**
+   * Invalidate caches for specific entities
+   */
+  static async invalidateObjectives(companyId: string, tenantId: string): Promise<void> {
+    await this.del(this.generateKey('objectives', companyId, tenantId));
+    await this.del(this.generateKey('analytics', companyId, tenantId));
+  }
+
+  static async invalidateUserCache(userId: string): Promise<void> {
+    await this.del(this.generateKey('dashboard', userId));
+  }
+
+  static async invalidateCompanyCache(companyId: string): Promise<void> {
+    await this.delPattern(this.generateKey('*', companyId, '*'));
+  }
+
+  /**
+   * Cache AI responses to avoid duplicate calls
+   */
+  static async cacheAIResponse(prompt: string, model: string, response: unknown): Promise<void> {
+    const promptHash = Buffer.from(prompt).toString('base64').slice(0, 32);
+    const key = this.generateKey('ai', model, promptHash);
+    await this.set(key, response, 3600); // 1 hour
+  }
+
+  static async getCachedAIResponse(prompt: string, model: string): Promise<unknown> {
+    const promptHash = Buffer.from(prompt).toString('base64').slice(0, 32);
+    const key = this.generateKey('ai', model, promptHash);
+    return await this.get(key);
+  }
+
+  /**
+   * Cache conversation context
+   */
+  static async cacheConversationContext(conversationId: string, context: unknown): Promise<void> {
+    const key = this.generateKey('conversation', conversationId);
+    await this.set(key, context, 1800); // 30 minutes
+  }
+
+  static async getCachedConversationContext(conversationId: string): Promise<unknown> {
+    const key = this.generateKey('conversation', conversationId);
+    return await this.get(key);
+  }
+
+  /**
+   * Health check for Redis connection
+   */
+  static async healthCheck(): Promise<{ status: string; latency?: number }> {
+    if (!redis) {
+      return { status: 'unavailable' };
+    }
 
     try {
-      await this.cacheManager.delete('session', { sessionId, userId: userId || 'unknown' });
+      const start = Date.now();
+      await redis.ping();
+      const latency = Date.now() - start;
 
-      if (userId) {
-        await this.cacheManager.delete('user_session', { userId });
-      }
-
-      console.debug(`Onboarding session deleted: ${sessionId}`);
+      return { status: 'healthy', latency };
     } catch (error) {
-      console.error('Failed to delete onboarding session:', error);
+      return { status: 'error' };
     }
   }
 
   /**
-   * AI Response Caching Operations
+   * Get cache statistics
    */
-
-  /**
-   * Cache AI response for future use
-   */
-  public async cacheAIResponse(
-    prompt: string,
-    response: string,
-    context: Record<string, any>,
-    model: string = 'default',
-    usage?: AICacheEntry['usage']
-  ): Promise<void> {
-    if (!this.enabled) return;
+  static async getStats(): Promise<Record<string, unknown>> {
+    if (!redis) {
+      return { status: 'unavailable' };
+    }
 
     try {
-      const entry: AICacheEntry = {
-        prompt,
-        response,
-        model,
-        timestamp: Date.now(),
-        context,
-        usage
-      };
-
-      // Create a hash of the prompt and context for caching
-      const promptHash = this.hashString(JSON.stringify({ prompt, context, model }));
-
-      await this.cacheManager.set(
-        'ai_response',
-        { hash: promptHash },
-        entry,
-        {
-          l1: 10 * 60 * 1000, // 10 minutes
-          l2: 60 * 60 * 1000, // 1 hour
-          l3: 6 * 60 * 60 * 1000 // 6 hours
-        }
-      );
-
-      console.debug(`AI response cached for prompt hash: ${promptHash}`);
-    } catch (error) {
-      console.error('Failed to cache AI response:', error);
-    }
-  }
-
-  /**
-   * Get cached AI response
-   */
-  public async getCachedAIResponse(
-    prompt: string,
-    context: Record<string, any>,
-    model: string = 'default'
-  ): Promise<AICacheEntry | null> {
-    if (!this.enabled) return null;
-
-    try {
-      const promptHash = this.hashString(JSON.stringify({ prompt, context, model }));
-
-      const cached = await this.cacheManager.get<AICacheEntry>(
-        'ai_response',
-        { hash: promptHash }
-      );
-
-      // Check if the cached response is still fresh (within 1 hour)
-      if (cached && (Date.now() - cached.timestamp) < (60 * 60 * 1000)) {
-        console.debug(`AI response cache hit for hash: ${promptHash}`);
-        return cached;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Failed to get cached AI response:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Dynamic Content Caching Operations
-   */
-
-  /**
-   * Cache personalized content for user
-   */
-  public async cachePersonalizedContent(
-    userId: string,
-    stepNumber: number,
-    contentType: DynamicContentCache['contentType'],
-    content: any,
-    personalizationLevel: DynamicContentCache['personalizationLevel'] = 'medium'
-  ): Promise<void> {
-    if (!this.enabled) return;
-
-    try {
-      const entry: DynamicContentCache = {
-        contentType,
-        userId,
-        stepNumber,
-        content,
-        personalizationLevel,
-        timestamp: Date.now()
-      };
-
-      await this.cacheManager.set(
-        'personalized_content',
-        { userId, stepNumber, contentType },
-        entry,
-        {
-          l1: 5 * 60 * 1000, // 5 minutes
-          l2: 30 * 60 * 1000, // 30 minutes
-          l3: 2 * 60 * 60 * 1000 // 2 hours
-        }
-      );
-
-      console.debug(`Personalized content cached: ${contentType} for user ${userId}, step ${stepNumber}`);
-    } catch (error) {
-      console.error('Failed to cache personalized content:', error);
-    }
-  }
-
-  /**
-   * Get cached personalized content
-   */
-  public async getPersonalizedContent(
-    userId: string,
-    stepNumber: number,
-    contentType: DynamicContentCache['contentType']
-  ): Promise<DynamicContentCache | null> {
-    if (!this.enabled) return null;
-
-    try {
-      const cached = await this.cacheManager.get<DynamicContentCache>(
-        'personalized_content',
-        { userId, stepNumber, contentType }
-      );
-
-      // Content is valid for 30 minutes
-      if (cached && (Date.now() - cached.timestamp) < (30 * 60 * 1000)) {
-        return cached;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Failed to get personalized content:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Step Data Caching Operations
-   */
-
-  /**
-   * Cache step configuration with user customizations
-   */
-  public async cacheStepConfig(
-    userId: string,
-    stepNumber: number,
-    stepInfo: OnboardingStepInfo,
-    customizations?: Record<string, any>
-  ): Promise<void> {
-    if (!this.enabled) return;
-
-    try {
-      const entry = {
-        stepInfo,
-        customizations: customizations || {},
-        userId,
-        timestamp: Date.now()
-      };
-
-      await this.cacheManager.set(
-        'step_config',
-        { userId, stepNumber },
-        entry,
-        {
-          l1: 10 * 60 * 1000, // 10 minutes
-          l2: 60 * 60 * 1000, // 1 hour
-          l3: 4 * 60 * 60 * 1000 // 4 hours
-        }
-      );
-    } catch (error) {
-      console.error('Failed to cache step config:', error);
-    }
-  }
-
-  /**
-   * Get cached step configuration
-   */
-  public async getStepConfig(
-    userId: string,
-    stepNumber: number
-  ): Promise<{ stepInfo: OnboardingStepInfo; customizations: Record<string, any> } | null> {
-    if (!this.enabled) return null;
-
-    try {
-      return await this.cacheManager.get(
-        'step_config',
-        { userId, stepNumber }
-      );
-    } catch (error) {
-      console.error('Failed to get step config:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Utility Methods
-   */
-
-  /**
-   * Generate hash for cache keys
-   */
-  private hashString(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36);
-  }
-
-  /**
-   * Bulk invalidate cache for user
-   */
-  public async invalidateUserCache(userId: string): Promise<void> {
-    if (!this.enabled) return;
-
-    try {
-      // Invalidate all user-related cache entries
-      const patterns = [
-        { operation: 'user_session', params: { userId } },
-        { operation: 'personalized_content', params: { userId } },
-        { operation: 'step_config', params: { userId } }
-      ];
-
-      for (const pattern of patterns) {
-        await this.cacheManager.delete(pattern.operation, pattern.params);
-      }
-
-      console.debug(`Cache invalidated for user: ${userId}`);
-    } catch (error) {
-      console.error('Failed to invalidate user cache:', error);
-    }
-  }
-
-  /**
-   * Get cache statistics for monitoring
-   */
-  public async getCacheStats(): Promise<{
-    enabled: boolean;
-    stats: any;
-    health: any;
-  }> {
-    try {
-      const stats = await this.cacheManager.getStats();
-
-      let health = { status: 'unknown' };
-      if (this.redisClient) {
-        health = await this.redisClient.checkHealth();
-      }
+      const info = await redis.info('memory');
+      const keyspace = await redis.info('keyspace');
 
       return {
-        enabled: this.enabled,
-        stats,
-        health
+        status: 'available',
+        memory: info,
+        keyspace: keyspace,
       };
     } catch (error) {
-      console.error('Failed to get cache stats:', error);
-      return {
-        enabled: this.enabled,
-        stats: null,
-        health: { status: 'error', error: error.message }
-      };
+      return { status: 'error', error: (error as Error).message };
     }
   }
 
   /**
-   * Warm up cache with common data
+   * Cleanup expired keys and optimize memory
    */
-  public async warmUpCache(userId: string): Promise<void> {
-    if (!this.enabled) return;
+  static async cleanup(): Promise<void> {
+    if (!redis) return;
 
     try {
-      console.log(`🔥 Warming up cache for user: ${userId}`);
+      // Get all our application keys
+      const keys = await redis.keys('stratix:*');
 
-      // Pre-load commonly accessed data
-      const operations = [
-        {
-          operation: 'user_session',
-          params: { userId },
-          fetcher: async () => ({ sessionId: null, lastActivity: Date.now() })
+      // Check TTL for each key and remove expired ones
+      for (const key of keys) {
+        const ttl = await redis.ttl(key);
+        if (ttl === -1) {
+          // Key exists but has no TTL, set a default TTL
+          await redis.expire(key, this.DEFAULT_TTL);
         }
-      ];
-
-      await this.cacheManager.warmCache(operations);
-    } catch (error) {
-      console.error('Failed to warm up cache:', error);
-    }
-  }
-
-  /**
-   * Health check for cache system
-   */
-  public async healthCheck(): Promise<{
-    status: 'healthy' | 'degraded' | 'unhealthy';
-    details: any;
-  }> {
-    try {
-      if (!this.enabled) {
-        return {
-          status: 'degraded',
-          details: { message: 'Cache disabled by feature flag' }
-        };
       }
-
-      const stats = await this.getCacheStats();
-
-      if (stats.health.status === 'error') {
-        return {
-          status: 'unhealthy',
-          details: stats.health
-        };
-      }
-
-      return {
-        status: 'healthy',
-        details: {
-          enabled: this.enabled,
-          cacheStats: stats.stats,
-          redisHealth: stats.health
-        }
-      };
     } catch (error) {
-      return {
-        status: 'unhealthy',
-        details: { error: error.message }
-      };
-    }
-  }
-
-  /**
-   * Onboarding Status Cache Methods
-   */
-
-  /**
-   * Cache onboarding status response
-   */
-  public async setOnboardingStatus(
-    userId: string,
-    status: any,
-    ttlSeconds: number = 300
-  ): Promise<void> {
-    if (!this.enabled) return;
-
-    try {
-      await this.cacheManager.set(
-        'onboarding_status',
-        { userId },
-        status,
-        {
-          l1: Math.min(ttlSeconds * 1000, 5 * 60 * 1000), // Max 5 minutes L1
-          l2: ttlSeconds * 1000,
-          l3: ttlSeconds * 2 * 1000 // Extended L3 cache
-        }
-      );
-    } catch (error) {
-      console.error('Failed to cache onboarding status:', error);
-    }
-  }
-
-  /**
-   * Get cached onboarding status
-   */
-  public async getOnboardingStatus(userId: string): Promise<any | null> {
-    if (!this.enabled) return null;
-
-    try {
-      return await this.cacheManager.get('onboarding_status', { userId });
-    } catch (error) {
-      console.error('Failed to get onboarding status from cache:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Invalidate onboarding status cache
-   */
-  public async invalidateOnboardingStatus(userId: string): Promise<void> {
-    if (!this.enabled) return;
-
-    try {
-      await this.cacheManager.delete('onboarding_status', { userId });
-    } catch (error) {
-      console.error('Failed to invalidate onboarding status:', error);
+      console.warn('Redis cleanup error:', error);
     }
   }
 }
 
-// Export singleton instance
-export const onboardingCache = OnboardingRedisCache.getInstance();
+// Export Redis instance for direct access if needed
+export { redis };

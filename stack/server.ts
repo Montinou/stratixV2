@@ -1,0 +1,1 @@
+export { stackServerApp as default } from '.';

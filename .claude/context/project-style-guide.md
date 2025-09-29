@@ -1,366 +1,419 @@
 ---
-created: 2025-09-24T05:32:18Z
-last_updated: 2025-09-24T05:32:18Z
+created: 2025-09-29T04:50:25Z
+last_updated: 2025-09-29T04:50:25Z
 version: 1.0
 author: Claude Code PM System
 ---
 
 # Project Style Guide
 
-## Code Style & Conventions
+## Code Style Standards
 
-### TypeScript Standards
-- **Strict Mode**: Always use TypeScript strict mode configuration
-- **Type Definitions**: Prefer explicit types over `any` or implicit types
-- **Interface Naming**: Use PascalCase with descriptive names (`UserProfile`, `ObjectiveData`)
-- **Type Imports**: Use `import type` for type-only imports
-- **Null Handling**: Use optional chaining (`?.`) and nullish coalescing (`??`)
+### TypeScript Configuration
 
-### File Naming Conventions
-
-#### Components
-- **React Components**: PascalCase for directories and files (`ObjectiveCard/ObjectiveCard.tsx`)
-- **Page Components**: Lowercase matching Next.js routing (`page.tsx`, `loading.tsx`, `error.tsx`)
-- **UI Components**: Kebab-case files with PascalCase exports (`button.tsx` → `export Button`)
-- **Hook Files**: Camel-case with `use` prefix (`useAuth.ts`, `useObjectives.ts`)
-
-#### Directories
-- **Feature Directories**: Kebab-case (`okr-management`, `user-profiles`)
-- **Component Categories**: Singular nouns (`component/`, `hook/`, `util/`)
-- **API Routes**: RESTful naming (`api/objectives/`, `api/users/`)
-
-#### Database & Scripts
-- **Migration Files**: Numbered with descriptive names (`001_initial_schema.sql`)
-- **SQL Files**: Snake_case with action prefix (`create_users_table.sql`)
-- **Script Files**: Kebab-case with purpose (`run-migration.sh`, `deploy-health-check.sh`)
-
-### Code Organization Patterns
-
-#### Component Structure
+**Strict Mode**: Full TypeScript strict mode enabled
 ```typescript
-// Component file structure template
-import type { ComponentProps } from 'react'
-import { useState, useEffect } from 'react'
+// tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true
+  }
+}
+```
 
-// Type definitions first
-interface Props extends ComponentProps<'div'> {
-  objective: ObjectiveData
-  onUpdate?: (id: string) => void
+**Type Definitions**: All functions and components must have explicit types
+```typescript
+// ✅ Good
+interface UserProps {
+  id: string;
+  name: string;
+  role: UserRole;
+}
+
+const UserCard = ({ id, name, role }: UserProps): JSX.Element => {
+  return <div>{name}</div>;
+};
+
+// ❌ Bad
+const UserCard = ({ id, name, role }: any) => {
+  return <div>{name}</div>;
+};
+```
+
+### Naming Conventions
+
+**Files and Directories:**
+- **Components**: PascalCase (e.g., `UserProfile.tsx`)
+- **Pages**: lowercase (e.g., `page.tsx`, `layout.tsx`)
+- **Utilities**: kebab-case (e.g., `auth-utils.ts`)
+- **Hooks**: camelCase with 'use' prefix (e.g., `useAuth.ts`)
+- **Types**: PascalCase (e.g., `UserTypes.ts`)
+
+**Variables and Functions:**
+```typescript
+// Variables: camelCase
+const currentUser = await getUser();
+const isAuthenticated = !!currentUser;
+
+// Functions: camelCase
+const handleSubmit = (data: FormData) => {};
+const validateInput = (input: string): boolean => {};
+
+// Constants: UPPER_SNAKE_CASE
+const API_ENDPOINTS = {
+  USERS: '/api/users',
+  OBJECTIVES: '/api/objectives',
+} as const;
+
+// Interfaces: PascalCase with 'I' prefix for interfaces
+interface IUserRepository {
+  findById(id: string): Promise<User>;
+}
+
+// Types: PascalCase
+type UserRole = 'admin' | 'manager' | 'employee';
+```
+
+**React Components:**
+```typescript
+// Component names: PascalCase
+const ObjectiveCard = ({ objective }: ObjectiveCardProps) => {};
+
+// Props interfaces: ComponentName + Props
+interface ObjectiveCardProps {
+  objective: Objective;
+  onEdit?: (id: string) => void;
+}
+```
+
+### Import Organization
+
+**Import Order and Grouping:**
+```typescript
+// 1. React imports
+import React, { useState, useEffect } from 'react';
+
+// 2. Third-party library imports (alphabetical)
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+
+// 3. Internal library imports (alphabetical)
+import { Button } from '@/components/ui/button';
+import { getCurrentUser } from '@/lib/auth';
+import { cn } from '@/lib/utils';
+
+// 4. Relative imports (alphabetical)
+import { UserCard } from './UserCard';
+import { validateForm } from '../utils/validation';
+```
+
+**Barrel Exports**: Used for component groups
+```typescript
+// components/okr/index.ts
+export { ObjectiveCard } from './ObjectiveCard';
+export { InitiativeForm } from './InitiativeForm';
+export { ActivityList } from './ActivityList';
+```
+
+## Component Architecture
+
+### Component Structure Pattern
+
+```typescript
+// Component file structure
+import React from 'react';
+// ... other imports
+
+// Types and interfaces
+interface ComponentProps {
+  // prop definitions
 }
 
 // Component implementation
-export function ObjectiveCard({ objective, onUpdate, ...props }: Props) {
-  // Hooks at the top
-  const [loading, setLoading] = useState(false)
-  
+const ComponentName = ({ prop1, prop2 }: ComponentProps) => {
+  // Hooks (useState, useEffect, custom hooks)
+  const [state, setState] = useState<StateType>(initialValue);
+
   // Event handlers
-  const handleUpdate = () => {
-    // Implementation
-  }
-  
-  // Render
+  const handleEvent = (data: EventData) => {
+    // handler implementation
+  };
+
+  // Early returns for loading/error states
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage error={error} />;
+
+  // Main render
   return (
-    <div {...props}>
+    <div className={cn("base-classes", conditionalClasses)}>
       {/* JSX content */}
     </div>
-  )
-}
+  );
+};
+
+// Default export
+export default ComponentName;
+
+// Named export if part of barrel
+export { ComponentName };
 ```
 
-#### Import Organization
+### Hook Patterns
+
+**Custom Hook Structure:**
 ```typescript
-// External libraries (React, Next.js, third-party)
-import { useState } from 'react'
-import { NextPage } from 'next'
+// hooks/use-auth.ts
+interface UseAuthReturn {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  login: (credentials: Credentials) => Promise<void>;
+  logout: () => void;
+}
 
-// Internal utilities and types
-import { cn } from '@/lib/utils'
-import type { ObjectiveData } from '@/lib/types/okr'
+export const useAuth = (): UseAuthReturn => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-// Components (UI first, then feature components)
-import { Button } from '@/components/ui/button'
-import { ObjectiveCard } from '@/components/okr/objective-card'
+  // Hook implementation
+
+  return { user, loading, error, login, logout };
+};
 ```
 
-### Database Conventions
+## CSS and Styling Guidelines
 
-#### Table Naming
-- **Tables**: Plural nouns in snake_case (`users`, `objectives`, `key_results`)
-- **Junction Tables**: Combine entity names (`user_objectives`, `objective_activities`)
-- **Columns**: Snake_case with descriptive names (`created_at`, `user_id`, `completion_rate`)
+### Tailwind CSS Usage
 
-#### Query Patterns
-- **Parameterized Queries**: Always use parameterized queries with pg client
-- **Transaction Patterns**: Wrap multi-step operations in transactions
-- **Error Handling**: Consistent error handling across all database operations
-- **Connection Management**: Use connection pooling, always close connections
+**Class Organization:**
+```tsx
+// Order: layout → spacing → sizing → colors → typography → decorative
+<div className={cn(
+  "flex items-center justify-between", // layout
+  "px-4 py-2 mb-4",                   // spacing
+  "w-full h-12",                      // sizing
+  "bg-white border border-gray-200",  // colors/borders
+  "text-sm font-medium",              // typography
+  "rounded-lg shadow-sm hover:shadow-md transition-shadow" // decorative
+)}>
+```
 
-### Styling Conventions
-
-#### Tailwind CSS Usage
-- **Utility-First**: Prefer Tailwind utilities over custom CSS
-- **Component Variants**: Use Class Variance Authority for component styling
-- **Responsive Design**: Mobile-first approach with responsive utilities
-- **Theme Variables**: Use CSS custom properties for theme values
-
-#### CSS Custom Properties
+**CSS Variables for Theming:**
 ```css
-/* Theme-aware color system */
+/* globals.css */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
+  --primary: 262.1 83.3% 57.8%;
+  --primary-foreground: 210 20% 98%;
+  --secondary: 220 14.3% 95.9%;
+  --secondary-foreground: 220.9 39.3% 11%;
 }
 
 [data-theme="dark"] {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
+  --primary: 263.4 70% 50.4%;
+  --primary-foreground: 210 20% 98%;
+  --secondary: 215 27.9% 16.9%;
+  --secondary-foreground: 210 20% 98%;
 }
 ```
 
-#### Component Styling Patterns
-```typescript
-// Using Class Variance Authority
-import { cva } from 'class-variance-authority'
-
-const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-md text-sm font-medium',
-  {
-    variants: {
-      variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-      },
-      size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'default',
-    },
-  }
-)
-```
-
-### API Design Standards
-
-#### REST API Conventions
-- **HTTP Methods**: GET (read), POST (create), PUT (update), DELETE (remove)
-- **URL Structure**: RESTful resource-based URLs (`/api/objectives/{id}`)
-- **Response Format**: Consistent JSON structure with status codes
-- **Error Handling**: Structured error responses with meaningful messages
-
-#### Next.js API Routes
-```typescript
-// API route structure template
-import type { NextRequest } from 'next/server'
-import { z } from 'zod'
-
-const RequestSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-})
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const data = RequestSchema.parse(body)
-    
-    // Implementation
-    
-    return Response.json({ success: true, data })
-  } catch (error) {
-    return Response.json(
-      { error: 'Validation failed' },
-      { status: 400 }
-    )
-  }
-}
-```
-
-### Form Handling Standards
-
-#### React Hook Form + Zod Pattern
-```typescript
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-
-const formSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  dueDate: z.date(),
-})
-
-type FormData = z.infer<typeof formSchema>
-
-export function ObjectiveForm() {
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-    },
-  })
-  
-  const onSubmit = (data: FormData) => {
-    // Handle form submission
-  }
-  
+**Component-Specific Styles:**
+```tsx
+// Use cn() utility for conditional classes
+const Button = ({ variant, size, disabled, className, ...props }: ButtonProps) => {
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      {/* Form fields */}
-    </form>
-  )
+    <button
+      className={cn(
+        buttonVariants({ variant, size }),
+        disabled && "opacity-50 cursor-not-allowed",
+        className
+      )}
+      disabled={disabled}
+      {...props}
+    />
+  );
+};
+```
+
+## Database and API Patterns
+
+### Database Schema Conventions
+
+**Table Names**: snake_case, plural
+```sql
+-- Tables
+users
+objectives
+key_results
+activities
+
+-- Columns
+user_id
+created_at
+updated_at
+```
+
+**Drizzle Schema Patterns:**
+```typescript
+// db/schema.ts
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const objectives = pgTable('objectives', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description'),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+```
+
+### API Route Conventions
+
+**Route Structure:**
+```typescript
+// app/api/objectives/route.ts
+export async function GET(request: Request) {
+  try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const objectives = await getObjectivesByUser(user.id);
+    return NextResponse.json(objectives);
+  } catch (error) {
+    console.error('Failed to fetch objectives:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
+```
+
+**Validation Schemas:**
+```typescript
+// lib/validations/objective.ts
+export const createObjectiveSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(500, 'Title too long'),
+  description: z.string().optional(),
+  dueDate: z.date().optional(),
+  priority: z.enum(['low', 'medium', 'high']),
+});
+
+export type CreateObjectiveInput = z.infer<typeof createObjectiveSchema>;
+```
+
+## Error Handling Standards
+
+### Error Boundaries
+```typescript
+// components/ErrorBoundary.tsx
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <ErrorFallback error={this.state.error} />;
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+### API Error Handling
+```typescript
+// lib/api-client.ts
+export const apiClient = {
+  async request<T>(url: string, options?: RequestInit): Promise<T> {
+    try {
+      const response = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new ApiError(response.status, await response.text());
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(500, 'Network error');
+    }
+  },
+};
 ```
 
 ## Documentation Standards
 
-### Code Comments
-- **JSDoc**: Use JSDoc comments for public functions and complex logic
-- **Inline Comments**: Explain "why" not "what" - focus on business logic
-- **TODO Comments**: Include issue numbers and assignee (`TODO: #123 - @username`)
-- **FIXME Comments**: Mark temporary solutions with context
-
-### README Standards
-- **Structure**: Use consistent heading hierarchy
-- **Code Examples**: Always include runnable examples
-- **Prerequisites**: List all dependencies and requirements
-- **Setup Instructions**: Step-by-step setup with verification steps
-
-### Git Commit Standards
-
-#### Commit Message Format
-```
-type(scope): description
-
-Extended description if needed
-
-- List specific changes
-- Reference issue numbers (#123)
-- Include breaking change notes
-```
-
-#### Commit Types
-- **feat**: New features
-- **fix**: Bug fixes
-- **docs**: Documentation updates
-- **style**: Code style changes (formatting, semicolons, etc.)
-- **refactor**: Code refactoring without feature changes
-- **test**: Adding or updating tests
-- **chore**: Build process, dependency updates
-
-### Error Handling Patterns
-
-#### Frontend Error Handling
+### Component Documentation
 ```typescript
-// Component error boundaries
-export function ErrorBoundary({ children }: { children: ReactNode }) {
-  return (
-    <ErrorBoundaryProvider fallback={ErrorFallback}>
-      {children}
-    </ErrorBoundaryProvider>
-  )
-}
-
-// Async operation error handling
-const [data, error] = await asyncOperation()
-if (error) {
-  toast.error('Operation failed')
-  return
-}
+/**
+ * ObjectiveCard displays an objective with progress, status, and actions
+ *
+ * @param objective - The objective data to display
+ * @param onEdit - Callback when edit button is clicked
+ * @param onDelete - Callback when delete button is clicked
+ * @param className - Additional CSS classes
+ *
+ * @example
+ * <ObjectiveCard
+ *   objective={objective}
+ *   onEdit={(id) => router.push(`/objectives/${id}/edit`)}
+ *   onDelete={handleDelete}
+ * />
+ */
 ```
 
-#### Database Error Handling
+### Function Documentation
 ```typescript
-// Database operation with proper error handling
-export async function createObjective(data: ObjectiveData) {
-  const client = await pool.connect()
-  
-  try {
-    await client.query('BEGIN')
-    
-    const result = await client.query(
-      'INSERT INTO objectives (title, description) VALUES ($1, $2) RETURNING *',
-      [data.title, data.description]
-    )
-    
-    await client.query('COMMIT')
-    return result.rows[0]
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw new Error(`Failed to create objective: ${error.message}`)
-  } finally {
-    client.release()
-  }
-}
+/**
+ * Validates user permissions for a given resource
+ *
+ * @param user - The user to check permissions for
+ * @param resource - The resource being accessed
+ * @param action - The action being performed
+ * @returns boolean indicating if user has permission
+ *
+ * @throws {UnauthorizedError} When user lacks required permissions
+ */
+const checkPermission = (
+  user: User,
+  resource: Resource,
+  action: Action
+): boolean => {
+  // Implementation
+};
 ```
 
-## Testing Standards
-
-### Testing Philosophy
-- **Test Pyramid**: Unit tests (70%), Integration tests (20%), E2E tests (10%)
-- **Test Coverage**: Aim for 80%+ coverage on critical business logic
-- **Test Naming**: Descriptive test names explaining the scenario
-- **Test Organization**: Group tests by feature/component
-
-### Testing Patterns (Future Implementation)
-```typescript
-// Component testing template
-import { render, screen, fireEvent } from '@testing-library/react'
-import { ObjectiveCard } from './ObjectiveCard'
-
-describe('ObjectiveCard', () => {
-  it('should display objective title and description', () => {
-    const objective = {
-      id: '1',
-      title: 'Test Objective',
-      description: 'Test description',
-    }
-    
-    render(<ObjectiveCard objective={objective} />)
-    
-    expect(screen.getByText('Test Objective')).toBeInTheDocument()
-    expect(screen.getByText('Test description')).toBeInTheDocument()
-  })
-})
-```
-
-## Performance Standards
-
-### Frontend Performance
-- **Core Web Vitals**: LCP < 2.5s, FID < 100ms, CLS < 0.1
-- **Bundle Size**: Keep individual chunks under 250KB
-- **Image Optimization**: Always use Next.js Image component
-- **Code Splitting**: Implement route-based and component-based splitting
-
-### Database Performance
-- **Query Optimization**: Always review query execution plans
-- **Connection Pooling**: Use connection pooling for all database operations
-- **Index Strategy**: Create indexes for commonly queried columns
-- **Migration Performance**: Test migrations on production-like data volumes
-
-### Security Standards
-
-#### Data Protection
-- **Input Validation**: Validate all user inputs with Zod schemas
-- **SQL Injection Prevention**: Use parameterized queries exclusively
-- **XSS Prevention**: Sanitize user content before rendering
-- **CSRF Protection**: Implement CSRF tokens for state-changing operations
-
-#### Authentication Security
-- **Session Management**: Use secure, database-backed sessions
-- **Password Handling**: Never store plain-text passwords
-- **Route Protection**: Implement middleware-based route protection
-- **API Security**: Validate authentication on all API endpoints
-
----
-
-**Last Updated**: 2025-09-24T05:32:18Z  
-**Style Guide Version**: 1.0 - Initial comprehensive style guide  
-**Key Focus**: TypeScript-first development with modern React patterns and NeonDB integration
+This style guide ensures consistency, maintainability, and scalability across the StratixV2 codebase while adhering to modern TypeScript and React best practices.

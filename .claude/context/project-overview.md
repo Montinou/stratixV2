@@ -1,120 +1,165 @@
 ---
-created: 2025-09-24T05:32:18Z
-last_updated: 2025-09-24T05:32:18Z
+created: 2025-09-29T04:50:25Z
+last_updated: 2025-09-29T04:50:25Z
 version: 1.0
 author: Claude Code PM System
 ---
 
 # Project Overview
 
-## High-Level Summary
+## System Summary
 
-**StratixV2** is a modern, web-based OKR (Objectives and Key Results) management platform built with Next.js and React, designed to help teams set, track, and achieve strategic objectives through collaborative goal management and data-driven insights.
+StratixV2 is a modern, secure OKR (Objectives and Key Results) management platform designed for internal organizational use. Built with Next.js 15 and TypeScript, it provides comprehensive goal tracking, progress monitoring, and performance analytics through a three-tier hierarchical structure.
 
-## Core Features & Capabilities
+## Feature Catalog
 
-### Strategic Planning
-- **Objective Setting**: Create and structure organizational objectives with clear definitions
-- **Key Result Definition**: Establish measurable outcomes tied to strategic objectives
-- **Goal Hierarchy**: Support for company, team, and individual level objectives
-- **Timeline Management**: Track objectives across different time periods (quarterly, yearly)
+### Core OKR Management
+- **Hierarchical Goal Structure**: Objectives → Initiatives → Activities
+- **Progress Tracking**: Real-time progress indicators with percentage completion
+- **Timeline Management**: Deadline setting and tracking across all levels
+- **Status Management**: Configurable status workflows for each hierarchy level
+- **Assignment System**: Role-based ownership and responsibility delegation
 
-### Collaboration & Tracking
-- **Real-time Updates**: Live collaboration using NeonDB real-time features
-- **Progress Monitoring**: Continuous tracking of key result achievement
-- **Team Coordination**: Multi-user access with role-based permissions
-- **Activity Management**: Track specific activities contributing to objectives
+### User Management & Security
+- **Stack Auth Integration**: Modern authentication with Google, GitHub, and email options
+- **Role-Based Access Control**: Three-tier permissions (Corporate, Gerente, Empleado)
+- **Email Access Control**: Domain whitelisting and individual email approval/blacklist
+- **Admin Panel**: Comprehensive user management at `/tools/admin`
+- **Session Management**: Secure JWT-based sessions with Stack Auth
 
-### Analytics & Insights
-- **Performance Dashboards**: Visual representation of objective progress using Recharts
-- **Trend Analysis**: Historical performance tracking and analysis
-- **Success Metrics**: Comprehensive reporting on goal achievement rates
-- **Data Export**: Generate reports in various formats for stakeholder communication
+### Analytics & Reporting
+- **Real-time Dashboards**: Interactive progress visualization and performance metrics
+- **Historical Analytics**: Trend analysis and performance over time
+- **Department Views**: Team and department-level performance comparisons
+- **Progress Rollup**: Automated aggregation from activities to objectives
+- **Export Capabilities**: Data export for external reporting and analysis
 
-### Data Management
-- **Import Capabilities**: Support for CSV and Excel file imports (Papa Parse, XLSX)
-- **Form Validation**: Robust data entry with React Hook Form and Zod validation
-- **Data Integrity**: Type-safe operations throughout the application
-- **Backup & Export**: Complete data export capabilities for business continuity
+### AI-Powered Insights
+- **Daily Insights**: Role-specific recommendations and performance analysis
+- **Smart Suggestions**: AI-driven goal and improvement recommendations
+- **Performance Analytics**: Pattern recognition and trend analysis
+- **Automated Reporting**: AI-generated progress summaries and alerts
 
-## Current Application State
+### Administrative Tools
+- **User Provisioning**: Automated user setup and role assignment
+- **Access Management**: Granular permission controls and access auditing
+- **System Monitoring**: Health checks and performance monitoring
+- **Data Management**: Backup, recovery, and data integrity tools
 
-### Recently Completed Work
-Based on git history:
-- **Bug Resolution**: Fixed infinite loop patterns in objectives and activities pages
-- **Authentication Stability**: Resolved auth hook infinite loop issues in insights page
-- **Performance Optimization**: Improved application stability and user experience
-- **Foundation Setup**: Initial repository structure and basic application framework
+## Current System State
 
-### Active Development Areas
-- **User Interface**: Implementing Shadcn/UI design system with Radix UI components
-- **Authentication**: NeonDB Stack-based user authentication with SSR support
-- **Data Visualization**: Chart implementation for performance insights
-- **Form Handling**: Complex form workflows for objective and key result management
+### Active Components
 
-### Technical Implementation
-- **Frontend**: Next.js 14.2.16 with React 18 and TypeScript 5
-- **Styling**: Tailwind CSS 4.1.9 with Shadcn/ui component system
-- **Backend**: NeonDB PostgreSQL 17.5 with direct pg client
-- **Authentication**: NeonAuth (Stack Auth) with database-backed sessions
-- **Deployment**: Vercel platform with automated pre-build migration
+**Frontend Application:**
+- Next.js 15 with App Router architecture
+- TypeScript for full type safety
+- shadcn/ui component library with Tailwind CSS
+- Responsive design for desktop and mobile access
+- Dark/light theme support
 
-## Integration Points
+**Authentication System:**
+- Stack Auth integration for user management
+- Neon Auth for database-backed profiles
+- JWT token-based session management
+- Multi-provider authentication (Google, GitHub, email)
 
-### External Services
-- **NeonDB**: Primary backend infrastructure
-  - PostgreSQL 17.5 database for data storage
-  - NeonAuth (Stack Auth) for authentication and user management
-  - SSL connections with connection pooling for performance
-- **Vercel**: Deployment and hosting platform
-  - Automatic deployments from Git
-  - Performance analytics and monitoring
-  - Edge functions for optimal performance
+**Database Infrastructure:**
+- NeonDB serverless PostgreSQL
+- Drizzle ORM for type-safe database operations
+- Row Level Security (RLS) for data protection
+- Automated migration system
 
-### Development Tools
-- **GitHub**: Version control and issue tracking
-- **Claude Code PM**: AI-assisted project management and development
-- **ESLint**: Code quality and consistency enforcement
-- **TypeScript**: Type safety and developer experience
+**API Layer:**
+- RESTful API endpoints for all major operations
+- Server-side validation with Zod schemas
+- Error handling and logging
+- Rate limiting and security headers
 
-## User Experience Design
+### Integration Points
 
-### Interface Philosophy
-- **Modern Design**: Clean, intuitive interface using established design patterns
-- **Accessibility**: Radix UI primitives ensure accessibility compliance
-- **Responsive**: Mobile-first design with Tailwind CSS responsive utilities
-- **Theme Support**: Light and dark mode options with next-themes
+**External Services:**
+- **Vercel**: Hosting and deployment platform
+- **NeonDB**: Primary database service
+- **Stack Auth**: Authentication and user management
+- **AI Providers**: Anthropic/OpenAI for insights generation
 
-### Workflow Design
-- **Progressive Disclosure**: Complex features revealed as needed
-- **Data-Driven**: Insights and analytics prominently featured
-- **Collaborative**: Multi-user workflows with real-time updates
-- **Efficient**: Streamlined processes for common OKR management tasks
+**Internal APIs:**
+- `/api/objectives` - Objective CRUD operations
+- `/api/initiatives` - Initiative management
+- `/api/activities` - Activity tracking and updates
+- `/api/profiles` - User profile and role management
+- `/api/analytics` - Performance data and reporting
 
-## Business Value
+### Data Architecture
 
-### Organizational Benefits
-- **Strategic Alignment**: Ensure all team members work toward common goals
-- **Transparency**: Real-time visibility into objective progress across the organization
-- **Accountability**: Clear ownership and tracking of key results
-- **Data-Driven Decisions**: Analytics to inform strategic planning and course corrections
+**Core Entities:**
+- **Users**: Authentication and profile information
+- **Companies**: Organizational structure
+- **Objectives**: High-level strategic goals
+- **Initiatives**: Tactical programs and projects
+- **Activities**: Specific tasks and actions
+- **Progress Records**: Historical tracking data
 
-### Competitive Advantages
-- **Modern Technology**: Built with latest web technologies for optimal performance
-- **User Experience**: Intuitive interface requiring minimal training
-- **Real-time Collaboration**: Instant updates and synchronization across teams
-- **Comprehensive Analytics**: Deep insights into performance trends and patterns
+**Relationships:**
+- Hierarchical goal structure with parent-child relationships
+- User-role assignments with permission inheritance
+- Company-based data isolation and access control
+- Audit trail for all changes and updates
 
-## Future Roadmap Considerations
+## Deployment Architecture
 
-### Potential Enhancements
-- **Mobile Application**: Native mobile app for on-the-go access
-- **Advanced Analytics**: Predictive modeling and AI-driven insights
-- **Integration Ecosystem**: Connections to popular business tools (Slack, Teams, etc.)
-- **Automation**: Automated progress updates and notification systems
+### Production Environment
+- **Hosting**: Vercel serverless platform
+- **Database**: NeonDB with connection pooling
+- **CDN**: Vercel Edge Network for static assets
+- **SSL**: Automatic HTTPS with Vercel certificates
 
----
+### Development Environment
+- **Local Development**: Next.js development server with hot reload
+- **Database**: NeonDB development instance
+- **Environment Variables**: Local `.env.development.local` file
+- **Testing**: Jest and React Testing Library integration
 
-**Last Updated**: 2025-09-24T05:32:18Z  
-**Current State**: Post-NeonDB migration with 95% completion  
-**Focus Area**: Stability optimization and performance tuning
+## Performance Characteristics
+
+### Current Metrics
+- **Page Load Time**: Target <2 seconds for all major pages
+- **Database Queries**: Optimized with proper indexing and connection pooling
+- **API Response Time**: Target <500ms for standard operations
+- **Concurrent Users**: Designed to support 1000+ simultaneous users
+
+### Scalability Features
+- **Serverless Architecture**: Automatic scaling with Vercel and NeonDB
+- **Connection Pooling**: Efficient database connection management
+- **Caching Strategy**: Redis integration for performance optimization
+- **CDN Integration**: Static asset optimization and global distribution
+
+## Security Implementation
+
+### Authentication & Authorization
+- **Multi-factor Authentication**: Available through Stack Auth providers
+- **Role-Based Permissions**: Granular access control at data and feature levels
+- **Session Security**: Secure JWT tokens with automatic expiration
+- **Password Security**: Handled by Stack Auth with industry best practices
+
+### Data Protection
+- **Encryption**: TLS 1.3 for all communications
+- **Database Security**: PostgreSQL RLS with user-level data isolation
+- **Input Validation**: Comprehensive validation with Zod schemas
+- **CSRF Protection**: Built-in Next.js security features
+
+## Monitoring & Maintenance
+
+### Health Monitoring
+- **Application Performance**: Real-time performance metrics
+- **Database Health**: Connection and query performance monitoring
+- **Error Tracking**: Comprehensive error logging and alerting
+- **User Analytics**: Usage patterns and feature adoption tracking
+
+### Maintenance Procedures
+- **Database Migrations**: Automated schema updates with rollback capability
+- **Dependency Updates**: Regular security and feature updates
+- **Backup Strategy**: Automated database backups with point-in-time recovery
+- **Security Audits**: Regular security assessments and vulnerability scans
+
+StratixV2 represents a comprehensive, production-ready OKR management platform with enterprise-grade security, performance, and scalability characteristics, built using modern web technologies and best practices.

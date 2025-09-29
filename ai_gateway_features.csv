@@ -1,7 +1,0 @@
-Característica,Descripción,Beneficio
-API Unificada,Acceso a más de 100 modelos de IA a través de un solo endpoint,Cambio fácil entre proveedores sin reescribir código
-Alta Confiabilidad,Reintentos automáticos y failover entre proveedores,Disponibilidad mejorada y tolerancia a fallos
-Monitoreo de Gastos,Seguimiento detallado de costos por modelo y proveedor,Control presupuestario y optimización de costos
-Load Balancing,Distribución automática de carga entre proveedores,Mejor rendimiento y escalabilidad
-Embeddings Support,Generación de embeddings vectoriales para búsquedas,Soporte para RAG y búsquedas semánticas
-Observabilidad,Métricas detalladas y logs de todas las requests,Monitoreo y debugging eficiente

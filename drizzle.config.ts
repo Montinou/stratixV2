@@ -1,55 +1,11 @@
+import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
-
-
-const isProduction = process.env.NODE_ENV === 'production';
-const isStaging = process.env.NODE_ENV === 'staging';
-
 export default defineConfig({
-  // Database configuration
+  out: './drizzle',
+  schema: './db/schema.ts',
   dialect: 'postgresql',
   dbCredentials: {
-    // Use unpooled connection for migrations in production
-    url: isProduction || isStaging 
-      ? process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL!
-      : process.env.DATABASE_URL!,
+    url: process.env.DATABASE_URL!,
   },
-  
-  // Schema configuration
-  schema: './lib/database/schema.ts',
-  
-  // Migration configuration
-  out: './drizzle',
-  
-  // Environment-specific logging
-  verbose: !isProduction, // Disable verbose logging in production
-  
-  // Enable strict mode for better type safety
-  strict: true,
-  
-  // Production-optimized migration configuration
-  migrations: {
-    prefix: 'timestamp', // Use timestamp prefix for migrations
-    table: '__drizzle_migrations',
-    schema: 'public',
-  },
-  
-  // Introspection configuration for schema generation
-  introspect: {
-    casing: 'snake_case',
-  },
-  
-  // Production performance optimizations
-  ...(isProduction && {
-    // Production-specific configuration
-    breakpoints: true, // Enable migration breakpoints for safer deployments
-  }),
-  
-  // Staging configuration
-  ...(isStaging && {
-    // More verbose in staging for testing
-    verbose: true,
-    
-    // Use breakpoints in staging too
-    breakpoints: true,
-  }),
+  schemaFilter: ['public', 'neon_auth'],
 });

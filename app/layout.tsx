@@ -1,50 +1,37 @@
-import type React from "react"
-import { StackProvider, StackTheme } from "@stackframe/stack"
-import { stackClientApp } from "../stack/client"
-import type { Metadata } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
-import { ThemeProvider } from "@/components/theme-provider"
-import "./globals.css"
+import type { Metadata } from 'next';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { StackAuthProvider } from '@/components/providers/stack-provider';
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
+import { appConfig } from '@/config/app';
 
-// Force dynamic rendering to avoid authentication issues during static generation
-export const dynamic = 'force-dynamic'
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-  display: "swap",
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-  display: "swap",
-})
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+});
 
 export const metadata: Metadata = {
-  title: "OKR Manager - Sistema de Gestión de Objetivos",
-  description: "Sistema completo de gestión de OKRs con roles específicos y análisis inteligente",
-  generator: "v0.app",
-}
+  title: appConfig.metadata.companyName,
+  description: appConfig.metadata.description,
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
-      <body className="font-sans antialiased">
-        <StackProvider app={stackClientApp}>
-          <StackTheme>
-            <ThemeProvider>
-              {children}
-            </ThemeProvider>
-          </StackTheme>
-        </StackProvider>
-        <Analytics />
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <StackAuthProvider>
+          <SidebarProvider defaultOpen={false}>{children}</SidebarProvider>
+        </StackAuthProvider>
       </body>
     </html>
-  )
+  );
 }

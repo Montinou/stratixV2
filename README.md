@@ -1,490 +1,323 @@
-# Claude Code PM
+# StratixV2 - OKR Management System
 
-[![Automaze](https://img.shields.io/badge/By-automaze.io-4b3baf)](https://automaze.io)
-&nbsp;
-[![Claude Code](https://img.shields.io/badge/+-Claude%20Code-d97757)](https://github.com/automazeio/ccpm/blob/main/README.md)
-[![GitHub Issues](https://img.shields.io/badge/+-GitHub%20Issues-1f2328)](https://github.com/automazeio/ccpm)
-&nbsp;
-[![MIT License](https://img.shields.io/badge/License-MIT-28a745)](https://github.com/automazeio/ccpm/blob/main/LICENSE)
-&nbsp;
-[![Follow on 𝕏](https://img.shields.io/badge/𝕏-@aroussi-1c9bf0)](http://x.com/intent/follow?screen_name=aroussi)
-&nbsp;
-[![Star this repo](https://img.shields.io/badge/★-Star%20this%20repo-e7b10b)](https://github.com/automazeio/ccpm)
 
-### Claude Code workflow to ship ~~faster~~ _better_ using spec-driven development, GitHub issues, Git worktrees, and mutiple AI agents running in parallel.
+Sistema completo de gestión de Objetivos y Resultados Clave (OKRs) desarrollado con Next.js 14, TypeScript, NeonDB y Stack Auth.
 
-Stop losing context. Stop blocking on tasks. Stop shipping bugs. This battle-tested system turns PRDs into epics, epics into GitHub issues, and issues into production code – with full traceability at every step.
 
-![Claude Code PM](screenshot.webp)
+## 🚀 Características Principales
 
-## Table of Contents
 
-- [Background](#background)
-- [The Workflow](#the-workflow)
-- [What Makes This Different?](#what-makes-this-different)
-- [Why GitHub Issues?](#why-github-issues)
-- [Core Principle: No Vibe Coding](#core-principle-no-vibe-coding)
-- [System Architecture](#system-architecture)
-- [Workflow Phases](#workflow-phases)
-- [Command Reference](#command-reference)
-- [The Parallel Execution System](#the-parallel-execution-system)
-- [Key Features & Benefits](#key-features--benefits)
-- [Proven Results](#proven-results)
-- [Example Flow](#example-flow)
-- [Get Started Now](#get-started-now)
-- [Local vs Remote](#local-vs-remote)
-- [Technical Notes](#technical-notes)
-- [Support This Project](#support-this-project)
+- **Gestión Jerárquica de OKRs**: Organización clara de Objetivos, Iniciativas y Actividades
+- **Sistema de Roles**: Control granular con roles Corporativo, Gerente y Empleado
+- **Dashboard Analítico**: Visualización interactiva con gráficos y métricas en tiempo real
+- **IA Integrada**: Insights diarios y sugerencias personalizadas según el rol del usuario
+- **Autenticación Segura**: Implementación con Stack Auth y NeonAuth
+- **Base de Datos Moderna**: PostgreSQL con NeonDB y Row Level Security (RLS)
 
-## Background
 
-Every team struggles with the same problems:
-- **Context evaporates** between sessions, forcing constant re-discovery
-- **Parallel work creates conflicts** when multiple developers touch the same code
-- **Requirements drift** as verbal decisions override written specs
-- **Progress becomes invisible** until the very end
+## 🛠 Stack Tecnológico
 
-This system solves all of that.
 
-## The Workflow
+### Frontend
+- **Framework**: Next.js 14.2.33 con App Router
+- **Lenguaje**: TypeScript con modo estricto
+- **Estilos**: Tailwind CSS 4.1.9 con variables CSS
+- **Componentes UI**: Shadcn/ui construido sobre Radix UI
+- **Iconos**: Lucide React
+- **Estado**: React hooks con Zustand
+- **Fuentes**: Inter (sans) y JetBrains Mono (mono)
 
-```mermaid
-graph LR
-    A[PRD Creation] --> B[Epic Planning]
-    B --> C[Task Decomposition]
-    C --> D[GitHub Sync]
-    D --> E[Parallel Execution]
+
+### Backend & Base de Datos
+- **Autenticación**: Stack Auth (@stackframe/stack) con NeonAuth
+- **Base de Datos**: NeonDB (PostgreSQL 17.5)
+- **ORM**: Drizzle ORM con tipos seguros
+- **API**: Next.js API Routes en `/app/api/`
+- **Manejo de Sesiones**: Stack Auth SSR con middleware
+
+
+### Infraestructura
+- **Despliegue**: Vercel
+- **Base de Datos**: NeonDB con conexiones SSL
+- **Pool de Conexiones**: @neondatabase/serverless
+- **IA**: Vercel AI Gateway integrado
+
+
+## 📁 Estructura del Proyecto
+
+
+```
+/app/                    # Páginas con Next.js App Router
+├── activities/          # Gestión de actividades
+├── analytics/           # Análisis y reportes
+├── api/                 # Rutas API
+├── auth/                # Páginas de autenticación
+├── companies/           # Gestión de empresas
+├── dashboard/           # Dashboard principal
+├── import/              # Funcionalidad de importación
+├── initiatives/         # Iniciativas estratégicas
+├── insights/            # Insights de negocio
+├── objectives/          # Gestión de objetivos OKR
+├── profile/             # Perfil de usuario
+├── team/                # Gestión de equipos
+└── layout.tsx           # Layout raíz con AuthProvider
+
+
+/components/             # Componentes UI reutilizables
+├── ai/                  # Componentes relacionados con IA
+├── auth/                # Componentes de autenticación
+├── charts/              # Componentes de gráficos (Recharts)
+├── dashboard/           # Componentes específicos del dashboard
+├── layout/              # Componentes de layout
+├── okr/                 # Componentes específicos de OKR
+└── ui/                  # Componentes base de Shadcn/ui
+
+
+/lib/                    # Librerías y utilidades
+├── database/            # Configuración y esquemas de BD
+├── auth/                # Configuración de autenticación
+├── hooks/               # Custom React hooks
+├── types/               # Definiciones de tipos TypeScript
+└── utils/               # Funciones de utilidad
 ```
 
-### See It In Action (60 seconds)
+
+## 🚀 Instalación y Configuración
+
+
+### Prerrequisitos
+
+
+- Node.js 20 o superior
+- pnpm (recomendado) o npm
+- Cuenta en [NeonDB](https://neon.tech)
+- Cuenta en [Stack Auth](https://stack-auth.com)
+
+
+### 1. Clonar el repositorio
+
 
 ```bash
-# Create a comprehensive PRD through guided brainstorming
-/pm:prd-new memory-system
-
-# Transform PRD into a technical epic with task breakdown
-/pm:prd-parse memory-system
-
-# Push to GitHub and start parallel execution
-/pm:epic-oneshot memory-system
-/pm:issue-start 1235
+git clone [URL_DEL_REPOSITORIO]
+cd stratixV2
 ```
 
-## What Makes This Different?
 
-| Traditional Development | Claude Code PM System |
-|------------------------|----------------------|
-| Context lost between sessions | **Persistent context** across all work |
-| Serial task execution | **Parallel agents** on independent tasks |
-| "Vibe coding" from memory | **Spec-driven** with full traceability |
-| Progress hidden in branches | **Transparent audit trail** in GitHub |
-| Manual task coordination | **Intelligent prioritization** with `/pm:next` |
+### 2. Instalar dependencias
 
-## Why GitHub Issues?
-
-Most Claude Code workflows operate in isolation – a single developer working with AI in their local environment. This creates a fundamental problem: **AI-assisted development becomes a silo**.
-
-By using GitHub Issues as our database, we unlock something powerful:
-
-### 🤝 **True Team Collaboration**
-- Multiple Claude instances can work on the same project simultaneously
-- Human developers see AI progress in real-time through issue comments
-- Team members can jump in anywhere – the context is always visible
-- Managers get transparency without interrupting flow
-
-### 🔄 **Seamless Human-AI Handoffs**
-- AI can start a task, human can finish it (or vice versa)
-- Progress updates are visible to everyone, not trapped in chat logs
-- Code reviews happen naturally through PR comments
-- No "what did the AI do?" meetings
-
-### 📈 **Scalable Beyond Solo Work**
-- Add team members without onboarding friction
-- Multiple AI agents working in parallel on different issues
-- Distributed teams stay synchronized automatically
-- Works with existing GitHub workflows and tools
-
-### 🎯 **Single Source of Truth**
-- No separate databases or project management tools
-- Issue state is the project state
-- Comments are the audit trail
-- Labels provide organization
-
-This isn't just a project management system – it's a **collaboration protocol** that lets humans and AI agents work together at scale, using infrastructure your team already trusts.
-
-## Core Principle: No Vibe Coding
-
-> **Every line of code must trace back to a specification.**
-
-We follow a strict 5-phase discipline:
-
-1. **🧠 Brainstorm** - Think deeper than comfortable
-2. **📝 Document** - Write specs that leave nothing to interpretation
-3. **📐 Plan** - Architect with explicit technical decisions
-4. **⚡ Execute** - Build exactly what was specified
-5. **📊 Track** - Maintain transparent progress at every step
-
-No shortcuts. No assumptions. No regrets.
-
-## System Architecture
-
-```
-.claude/
-├── CLAUDE.md          # Always-on instructions (copy content to your project's CLAUDE.md file)
-├── agents/            # Task-oriented agents (for context preservation)
-├── commands/          # Command definitions
-│   ├── context/       # Create, update, and prime context
-│   ├── pm/            # ← Project management commands (this system)
-│   └── testing/       # Prime and execute tests (edit this)
-├── context/           # Project-wide context files
-├── epics/             # ← PM's local workspace (place in .gitignore)
-│   └── [epic-name]/   # Epic and related tasks
-│       ├── epic.md    # Implementation plan
-│       ├── [#].md     # Individual task files
-│       └── updates/   # Work-in-progress updates
-├── prds/              # ← PM's PRD files
-├── rules/             # Place any rule files you'd like to reference here
-└── scripts/           # Place any script files you'd like to use here
-```
-
-## Workflow Phases
-
-### 1. Product Planning Phase
 
 ```bash
-/pm:prd-new feature-name
+pnpm install
+# o
+npm install
 ```
-Launches comprehensive brainstorming to create a Product Requirements Document capturing vision, user stories, success criteria, and constraints.
 
-**Output:** `.claude/prds/feature-name.md`
 
-### 2. Implementation Planning Phase
+### 3. Configurar variables de entorno
+
+
+Crear archivo `.env.local`:
+
+
+```env
+# Base de Datos NeonDB
+DATABASE_URL=postgresql://[usuario]:[password]@[host]/[database]?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://[usuario]:[password]@[host]/[database]?sslmode=require
+NEON_PROJECT_ID=tu_project_id
+
+
+# Stack Auth
+NEXT_PUBLIC_STACK_PROJECT_ID=tu_stack_project_id
+NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY=tu_publishable_key
+STACK_SECRET_SERVER_KEY=tu_secret_key
+
+
+# Vercel (opcional para desarrollo)
+VERCEL_TOKEN=tu_vercel_token
+```
+
+
+### 4. Configurar la base de datos
+
 
 ```bash
-/pm:prd-parse feature-name
+# Ejecutar migraciones
+pnpm migrate
+
+
+# O con datos de prueba
+pnpm migrate:with-seed
+
+
+# Validar conexión
+pnpm migrate:test-connection
 ```
-Transforms PRD into a technical implementation plan with architectural decisions, technical approach, and dependency mapping.
 
-**Output:** `.claude/epics/feature-name/epic.md`
 
-### 3. Task Decomposition Phase
+### 5. Ejecutar en desarrollo
+
 
 ```bash
-/pm:epic-decompose feature-name
-```
-Breaks epic into concrete, actionable tasks with acceptance criteria, effort estimates, and parallelization flags.
-
-**Output:** `.claude/epics/feature-name/[task].md`
-
-### 4. GitHub Synchronization
-
-```bash
-/pm:epic-sync feature-name
-# Or for confident workflows:
-/pm:epic-oneshot feature-name
-```
-Pushes epic and tasks to GitHub as issues with appropriate labels and relationships.
-
-### 5. Execution Phase
-
-```bash
-/pm:issue-start 1234  # Launch specialized agent
-/pm:issue-sync 1234   # Push progress updates
-/pm:next             # Get next priority task
-```
-Specialized agents implement tasks while maintaining progress updates and an audit trail.
-
-## Command Reference
-
-> [!TIP]
-> Type `/pm:help` for a concise command summary
-
-### Initial Setup
-- `/pm:init` - Install dependencies and configure GitHub
-
-### PRD Commands
-- `/pm:prd-new` - Launch brainstorming for new product requirement
-- `/pm:prd-parse` - Convert PRD to implementation epic
-- `/pm:prd-list` - List all PRDs
-- `/pm:prd-edit` - Edit existing PRD
-- `/pm:prd-status` - Show PRD implementation status
-
-### Epic Commands
-- `/pm:epic-decompose` - Break epic into task files
-- `/pm:epic-sync` - Push epic and tasks to GitHub
-- `/pm:epic-oneshot` - Decompose and sync in one command
-- `/pm:epic-list` - List all epics
-- `/pm:epic-show` - Display epic and its tasks
-- `/pm:epic-close` - Mark epic as complete
-- `/pm:epic-edit` - Edit epic details
-- `/pm:epic-refresh` - Update epic progress from tasks
-
-### Issue Commands
-- `/pm:issue-show` - Display issue and sub-issues
-- `/pm:issue-status` - Check issue status
-- `/pm:issue-start` - Begin work with specialized agent
-- `/pm:issue-sync` - Push updates to GitHub
-- `/pm:issue-close` - Mark issue as complete
-- `/pm:issue-reopen` - Reopen closed issue
-- `/pm:issue-edit` - Edit issue details
-
-### Workflow Commands
-- `/pm:next` - Show next priority issue with epic context
-- `/pm:status` - Overall project dashboard
-- `/pm:standup` - Daily standup report
-- `/pm:blocked` - Show blocked tasks
-- `/pm:in-progress` - List work in progress
-
-### Sync Commands
-- `/pm:sync` - Full bidirectional sync with GitHub
-- `/pm:import` - Import existing GitHub issues
-
-### Maintenance Commands
-- `/pm:validate` - Check system integrity
-- `/pm:clean` - Archive completed work
-- `/pm:search` - Search across all content
-
-## The Parallel Execution System
-
-### Issues Aren't Atomic
-
-Traditional thinking: One issue = One developer = One task
-
-**Reality: One issue = Multiple parallel work streams**
-
-A single "Implement user authentication" issue isn't one task. It's...
-
-- **Agent 1**: Database tables and migrations
-- **Agent 2**: Service layer and business logic
-- **Agent 3**: API endpoints and middleware
-- **Agent 4**: UI components and forms
-- **Agent 5**: Test suites and documentation
-
-All running **simultaneously** in the same worktree.
-
-### The Math of Velocity
-
-**Traditional Approach:**
-- Epic with 3 issues
-- Sequential execution
-
-**This System:**
-- Same epic with 3 issues
-- Each issue splits into ~4 parallel streams
-- **12 agents working simultaneously**
-
-We're not assigning agents to issues. We're **leveraging multiple agents** to ship faster.
-
-### Context Optimization
-
-**Traditional single-thread approach:**
-- Main conversation carries ALL the implementation details
-- Context window fills with database schemas, API code, UI components
-- Eventually hits context limits and loses coherence
-
-**Parallel agent approach:**
-- Main thread stays clean and strategic
-- Each agent handles its own context in isolation
-- Implementation details never pollute the main conversation
-- Main thread maintains oversight without drowning in code
-
-Your main conversation becomes the conductor, not the orchestra.
-
-### GitHub vs Local: Perfect Separation
-
-**What GitHub Sees:**
-- Clean, simple issues
-- Progress updates
-- Completion status
-
-**What Actually Happens Locally:**
-- Issue #1234 explodes into 5 parallel agents
-- Agents coordinate through Git commits
-- Complex orchestration hidden from view
-
-GitHub doesn't need to know HOW the work got done – just that it IS done.
-
-### The Command Flow
-
-```bash
-# Analyze what can be parallelized
-/pm:issue-analyze 1234
-
-# Launch the swarm
-/pm:epic-start memory-system
-
-# Watch the magic
-# 12 agents working across 3 issues
-# All in: ../epic-memory-system/
-
-# One clean merge when done
-/pm:epic-merge memory-system
+pnpm dev
 ```
 
-## Key Features & Benefits
 
-### 🧠 **Context Preservation**
-Never lose project state again. Each epic maintains its own context, agents read from `.claude/context/`, and updates locally before syncing.
-
-### ⚡ **Parallel Execution**
-Ship faster with multiple agents working simultaneously. Tasks marked `parallel: true` enable conflict-free concurrent development.
-
-### 🔗 **GitHub Native**
-Works with tools your team already uses. Issues are the source of truth, comments provide history, and there is no dependency on the Projects API.
-
-### 🤖 **Agent Specialization**
-Right tool for every job. Different agents for UI, API, and database work. Each reads requirements and posts updates automatically.
-
-### 📊 **Full Traceability**
-Every decision is documented. PRD → Epic → Task → Issue → Code → Commit. Complete audit trail from idea to production.
-
-### 🚀 **Developer Productivity**
-Focus on building, not managing. Intelligent prioritization, automatic context loading, and incremental sync when ready.
-
-## Proven Results
-
-Teams using this system report:
-- **89% less time** lost to context switching – you'll use `/compact` and `/clear` a LOT less
-- **5-8 parallel tasks** vs 1 previously – editing/testing multiple files at the same time
-- **75% reduction** in bug rates – due to the breaking down features into detailed tasks
-- **Up to 3x faster** feature delivery – based on feature size and complexity
-
-## Example Flow
-
-```bash
-# Start a new feature
-/pm:prd-new memory-system
-
-# Review and refine the PRD...
-
-# Create implementation plan
-/pm:prd-parse memory-system
-
-# Review the epic...
-
-# Break into tasks and push to GitHub
-/pm:epic-oneshot memory-system
-# Creates issues: #1234 (epic), #1235, #1236 (tasks)
-
-# Start development on a task
-/pm:issue-start 1235
-# Agent begins work, maintains local progress
-
-# Sync progress to GitHub
-/pm:issue-sync 1235
-# Updates posted as issue comments
-
-# Check overall status
-/pm:epic-show memory-system
-```
-
-## Get Started Now
-
-### Quick Setup (2 minutes)
-
-1. **Install this repository into your project**:
-
-   #### Unix/Linux/macOS
-
-   ```bash
-   cd path/to/your/project/
-   curl -sSL https://raw.githubusercontent.com/automazeio/ccpm/main/ccpm.sh | bash
-   # or: wget -qO- https://raw.githubusercontent.com/automazeio/ccpm/main/ccpm.sh | bash
-   ```
-
-   #### Windows (PowerShell)
-   ```bash
-   cd path/to/your/project/
-   iwr -useb https://raw.githubusercontent.com/automazeio/ccpm/main/ccpm.bat | iex
-   ```
-   > ⚠️ **IMPORTANT**: If you already have a `.claude` directory, clone this repository to a different directory and copy the contents of the cloned `.claude` directory to your project's `.claude` directory.
-
-   See full/other installation options in the [installation guide ›](https://github.com/automazeio/ccpm/tree/main/install)
+La aplicación estará disponible en `http://localhost:3000`
 
 
-2. **Initialize the PM system**:
-   ```bash
-   /pm:init
-   ```
-   This command will:
-   - Install GitHub CLI (if needed)
-   - Authenticate with GitHub
-   - Install [gh-sub-issue extension](https://github.com/yahsan2/gh-sub-issue) for proper parent-child relationships
-   - Create required directories
-   - Update .gitignore
-
-3. **Create `CLAUDE.md`** with your repository information
-   ```bash
-   /init include rules from .claude/CLAUDE.md
-   ```
-   > If you already have a `CLAUDE.md` file, run: `/re-init` to update it with important rules from `.claude/CLAUDE.md`.
-
-4. **Prime the system**:
-   ```bash
-   /context:create
-   ```
+## 📊 Scripts Disponibles
 
 
+### Desarrollo
+- `pnpm dev` - Servidor de desarrollo
+- `pnpm build` - Construcción para producción
+- `pnpm start` - Servidor de producción
+- `pnpm lint` - Ejecutar ESLint
 
-### Start Your First Feature
 
-```bash
-/pm:prd-new your-feature-name
-```
+### Base de Datos
+- `pnpm migrate` - Ejecutar migraciones
+- `pnpm migrate:with-seed` - Migrar con datos de prueba
+- `pnpm migrate:validate` - Validar migraciones
+- `pnpm db:studio` - Abrir Drizzle Studio
 
-Watch as structured planning transforms into shipped code.
 
-## Local vs Remote
+### Testing
+- `pnpm test` - Ejecutar tests
+- `pnpm test:watch` - Tests en modo watch
+- `pnpm test:coverage` - Tests con cobertura
 
-| Operation | Local | GitHub |
-|-----------|-------|--------|
-| PRD Creation | ✅ | — |
-| Implementation Planning | ✅ | — |
-| Task Breakdown | ✅ | ✅ (sync) |
-| Execution | ✅ | — |
-| Status Updates | ✅ | ✅ (sync) |
-| Final Deliverables | — | ✅ |
 
-## Technical Notes
+### Despliegue
+- `pnpm deploy:health-check` - Verificar salud del despliegue
+- `pnpm rollback` - Rollback automático
+- `pnpm rollback:emergency` - Rollback de emergencia
 
-### GitHub Integration
-- Uses **gh-sub-issue extension** for proper parent-child relationships
-- Falls back to task lists if extension not installed
-- Epic issues track sub-task completion automatically
-- Labels provide additional organization (`epic:feature`, `task:feature`)
 
-### File Naming Convention
-- Tasks start as `001.md`, `002.md` during decomposition
-- After GitHub sync, renamed to `{issue-id}.md` (e.g., `1234.md`)
-- Makes it easy to navigate: issue #1234 = file `1234.md`
+## 🏗 Arquitectura
 
-### Design Decisions
-- Intentionally avoids GitHub Projects API complexity
-- All commands operate on local files first for speed
-- Synchronization with GitHub is explicit and controlled
-- Worktrees provide clean git isolation for parallel work
-- GitHub Projects can be added separately for visualization
 
----
+### Flujo de Datos
 
-## Support This Project
 
-Claude Code PM was developed at [Automaze](https://automaze.io) **for developers who ship, by developers who ship**.
+1. **Autenticación**: Stack Auth → AuthProvider → useUser hook → Componentes
+2. **Base de Datos**: NeonDB client → API routes → React state
+3. **Formularios**: React Hook Form + Zod validation
+4. **Estado UI**: Estado local de componentes con Zustand ocasional
 
-If Claude Code PM helps your team ship better software:
 
-- ⭐ **[Star this repository](https://github.com/automazeio/ccpm)** to show your support
-- 🐦 **[Follow @aroussi on X](https://x.com/aroussi)** for updates and tips
+### Autenticación
+
+
+El sistema utiliza Stack Auth con un patrón centralizado:
+- `AuthProvider` envuelve toda la aplicación en `layout.tsx`
+- Hook personalizado `useUser` maneja el estado de autenticación
+- Middleware maneja validación de auth en rutas protegidas
+- Soporte tanto para autenticación del lado cliente como servidor
+
+
+### Sistema de Componentes UI
+
+
+Construido sobre la arquitectura Shadcn/ui:
+- Componentes usan variables CSS para temas
+- Tailwind CSS con configuración personalizada
+- Primitivos Radix UI para accesibilidad
+- Class Variance Authority (CVA) para variantes de componentes
+- Tokens de diseño consistentes en toda la aplicación
+
+
+## 🔒 Seguridad
+
+
+- **Row Level Security (RLS)**: Políticas de seguridad a nivel de fila en PostgreSQL
+- **Autenticación JWT**: Tokens seguros con Stack Auth
+- **Validación de Entrada**: Zod schemas en todas las APIs
+- **Variables de Entorno**: Configuración segura para credenciales
+- **HTTPS**: Conexiones SSL obligatorias con NeonDB
+
+
+## 🌐 Despliegue
+
+
+### Vercel (Recomendado)
+
+
+1. Conectar repositorio en Vercel
+2. Configurar variables de entorno
+3. Desplegar automáticamente
+
+
+### Variables de Entorno en Producción
+
+
+Asegurar que todas las variables estén configuradas:
+- `DATABASE_URL`
+- `DATABASE_URL_UNPOOLED`
+- `NEON_PROJECT_ID`
+- `NEXT_PUBLIC_STACK_PROJECT_ID`
+- `NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY`
+- `STACK_SECRET_SERVER_KEY`
+
+
+## 📝 Contribución
+
+
+1. Fork el proyecto
+2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abrir un Pull Request
+
+
+### Estándares de Código
+
+
+- TypeScript estricto
+- ESLint configuration
+- Prettier para formateo
+- Convenciones de nomenclatura consistentes
+- Tests obligatorios para nuevas funcionalidades
+
+
+## 🧪 Testing
+
+
+- Framework: Jest con Testing Library
+- Tests unitarios para componentes
+- Tests de integración para APIs
+- Tests de accesibilidad con axe-core
+- Cobertura mínima del 80%
+
+
+## 📄 Licencia
+
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+
+## 🆘 Soporte
+
+
+Para problemas y preguntas:
+- Abrir un issue en GitHub
+- Documentación adicional en `/docs`
+- Stack Auth docs: [stack-auth.com](https://stack-auth.com)
+- NeonDB docs: [neon.tech/docs](https://neon.tech/docs)
+
+
+## 🎯 Roadmap
+
+
+- [ ] Integración con más proveedores de IA
+- [ ] Dashboard móvil mejorado
+- [ ] Reportes avanzados con exportación
+- [ ] Integraciones con herramientas externas
+- [ ] API pública para terceros
+- [ ] Sistema de notificaciones push
 
 
 ---
 
-> [!TIP]
-> **Ship faster with Automaze.** We partner with founders to bring their vision to life, scale their business, and optimize for success.
-> **[Visit Automaze to book a call with me ›](https://automaze.io)**
 
----
-
-## Star History
-
-![Star History Chart](https://api.star-history.com/svg?repos=automazeio/ccpm)
+esta es la aplicacion
