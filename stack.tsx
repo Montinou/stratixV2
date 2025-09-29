@@ -7,6 +7,9 @@ export const stackServerApp = new StackServerApp({
     afterSignIn: '/tools',
     afterSignUp: '/tools',
   },
+  projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
+  publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!,
+  secretServerKey: process.env.STACK_SECRET_SERVER_KEY!,
 });
 
 // Client-side configuration for providers
@@ -16,4 +19,6 @@ export const stackClientApp = new StackClientApp({
     afterSignIn: '/tools',
     afterSignUp: '/tools',
   },
+  projectId: process.env.NEXT_PUBLIC_STACK_PROJECT_ID!,
+  publishableClientKey: process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!,
 });
