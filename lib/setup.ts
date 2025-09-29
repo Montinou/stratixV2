@@ -1,6 +1,6 @@
 'use server';
 
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '@/stack/server';
 import { redirect } from 'next/navigation';
 
 export async function setup() {

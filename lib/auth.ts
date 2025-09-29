@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '@/stack/server';
 import db from '@/db';
 import { eq } from 'drizzle-orm';
 import {

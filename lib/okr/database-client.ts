@@ -1,5 +1,5 @@
 import db from '@/db';
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '@/stack/server';
 import {
   companies,
   profiles,

@@ -1,6 +1,8 @@
 import UserTableController from '@/components/admin/UserTable/UserTableController';
 import AccessListController from '@/components/admin/accessLists/AccessListController';
 
+export const dynamic = 'force-dynamic';
+
 export default async function UsersPage() {
   return (
     <div className="mx-auto mt-8 w-[90%] space-y-12">

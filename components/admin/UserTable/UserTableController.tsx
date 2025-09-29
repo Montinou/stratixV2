@@ -1,4 +1,4 @@
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '@/stack/server';
 import { columns, UserForTable } from '@/components/admin/UserTable/UsersTableColumn';
 import { UsersTable } from '@/components/admin/UserTable/UsersTable';
 import { Toaster } from '@/components/ui/sonner';
