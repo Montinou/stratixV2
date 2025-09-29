@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { stackServerApp } from '@/stack/server';
+import { stackServerApp } from '@/stack';
 
 export async function deleteUserAction(userId: string) {
   try {

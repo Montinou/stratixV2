@@ -1,6 +1,6 @@
 import { SidebarFooter, SidebarMenuItem } from '@/components/ui/sidebar';
 import { UserButton } from '@stackframe/stack';
-import { stackServerApp } from '@/stack/server';
+import { stackServerApp } from '@/stack';
 
 export async function SideNavFooter() {
   const user = await stackServerApp.getUser({ or: 'redirect' });

@@ -1,6 +1,6 @@
 import { desc } from 'drizzle-orm';
 import db from '@/db';
-import { stackServerApp } from '@/stack/server';
+import { stackServerApp } from '@/stack';
 import {
   whitelistedDomainsTable,
   whitelistedEmailsTable,

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import db from '@/db';
-import { stackServerApp } from '@/stack/server';
+import { stackServerApp } from '@/stack';
 import {
   whitelistedDomainsTable,
   whitelistedEmailsTable,

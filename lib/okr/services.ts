@@ -1,7 +1,7 @@
 'use server';
 
 import { OKRDatabaseClient } from './database-client';
-import { stackServerApp } from '@/stack/server';
+import { stackServerApp } from '@/stack';
 import { revalidatePath } from 'next/cache';
 
 /**
