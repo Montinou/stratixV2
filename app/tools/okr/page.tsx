@@ -1,4 +1,4 @@
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '@/stack/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, Rocket, Activity, TrendingUp, Users, Clock } from 'lucide-react';
 

@@ -1,7 +1,7 @@
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Shield } from 'lucide-react';
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '@/stack/server';
 
 export async function SideNavAdmin() {
   const user = await stackServerApp.getUser({ or: 'redirect' });
