@@ -8,6 +8,7 @@ import {
 import { handleUnknownError } from "@/lib/api/error-handler";
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 interface RouteParams {
   params: {

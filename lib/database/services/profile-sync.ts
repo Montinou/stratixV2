@@ -2,18 +2,67 @@
 
 import type { User } from "@stackframe/stack";
 import { StackIntegrationQueries } from '../queries/stack-integration';
-import type { 
-  StackUserSync, 
-  StackProfileData, 
-  ProfileSyncResult, 
-  ProfileSyncConfig,
-  ProfileUpsertOptions,
-  StackUserValidation,
-  ProfileSyncStrategy,
-  ProfileFieldMapping,
-  StackIntegrationError,
-  ProfileAuditEntry
-} from '@/lib/types/auth-integration';
+// Custom types for profile sync - removed dependency on auth-integration
+interface StackUserSync {
+  id: string;
+  displayName: string | null;
+  primaryEmail: string | null;
+  profileImageUrl: string | null;
+}
+
+interface StackProfileData {
+  user_id: string;
+  full_name: string;
+  role_type: string;
+  department: string;
+  company_id: string;
+}
+
+interface ProfileSyncResult {
+  success: boolean;
+  profile: Profile | null;
+  created: boolean;
+  error?: string;
+}
+
+interface ProfileSyncConfig {
+  defaultRole: string;
+  defaultDepartment: string;
+  syncFields: string[];
+  autoCreateProfile: boolean;
+}
+
+interface ProfileUpsertOptions {
+  companyId: string;
+  role: string;
+  department: string;
+  forceUpdate?: boolean;
+}
+
+interface StackUserValidation {
+  isValid: boolean;
+  missingFields: string[];
+  warnings: string[];
+}
+
+type ProfileSyncStrategy = 'stack_authoritative' | 'database_authoritative' | 'merge';
+
+interface ProfileFieldMapping {
+  stackField: string;
+  profileField: string;
+  required?: boolean;
+  transform?: (value: any, existingValue?: any) => any;
+}
+
+interface ProfileAuditEntry {
+  userId: string;
+  operation: string;
+  changedFields: string[];
+  previousValues: Record<string, any>;
+  newValues: Record<string, any>;
+  stackEventId: string;
+  timestamp: Date;
+}
 import type { Profile } from '../queries/profiles';
 
 /**

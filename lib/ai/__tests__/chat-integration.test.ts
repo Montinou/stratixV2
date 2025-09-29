@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach, vi, beforeAll, afterAll 
 import { conversationManager } from '../conversation-manager'
 import { chatContextBuilder } from '../chat-context'
 import { conversationStorage } from '../conversation-storage'
-import { chatSessionManager } from '../chat-session-manager'
+// Removed import of deleted chat-session-manager - using native auth only
 import { OKRKnowledgeBase } from '../okr-knowledge-base'
 import type { UserContext, OKRContext } from '../conversation-manager'
 import type { Activity } from '@/lib/database/queries/activities'
@@ -320,64 +320,10 @@ describe('Conversation Storage', () => {
   })
 })
 
-describe('Chat Session Manager', () => {
-  beforeAll(async () => {
-    await chatSessionManager.initialize()
-  })
-
-  afterAll(async () => {
-    await chatSessionManager.shutdown()
-  })
-
-  test('should create and manage chat sessions', async () => {
-    const conversationId = 'test-session-conv'
-
-    const session = await chatSessionManager.getOrCreateSession(
-      conversationId,
-      mockUserContext.userId,
-      { sessionType: 'strategy', urgency: 'medium' }
-    )
-
-    expect(session.conversationId).toBe(conversationId)
-    expect(session.userId).toBe(mockUserContext.userId)
-    expect(session.sessionType).toBe('strategy')
-    expect(session.urgency).toBe('medium')
-    expect(session.isPersisted).toBe(false)
-  })
-
-  test('should update session with messages', async () => {
-    const conversationId = 'test-session-update'
-
-    const session = await chatSessionManager.getOrCreateSession(
-      conversationId,
-      mockUserContext.userId
-    )
-
-    const message = {
-      role: 'user' as const,
-      content: 'Test message'
-    }
-
-    await chatSessionManager.updateSession(conversationId, message)
-
-    const updatedSession = await chatSessionManager.getOrCreateSession(
-      conversationId,
-      mockUserContext.userId
-    )
-
-    expect(updatedSession.messageCount).toBe(1)
-  })
-
-  test('should get session statistics', () => {
-    const stats = chatSessionManager.getSessionStats()
-
-    expect(stats).toHaveProperty('activeSessions')
-    expect(stats).toHaveProperty('totalMessageCount')
-    expect(stats).toHaveProperty('sessionsByType')
-    expect(stats).toHaveProperty('sessionsByUrgency')
-    expect(typeof stats.activeSessions).toBe('number')
-  })
-})
+// Chat Session Manager tests removed - using native Neon Auth only
+// describe('Chat Session Manager', () => {
+//   Custom session management has been removed in favor of native Stack Auth
+// })
 
 describe('OKR Knowledge Base', () => {
   test('should recommend methodologies based on company context', () => {
@@ -531,29 +477,10 @@ describe('Integration Tests', () => {
     expect(conversationManager.getActiveConversationsCount()).toBe(0)
   })
 
-  test('should handle session persistence and recovery', async () => {
-    const conversationId = 'persistence-test-conv'
-
-    // Create session
-    const session = await chatSessionManager.getOrCreateSession(
-      conversationId,
-      mockUserContext.userId,
-      { sessionType: 'strategy', urgency: 'high' }
-    )
-
-    // Add message and update session
-    const message = {
-      role: 'user' as const,
-      content: 'Test persistence message'
-    }
-
-    await chatSessionManager.updateSession(conversationId, message)
-
-    // Persist session
-    await chatSessionManager.persistSession(conversationId)
-
-    expect(session.isPersisted).toBe(true)
-  })
+  // Session persistence test removed - using native Neon Auth session management
+  // test('should handle session persistence and recovery', async () => {
+  //   Native Stack Auth handles session persistence automatically
+  // })
 
   test('should provide appropriate knowledge base recommendations', () => {
     // Test startup context

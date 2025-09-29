@@ -2,11 +2,23 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { Target, TrendingUp, Users, BarChart3 } from "lucide-react"
+import { stackServerApp } from "@/stack"
+import { redirect } from "next/navigation"
 
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
-  // Stack Auth handles redirects automatically based on URLs config
+  // Check if user is authenticated and redirect to dashboard
+  try {
+    const user = await stackServerApp.getUser();
+    if (user) {
+      redirect('/dashboard');
+    }
+  } catch (error) {
+    // User not authenticated, continue to landing page
+    console.debug('User not authenticated, showing landing page');
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}

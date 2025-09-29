@@ -17,6 +17,7 @@ import type {
 import { handleUnknownError, CommonErrors } from "@/lib/api/error-handler";
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Request validation schemas
 const completeOnboardingSchema = z.object({

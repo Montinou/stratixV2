@@ -11,6 +11,7 @@ import type { OrganizationSize } from "@/lib/database/onboarding-types";
 import { handleUnknownError, CommonErrors } from "@/lib/api/error-handler";
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Request validation schema for creating organization
 const createOrganizationSchema = z.object({

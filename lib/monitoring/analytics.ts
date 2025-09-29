@@ -978,3 +978,12 @@ export class OnboardingAnalytics {
 
 // Export singleton instance
 export const analytics = OnboardingAnalytics.getInstance();
+
+// Export trackEvent function for convenience
+export const trackEvent = async (eventName: string, data: Record<string, any>) => {
+  try {
+    await track(eventName, data);
+  } catch (error) {
+    console.error('Failed to track event:', error);
+  }
+};

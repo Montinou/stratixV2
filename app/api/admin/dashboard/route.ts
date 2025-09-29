@@ -5,6 +5,8 @@ import { CompaniesRepository } from '@/lib/database/queries/companies';
 import { SessionManagementService } from '@/lib/services/session-management';
 import { SyncLoggingService } from '@/lib/services/sync-logging';
 
+export const dynamic = 'force-dynamic';
+
 const companiesRepository = new CompaniesRepository();
 
 // Check if user has admin permissions

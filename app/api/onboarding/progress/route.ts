@@ -24,6 +24,7 @@ import {
 } from "@/lib/config/onboarding-config";
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Request validation schema
 const updateProgressSchema = z.object({

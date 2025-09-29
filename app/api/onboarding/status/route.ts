@@ -13,6 +13,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic rendering to avoid build-time issues
+export const dynamic = 'force-dynamic';
 import { stackServerApp } from '@/stack';
 import {
   getOnboardingSessionByUserId,
@@ -23,7 +26,7 @@ import {
 import { onboardingCache } from '@/lib/cache/redis';
 import { trackEvent } from '@/lib/monitoring/analytics';
 import { OnboardingAIService } from '@/lib/ai/service-connection';
-import { SessionManager } from '@/lib/session/manager';
+// SessionManager removed - not needed with native Neon Auth
 import type { OnboardingSession, Organization } from '@/lib/database/onboarding-types';
 
 // Enhanced status response interface
@@ -312,11 +315,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Status refreshed' });
 
       case 'update_activity':
-        // Update last activity timestamp
-        if (sessionId) {
-          await SessionManager.updateActivity(sessionId);
-          await onboardingCache.invalidateOnboardingStatus(user.id);
-        }
+        // With native Neon Auth, activity is automatically tracked via Stack Auth
+        // Just invalidate cache to ensure fresh status
+        await onboardingCache.invalidateOnboardingStatus(user.id);
         return NextResponse.json({ success: true, message: 'Activity updated' });
 
       case 'validate_step':

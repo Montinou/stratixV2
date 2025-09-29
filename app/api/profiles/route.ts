@@ -4,6 +4,8 @@ import { profilesRepository } from '@/lib/database/queries/profiles';
 import type { CreateProfileForm, UserRole } from '@/lib/database/types';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 // Validation schema for profile creation
 const createProfileSchema = z.object({
   fullName: z.string().min(1, 'Full name is required').max(255),

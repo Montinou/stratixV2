@@ -3,6 +3,8 @@ import { testConnection, testAuthenticatedConnection } from "@/lib/database/clie
 import { validateRuntimeEnvironment, getEnvironmentStatus } from "@/lib/validation/environment";
 import { stackServerApp } from "@/stack";
 
+export const dynamic = 'force-dynamic';
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
   try {

@@ -2,13 +2,35 @@ import { eq, and, sql } from 'drizzle-orm';
 import { getDrizzleClient } from '../client';
 import { profiles, type Profile as DrizzleProfile, type InsertProfile } from '../schema';
 import type { Profile } from './profiles';
-import type { 
-  StackUserSync, 
-  StackProfileData, 
-  ProfileSyncResult, 
-  ProfileUpsertOptions,
-  ProfileTransactionContext
-} from '@/lib/types/auth-integration';
+// Custom types for stack integration - removed dependency on auth-integration
+interface StackUserSync {
+  id: string;
+  displayName: string | null;
+  primaryEmail: string | null;
+  profileImageUrl: string | null;
+}
+
+interface StackProfileData {
+  user_id: string;
+  full_name: string;
+  role_type: string;
+  department: string;
+  company_id: string;
+}
+
+interface ProfileSyncResult {
+  success: boolean;
+  profile: Profile | null;
+  created: boolean;
+  error?: string;
+}
+
+interface ProfileUpsertOptions {
+  companyId: string;
+  role: string;
+  department: string;
+  forceUpdate?: boolean;
+}
 
 /**
  * StackIntegrationQueries - Specialized Drizzle queries for Stack authentication integration

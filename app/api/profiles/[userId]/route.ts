@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack';
 import { profilesRepository } from '@/lib/database/queries/profiles';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/profiles/[userId]
  * Get a specific user's profile by user ID

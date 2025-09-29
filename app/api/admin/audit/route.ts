@@ -4,6 +4,8 @@ import { profilesRepository } from '@/lib/database/queries/profiles';
 import { SyncLoggingService } from '@/lib/services/sync-logging';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 // Validation schemas
 const auditFilterSchema = z.object({
   eventType: z.enum([
