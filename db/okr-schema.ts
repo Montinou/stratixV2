@@ -20,37 +20,35 @@ export const objectiveStatusEnum = pgEnum('objective_status', ['draft', 'in_prog
 export const initiativeStatusEnum = pgEnum('initiative_status', ['planning', 'in_progress', 'completed', 'cancelled']);
 export const activityStatusEnum = pgEnum('activity_status', ['todo', 'in_progress', 'completed', 'cancelled']);
 export const priorityEnum = pgEnum('priority', ['low', 'medium', 'high']);
+export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'accepted', 'expired', 'revoked']);
+export const onboardingStatusEnum = pgEnum('onboarding_status', ['in_progress', 'completed', 'abandoned']);
+export const onboardingStepEnum = pgEnum('onboarding_step', ['create_org', 'accept_invite', 'complete_profile']);
 
 // Companies table - organization information
 export const companies = pgTable('companies', {
   id: uuid('id').defaultRandom().primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  industry: varchar('industry', { length: 100 }),
-  size: varchar('size', { length: 50 }),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => [
-  index('companies_name_idx').on(table.name),
-]);
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  logoUrl: text('logo_url'),
+  settings: jsonb('settings').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
 
-// Profiles table - detailed user profile information linked to Neon Auth users
+// Profiles table - detailed user profile information
+// Note: Uses 'id' as PK which references users.id (not neon_auth.users_sync.id)
 export const profiles = pgTable('profiles', {
-  userId: text('user_id')
-    .notNull()
-    .primaryKey()
-    .references(() => usersSyncInNeonAuth.id), // Reference to neon_auth.users_sync
-  fullName: varchar('full_name', { length: 255 }).notNull(),
-  roleType: userRoleEnum('role_type').notNull(),
-  department: varchar('department', { length: 100 }).notNull(),
-  companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  id: uuid('id').primaryKey(), // References users.id
+  email: text('email').notNull(),
+  fullName: text('full_name').notNull(),
+  role: userRoleEnum('role').notNull().default('empleado'),
+  department: text('department'),
+  managerId: uuid('manager_id'),
+  companyId: uuid('company_id'),
+  tenantId: uuid('tenant_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
-  index('profiles_company_idx').on(table.companyId),
-  index('profiles_role_idx').on(table.roleType),
-  index('profiles_department_idx').on(table.department),
   index('profiles_tenant_idx').on(table.tenantId),
 ]);
 
@@ -204,24 +202,12 @@ export const companiesRelations = relations(companies, ({ many }) => ({
   updateHistory: many(updateHistory),
 }));
 
-export const profilesRelations = relations(profiles, ({ one, many }) => ({
+// Simplified relations for profiles
+export const profilesRelations = relations(profiles, ({ one }) => ({
   company: one(companies, {
     fields: [profiles.companyId],
     references: [companies.id],
   }),
-  user: one(usersSyncInNeonAuth, {
-    fields: [profiles.userId],
-    references: [usersSyncInNeonAuth.id],
-  }),
-  createdObjectives: many(objectives, { relationName: 'createdBy' }),
-  assignedObjectives: many(objectives, { relationName: 'assignedTo' }),
-  createdInitiatives: many(initiatives, { relationName: 'createdBy' }),
-  assignedInitiatives: many(initiatives, { relationName: 'assignedTo' }),
-  createdActivities: many(activities, { relationName: 'createdBy' }),
-  assignedActivities: many(activities, { relationName: 'assignedTo' }),
-  comments: many(comments),
-  createdKeyResults: many(keyResults),
-  updateHistory: many(updateHistory),
 }));
 
 export const objectivesRelations = relations(objectives, ({ one, many }) => ({
@@ -326,5 +312,65 @@ export const updateHistoryRelations = relations(updateHistory, ({ one }) => ({
   company: one(companies, {
     fields: [updateHistory.companyId],
     references: [companies.id],
+  }),
+}));
+
+// Organization Invitations table - tenant-specific invitations
+export const organizationInvitations = pgTable('organization_invitations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').notNull(),
+  token: text('token').notNull().unique(),
+  role: userRoleEnum('role').notNull().default('empleado'),
+  organizationId: uuid('organization_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
+  invitedBy: text('invited_by').notNull().references(() => usersSyncInNeonAuth.id),
+  status: text('status').notNull().default('pending'),
+  expiresAt: timestamp('expires_at').notNull(),
+  acceptedAt: timestamp('accepted_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('org_invitations_email_idx').on(table.email),
+  index('org_invitations_token_idx').on(table.token),
+  index('org_invitations_org_idx').on(table.organizationId),
+  index('org_invitations_status_idx').on(table.status),
+]);
+
+// Onboarding Sessions table - track user onboarding progress
+export const onboardingSessions = pgTable('onboarding_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull().unique(),
+  email: text('email').notNull(),
+  status: text('status').notNull().default('in_progress'),
+  currentStep: text('current_step').notNull(),
+  partialData: jsonb('partial_data').default({}),
+  invitationToken: text('invitation_token'),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+  lastActivity: timestamp('last_activity').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('onboarding_user_idx').on(table.userId),
+  index('onboarding_status_idx').on(table.status),
+  index('onboarding_token_idx').on(table.invitationToken),
+  index('onboarding_last_activity_idx').on(table.lastActivity),
+]);
+
+// Relations for new tables
+export const organizationInvitationsRelations = relations(organizationInvitations, ({ one }) => ({
+  organization: one(companies, {
+    fields: [organizationInvitations.organizationId],
+    references: [companies.id],
+  }),
+  inviter: one(usersSyncInNeonAuth, {
+    fields: [organizationInvitations.invitedBy],
+    references: [usersSyncInNeonAuth.id],
+  }),
+}));
+
+export const onboardingSessionsRelations = relations(onboardingSessions, ({ one }) => ({
+  invitation: one(organizationInvitations, {
+    fields: [onboardingSessions.invitationToken],
+    references: [organizationInvitations.token],
   }),
 }));

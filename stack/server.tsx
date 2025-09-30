@@ -22,6 +22,7 @@ export const stackServerApp = new StackServerApp({
   urls: {
     afterSignIn: '/tools',
     afterSignUp: '/tools',
+    baseUrl: process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : undefined,
   },
   projectId: projectId || 'missing',
   publishableClientKey: publishableClientKey || 'missing',
