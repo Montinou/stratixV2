@@ -4,83 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Activity, Calendar, User, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { getActivitiesForPage, getActivityStats } from '@/lib/services/activities-service';
 
 export default async function ActivitiesPage() {
   const user = await stackServerApp.getUser({ or: 'redirect' });
 
-  // TODO: Implementar queries para obtener actividades reales de la base de datos
-  const activities = [
-    {
-      id: '1',
-      title: 'Diseñar interfaz del chatbot',
-      description: 'Crear mockups y wireframes para la interfaz de usuario del chatbot',
-      status: 'completed',
-      priority: 'high',
-      estimatedHours: 16,
-      actualHours: 14,
-      dueDate: '2024-02-15',
-      completedAt: '2024-02-14',
-      assignedTo: 'María González',
-      initiativeTitle: 'Implementar chatbot de atención al cliente',
-      department: 'Diseño',
-    },
-    {
-      id: '2',
-      title: 'Configurar servidor de producción',
-      description: 'Preparar y configurar el entorno de producción para el nuevo sistema',
-      status: 'in_progress',
-      priority: 'high',
-      estimatedHours: 24,
-      actualHours: 18,
-      dueDate: '2024-02-20',
-      completedAt: null,
-      assignedTo: 'Carlos Ruiz',
-      initiativeTitle: 'Migración a la nube',
-      department: 'IT',
-    },
-    {
-      id: '3',
-      title: 'Crear contenido para redes sociales',
-      description: 'Desarrollar contenido visual y textual para la campaña en redes sociales',
-      status: 'todo',
-      priority: 'medium',
-      estimatedHours: 12,
-      actualHours: 0,
-      dueDate: '2024-02-25',
-      completedAt: null,
-      assignedTo: 'Ana Torres',
-      initiativeTitle: 'Campaña de marketing digital',
-      department: 'Marketing',
-    },
-    {
-      id: '4',
-      title: 'Realizar pruebas de integración',
-      description: 'Ejecutar batería de pruebas para validar la integración entre sistemas',
-      status: 'in_progress',
-      priority: 'high',
-      estimatedHours: 20,
-      actualHours: 12,
-      dueDate: '2024-02-18',
-      completedAt: null,
-      assignedTo: 'Luis Herrera',
-      initiativeTitle: 'Automatizar proceso de facturación',
-      department: 'QA',
-    },
-    {
-      id: '5',
-      title: 'Documentar API endpoints',
-      description: 'Crear documentación técnica completa para todos los endpoints de la API',
-      status: 'todo',
-      priority: 'low',
-      estimatedHours: 8,
-      actualHours: 0,
-      dueDate: '2024-03-01',
-      completedAt: null,
-      assignedTo: 'Pedro Jiménez',
-      initiativeTitle: 'Implementar chatbot de atención al cliente',
-      department: 'Desarrollo',
-    },
-  ];
+  // Fetch real data from database
+  const [activities, stats] = await Promise.all([
+    getActivitiesForPage(user.id),
+    getActivityStats(user.id),
+  ]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -153,8 +86,8 @@ export default async function ActivitiesPage() {
     }
   };
 
-  const isOverdue = (dueDate: string, status: string) => {
-    if (status === 'completed') return false;
+  const isOverdue = (dueDate: Date | null, status: string) => {
+    if (status === 'completed' || !dueDate) return false;
     return new Date(dueDate) < new Date();
   };
 
@@ -183,7 +116,7 @@ export default async function ActivitiesPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activities.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
               Actividades registradas
             </p>
@@ -196,9 +129,7 @@ export default async function ActivitiesPage() {
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {activities.filter(act => act.status === 'todo').length}
-            </div>
+            <div className="text-2xl font-bold">{stats.pending}</div>
             <p className="text-xs text-muted-foreground">
               Por iniciar
             </p>
@@ -211,9 +142,7 @@ export default async function ActivitiesPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {activities.filter(act => act.status === 'in_progress').length}
-            </div>
+            <div className="text-2xl font-bold">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground">
               En ejecución
             </p>
@@ -226,9 +155,7 @@ export default async function ActivitiesPage() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {activities.filter(act => act.status === 'completed').length}
-            </div>
+            <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">
               Finalizadas
             </p>
@@ -241,9 +168,7 @@ export default async function ActivitiesPage() {
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {activities.filter(act => isOverdue(act.dueDate, act.status)).length}
-            </div>
+            <div className="text-2xl font-bold">{stats.overdue}</div>
             <p className="text-xs text-muted-foreground">
               Requieren atención
             </p>
@@ -302,30 +227,35 @@ export default async function ActivitiesPage() {
               <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center space-x-1">
                   <User className="h-4 w-4" />
-                  <span>Asignado: {activity.assignedTo}</span>
+                  <span>Asignado: {activity.assignedToName || 'Sin asignar'}</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>Vence: {new Date(activity.dueDate).toLocaleDateString('es-ES')}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-4 w-4" />
-                  <span>Estimado: {activity.estimatedHours}h</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-4 w-4" />
-                  <span>Real: {activity.actualHours}h</span>
-                </div>
+                {activity.dueDate && (
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>Vence: {new Date(activity.dueDate).toLocaleDateString('es-ES')}</span>
+                  </div>
+                )}
+                {activity.estimatedHours && (
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-4 w-4" />
+                    <span>Estimado: {activity.estimatedHours}h</span>
+                  </div>
+                )}
+                {activity.actualHours && (
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-4 w-4" />
+                    <span>Real: {activity.actualHours}h</span>
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-between items-center mt-4">
-                <Badge variant="outline">{activity.department}</Badge>
-                {activity.completedAt && (
+              {activity.completedAt && (
+                <div className="flex justify-end items-center mt-4">
                   <span className="text-xs text-muted-foreground">
                     Completada: {new Date(activity.completedAt).toLocaleDateString('es-ES')}
                   </span>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
