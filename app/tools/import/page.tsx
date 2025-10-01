@@ -1,5 +1,5 @@
 import { stackServerApp } from '@/stack/server';
-import { ImportService } from '@/lib/services/import-service';
+import { ImportServiceV2 as ImportService } from '@/lib/services/import-service-v2';
 import { ImportClient } from '@/components/import/import-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {

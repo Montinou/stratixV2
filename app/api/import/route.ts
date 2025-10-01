@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack/server';
-import { ImportService, ImportType } from '@/lib/services/import-service';
+import { ImportServiceV2 as ImportService, ImportType } from '@/lib/services/import-service-v2';
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       companyId,
       fileName,
       fileExtension as 'csv' | 'xlsx',
+      importType,
       data.length
     );
 
