@@ -56,18 +56,18 @@ export const objectives = pgTable('objectives', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
-  owner_id: uuid('owner_id').notNull(),
+  ownerId: uuid('owner_id').notNull(),
   department: text('department'),
   status: text('status').default('no_iniciado'),
   progress: integer('progress').default(0),
-  start_date: timestamp('start_date').notNull(),
-  end_date: timestamp('end_date').notNull(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  company_id: uuid('company_id').notNull(),
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  companyId: uuid('company_id').notNull(),
 }, (table) => [
-  index('objectives_company_idx').on(table.company_id),
-  index('objectives_owner_idx').on(table.owner_id),
+  index('objectives_company_idx').on(table.companyId),
+  index('objectives_owner_idx').on(table.ownerId),
 ]);
 
 // Initiatives table - strategic initiatives linked to objectives
@@ -75,18 +75,18 @@ export const initiatives = pgTable('initiatives', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
-  objective_id: uuid('objective_id').notNull(),
-  owner_id: uuid('owner_id').notNull(),
+  objectiveId: uuid('objective_id').notNull(),
+  ownerId: uuid('owner_id').notNull(),
   status: text('status').default('no_iniciado'),
   progress: integer('progress').default(0),
-  start_date: timestamp('start_date').notNull(),
-  end_date: timestamp('end_date').notNull(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  company_id: uuid('company_id').notNull(),
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  companyId: uuid('company_id').notNull(),
 }, (table) => [
-  index('initiatives_company_idx').on(table.company_id),
-  index('initiatives_objective_idx').on(table.objective_id),
+  index('initiatives_company_idx').on(table.companyId),
+  index('initiatives_objective_idx').on(table.objectiveId),
 ]);
 
 // Activities table - specific activities/tasks linked to initiatives
@@ -94,19 +94,19 @@ export const activities = pgTable('activities', {
   id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
-  initiative_id: uuid('initiative_id').notNull(),
-  owner_id: uuid('owner_id').notNull(),
+  initiativeId: uuid('initiative_id').notNull(),
+  ownerId: uuid('owner_id').notNull(),
   status: text('status').default('no_iniciado'),
   progress: integer('progress').default(0),
-  start_date: timestamp('start_date').notNull(),
-  end_date: timestamp('end_date').notNull(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  company_id: uuid('company_id').notNull(),
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  companyId: uuid('company_id').notNull(),
   completedAt: timestamp('completed_at'), // Keep this for analytics
 }, (table) => [
-  index('activities_company_idx').on(table.company_id),
-  index('activities_initiative_idx').on(table.initiative_id),
+  index('activities_company_idx').on(table.companyId),
+  index('activities_initiative_idx').on(table.initiativeId),
 ]);
 
 // Comments table - comments for objectives, initiatives, and activities
@@ -185,15 +185,9 @@ export const objectivesRelations = relations(objectives, ({ one, many }) => ({
     fields: [objectives.companyId],
     references: [companies.id],
   }),
-  creator: one(usersSyncInNeonAuth, {
-    fields: [objectives.createdBy],
-    references: [usersSyncInNeonAuth.id],
-    relationName: 'createdBy',
-  }),
-  assignee: one(usersSyncInNeonAuth, {
-    fields: [objectives.assignedTo],
-    references: [usersSyncInNeonAuth.id],
-    relationName: 'assignedTo',
+  owner: one(profiles, {
+    fields: [objectives.ownerId],
+    references: [profiles.id],
   }),
   initiatives: many(initiatives),
   keyResults: many(keyResults),
@@ -210,15 +204,9 @@ export const initiativesRelations = relations(initiatives, ({ one, many }) => ({
     fields: [initiatives.companyId],
     references: [companies.id],
   }),
-  creator: one(usersSyncInNeonAuth, {
-    fields: [initiatives.createdBy],
-    references: [usersSyncInNeonAuth.id],
-    relationName: 'createdBy',
-  }),
-  assignee: one(usersSyncInNeonAuth, {
-    fields: [initiatives.assignedTo],
-    references: [usersSyncInNeonAuth.id],
-    relationName: 'assignedTo',
+  owner: one(profiles, {
+    fields: [initiatives.ownerId],
+    references: [profiles.id],
   }),
   activities: many(activities),
   comments: many(comments),
@@ -234,15 +222,9 @@ export const activitiesRelations = relations(activities, ({ one, many }) => ({
     fields: [activities.companyId],
     references: [companies.id],
   }),
-  creator: one(usersSyncInNeonAuth, {
-    fields: [activities.createdBy],
-    references: [usersSyncInNeonAuth.id],
-    relationName: 'createdBy',
-  }),
-  assignee: one(usersSyncInNeonAuth, {
-    fields: [activities.assignedTo],
-    references: [usersSyncInNeonAuth.id],
-    relationName: 'assignedTo',
+  owner: one(profiles, {
+    fields: [activities.ownerId],
+    references: [profiles.id],
   }),
   comments: many(comments),
   updateHistory: many(updateHistory),
