@@ -29,6 +29,7 @@ export const areaStatusEnum = pgEnum('area_status', ['active', 'inactive', 'plan
 export const companies = pgTable('companies', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
+  description: text('description'),
   slug: text('slug').notNull().unique(),
   logoUrl: text('logo_url'),
   settings: jsonb('settings').default({}),

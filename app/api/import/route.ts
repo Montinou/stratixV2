@@ -43,6 +43,14 @@ export async function POST(request: NextRequest) {
 
     const { role: userRole, department: userDepartment, company_id: companyId } = userPermissions;
 
+    // Employees cannot import anything
+    if (userRole === 'empleado') {
+      return NextResponse.json(
+        { error: 'Los empleados no tienen permisos para importar datos' },
+        { status: 403 }
+      );
+    }
+
     // Role-based restrictions
     if (importType === 'users' && userRole !== 'corporativo') {
       return NextResponse.json(

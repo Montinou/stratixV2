@@ -25,7 +25,26 @@ export default async function ImportPage() {
     );
   }
 
-  const { role: userRole, department: userDepartment, company_id: companyId } = userPermissions;
+  const { role: userRole, department: userDepartment, company_id: companyId } = userPermissions as {
+    role: string;
+    department?: string;
+    company_id: string;
+  };
+
+  // Restrict access to employees
+  if (userRole === 'empleado') {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Acceso Restringido</h1>
+          <p className="text-muted-foreground">
+            Los empleados no tienen permisos para importar datos.
+            Solo usuarios Corporativos y Gerentes pueden realizar importaciones masivas.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Get import history for statistics
   const history = await ImportService.getImportHistory(companyId, 100);

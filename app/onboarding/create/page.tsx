@@ -7,12 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Loader2, Save } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Building2, Loader2, Save, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FormData {
   organizationName: string;
   organizationSlug: string;
+  organizationDescription: string;
 }
 
 export default function CreateOrganizationPage() {
@@ -20,9 +22,11 @@ export default function CreateOrganizationPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
   const [form, setForm] = useState<FormData>({
     organizationName: '',
     organizationSlug: '',
+    organizationDescription: '',
   });
 
   // Load draft data on mount
@@ -37,6 +41,7 @@ export default function CreateOrganizationPage() {
             setForm({
               organizationName: session.partialData.organizationName || '',
               organizationSlug: session.partialData.organizationSlug || '',
+              organizationDescription: session.partialData.organizationDescription || '',
             });
           }
         }
@@ -52,7 +57,7 @@ export default function CreateOrganizationPage() {
 
   // Auto-save draft every 30 seconds
   useEffect(() => {
-    if (!loading && (form.organizationName || form.organizationSlug)) {
+    if (!loading && (form.organizationName || form.organizationSlug || form.organizationDescription)) {
       const timer = setTimeout(() => {
         fetch('/api/onboarding/draft', {
           method: 'PUT',
@@ -79,6 +84,47 @@ export default function CreateOrganizationPage() {
     }));
   };
 
+  // AI enhancement for description
+  const enhanceDescription = async () => {
+    if (!form.organizationDescription.trim()) {
+      toast.error('Please write a brief description first');
+      return;
+    }
+
+    setEnhancingDescription(true);
+
+    try {
+      const response = await fetch('/api/ai/enhance-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: form.organizationDescription,
+          context: 'organization_description',
+          organizationName: form.organizationName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to enhance description');
+      }
+
+      const data = await response.json();
+
+      if (data.enhancedText) {
+        setForm(prev => ({
+          ...prev,
+          organizationDescription: data.enhancedText,
+        }));
+        toast.success('Description enhanced successfully!');
+      }
+    } catch (error) {
+      console.error('Error enhancing description:', error);
+      toast.error('Failed to enhance description. Please try again.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -92,6 +138,11 @@ export default function CreateOrganizationPage() {
       return;
     }
 
+    if (!form.organizationDescription.trim()) {
+      toast.error('Organization description is required');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -101,6 +152,7 @@ export default function CreateOrganizationPage() {
         body: JSON.stringify({
           name: form.organizationName,
           slug: form.organizationSlug,
+          description: form.organizationDescription,
         }),
       });
 
@@ -183,7 +235,45 @@ export default function CreateOrganizationPage() {
               </p>
             </div>
 
-            {(form.organizationName || form.organizationSlug) && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="organizationDescription">Organization Description</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={enhanceDescription}
+                  disabled={submitting || enhancingDescription || !form.organizationDescription.trim()}
+                  className="h-7 px-2 text-xs"
+                >
+                  {enhancingDescription ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Enhancing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      Enhance with AI
+                    </>
+                  )}
+                </Button>
+              </div>
+              <Textarea
+                id="organizationDescription"
+                placeholder="Describe your organization's mission, values, and what you do..."
+                value={form.organizationDescription}
+                onChange={(e) => setForm(prev => ({ ...prev, organizationDescription: e.target.value }))}
+                disabled={submitting || enhancingDescription}
+                className="min-h-[100px]"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Write a brief description and use AI to enhance it
+              </p>
+            </div>
+
+            {(form.organizationName || form.organizationSlug || form.organizationDescription) && (
               <div className="rounded-lg bg-green-50 dark:bg-green-900/10 p-3 flex items-center gap-2">
                 <Save className="h-4 w-4 text-green-600 dark:text-green-500" />
                 <p className="text-sm text-green-600 dark:text-green-500">
@@ -195,7 +285,7 @@ export default function CreateOrganizationPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting}
+              disabled={submitting || enhancingDescription}
             >
               {submitting ? (
                 <>
