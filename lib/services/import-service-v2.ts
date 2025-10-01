@@ -333,7 +333,7 @@ export class ImportServiceV2 {
           const [owner] = await db.select({ id: profiles.id })
             .from(profiles)
             .where(and(
-              eq(profiles.email, mapped.ownerEmail),
+              sql`LOWER(${profiles.email}) = LOWER(${mapped.ownerEmail})`,
               eq(profiles.companyId, companyId)
             ))
             .limit(1);
@@ -418,7 +418,7 @@ export class ImportServiceV2 {
           })
           .from(objectives)
           .where(and(
-            eq(objectives.title, mapped.objectiveTitle),
+            sql`LOWER(${objectives.title}) = LOWER(${mapped.objectiveTitle})`,
             eq(objectives.companyId, companyId)
           ))
           .limit(1);
@@ -444,7 +444,7 @@ export class ImportServiceV2 {
           const [owner] = await db.select({ id: profiles.id })
             .from(profiles)
             .where(and(
-              eq(profiles.email, mapped.ownerEmail),
+              sql`LOWER(${profiles.email}) = LOWER(${mapped.ownerEmail})`,
               eq(profiles.companyId, companyId)
             ))
             .limit(1);
@@ -530,7 +530,7 @@ export class ImportServiceV2 {
           .from(initiatives)
           .innerJoin(objectives, eq(initiatives.objectiveId, objectives.id))
           .where(and(
-            eq(initiatives.title, mapped.initiativeTitle),
+            sql`LOWER(${initiatives.title}) = LOWER(${mapped.initiativeTitle})`,
             eq(initiatives.companyId, companyId)
           ))
           .limit(1);
@@ -556,7 +556,7 @@ export class ImportServiceV2 {
           const [owner] = await db.select({ id: profiles.id })
             .from(profiles)
             .where(and(
-              eq(profiles.email, mapped.ownerEmail),
+              sql`LOWER(${profiles.email}) = LOWER(${mapped.ownerEmail})`,
               eq(profiles.companyId, companyId)
             ))
             .limit(1);
@@ -651,7 +651,7 @@ export class ImportServiceV2 {
         // Check if user already exists
         const [existingUser] = await db.select({ id: profiles.id })
           .from(profiles)
-          .where(eq(profiles.email, mapped.email))
+          .where(sql`LOWER(${profiles.email}) = LOWER(${mapped.email})`)
           .limit(1);
 
         if (existingUser) {
@@ -664,7 +664,7 @@ export class ImportServiceV2 {
           const [manager] = await db.select({ id: profiles.id })
             .from(profiles)
             .where(and(
-              eq(profiles.email, mapped.managerEmail),
+              sql`LOWER(${profiles.email}) = LOWER(${mapped.managerEmail})`,
               eq(profiles.companyId, companyId)
             ))
             .limit(1);
