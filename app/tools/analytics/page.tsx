@@ -1,4 +1,4 @@
-import { stackServerApp } from '@/stack/server';
+import { getUserOrRedirect } from '@/lib/stack-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,9 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
-  let user;
+  // Get user safely - will redirect if not authenticated
+  const user = await getUserOrRedirect();
+
   let dashboardStats = {
     totalObjectives: 0,
     completedObjectives: 0,
@@ -39,13 +41,6 @@ export default async function AnalyticsPage() {
   let completionTrends = [];
 
   try {
-    user = await stackServerApp.getUser({ or: 'redirect' });
-
-    if (!user || !user.id) {
-      console.error('User authentication failed - redirecting to login');
-      return null;
-    }
-
     // Fetch all analytics data from database
     [dashboardStats, departmentProgress, topPerformers, upcomingDeadlines, completionTrends] =
       await Promise.all([

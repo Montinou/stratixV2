@@ -1,4 +1,4 @@
-import { stackServerApp } from '@/stack/server';
+import { getUserOrRedirect } from '@/lib/stack-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,9 @@ import { getInitiativesForPage, getInitiativeStats } from '@/lib/services/initia
 export const dynamic = 'force-dynamic';
 
 export default async function InitiativesPage() {
-  let user;
+  // Get user safely - will redirect if not authenticated
+  const user = await getUserOrRedirect();
+
   let initiatives = [];
   let stats = {
     total: 0,
@@ -19,21 +21,14 @@ export default async function InitiativesPage() {
   };
 
   try {
-    user = await stackServerApp.getUser({ or: 'redirect' });
-
-    if (!user || !user.id) {
-      console.error('User authentication failed - redirecting to login');
-      // Don't throw, let the redirect happen
-      return null;
-    }
-
+    // Fetch data using the safe user object
     [initiatives, stats] = await Promise.all([
       getInitiativesForPage(user.id),
       getInitiativeStats(user.id),
     ]);
   } catch (error) {
-    console.error('Error loading initiatives:', error);
-    // Don't re-throw, show empty state instead
+    console.error('Error loading initiatives data:', error);
+    // Use empty state on error
     initiatives = [];
     stats = {
       total: 0,

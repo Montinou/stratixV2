@@ -1,4 +1,4 @@
-import { stackServerApp } from '@/stack/server';
+import { getUserOrRedirect } from '@/lib/stack-auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,9 @@ import { getObjectivesForPage, getObjectiveStats } from '@/lib/services/objectiv
 export const dynamic = 'force-dynamic';
 
 export default async function ObjectivesPage() {
-  let user;
+  // Get user safely - will redirect if not authenticated
+  const user = await getUserOrRedirect();
+
   let objectives = [];
   let stats = {
     total: 0,
@@ -19,13 +21,6 @@ export default async function ObjectivesPage() {
   };
 
   try {
-    user = await stackServerApp.getUser({ or: 'redirect' });
-
-    if (!user || !user.id) {
-      console.error('User authentication failed - redirecting to login');
-      return null;
-    }
-
     // Fetch real data from database
     objectives = await getObjectivesForPage(user.id);
     stats = await getObjectiveStats(user.id);
