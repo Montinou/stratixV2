@@ -1,8 +1,8 @@
 import UserTableController from '@/components/admin/UserTable/UserTableController';
-import AccessListController from '@/components/admin/accessLists/AccessListController';
+import InvitationController from '@/components/admin/invitations/InvitationController';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building, Users, Shield, ArrowRight } from 'lucide-react';
+import { Building, Users, Shield, ArrowRight, Mail } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,11 +55,11 @@ export default async function UsersPage() {
           <Card className="opacity-75">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Control de Acceso
+                <Mail className="h-5 w-5" />
+                Invitaciones de Equipo
               </CardTitle>
               <CardDescription>
-                Administra listas de acceso
+                Invita miembros a tu organización
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -73,9 +73,9 @@ export default async function UsersPage() {
 
       <div>
         <h1 className="mb-6 text-3xl font-bold text-gray-800 dark:text-gray-200">
-          Access Management
+          Team Invitations
         </h1>
-        <AccessListController />
+        <InvitationController />
       </div>
 
       <div>
