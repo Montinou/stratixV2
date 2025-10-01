@@ -59,9 +59,6 @@ export async function POST(request: NextRequest) {
       creatorFullName: user.displayName || undefined,
     });
 
-    // Grant user permission
-    await user.grantPermission('user');
-
     // Complete onboarding session
     await completeOnboardingSession(user.id);
 
