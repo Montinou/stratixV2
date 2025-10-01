@@ -41,7 +41,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    const { role: userRole, department: userDepartment, company_id: companyId } = userPermissions;
+    const { role: userRole, department: userDepartment, companyId } = userPermissions;
+
+    // Check if user has a company assigned
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'User must be assigned to a company to import data' },
+        { status: 403 }
+      );
+    }
 
     // Employees cannot import anything
     if (userRole === 'empleado') {
@@ -190,8 +198,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
+    if (!userPermissions.companyId) {
+      // Return empty history if user has no company assigned
+      return NextResponse.json([]);
+    }
+
     // Get import history
-    const history = await ImportService.getImportHistory(userPermissions.company_id);
+    const history = await ImportService.getImportHistory(userPermissions.companyId);
 
     return NextResponse.json(history);
 

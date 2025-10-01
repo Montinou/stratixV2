@@ -278,13 +278,17 @@ export class ImportServiceV2 {
     const [user] = await db.select({
       role: profiles.role,
       department: profiles.department,
-      companyId: profiles.companyId,
+      company_id: profiles.companyId,
     })
     .from(profiles)
     .where(eq(profiles.id, userId))
     .limit(1);
 
-    return user || null;
+    return user ? {
+      role: user.role,
+      department: user.department,
+      companyId: user.company_id,
+    } : null;
   }
 
   /**

@@ -147,12 +147,12 @@ export function AreaForm({ area, onSuccess, onCancel }: AreaFormProps) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="parent_area">Área Padre</Label>
-          <Select value={formData.parentAreaId} onValueChange={(value) => handleChange('parentAreaId', value)}>
+          <Select value={formData.parentAreaId || "none"} onValueChange={(value) => handleChange('parentAreaId', value === "none" ? '' : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Selecciona área padre" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Sin área padre</SelectItem>
+              <SelectItem value="none">Sin área padre</SelectItem>
               {areas.map(area => (
                 <SelectItem key={area.id} value={area.id}>
                   {area.name}
