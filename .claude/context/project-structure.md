@@ -1,7 +1,7 @@
 ---
 created: 2025-10-01T09:07:54Z
-last_updated: 2025-10-01T09:07:54Z
-version: 1.0
+last_updated: 2025-10-01T11:14:27Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -97,7 +97,7 @@ Database schemas and configuration:
 
 ```
 db/
-├── schema.ts              # Main application schema
+├── okr-schema.ts          # OKR system schema (objectives, initiatives, activities, areas)
 └── neon_auth_schema.ts    # NeonAuth user sync schema
 ```
 
@@ -169,3 +169,6 @@ import { stackServerApp } from "@/lib/stack-auth"
 - Uses `bundler` module resolution (tsconfig.json)
 - Supports ES modules
 - TypeScript strict mode enabled
+
+## Update History
+- 2025-10-01T11:14:27Z: Updated database schema references to reflect okr-schema.ts structure

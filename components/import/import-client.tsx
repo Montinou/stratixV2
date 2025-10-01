@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
@@ -33,6 +39,8 @@ import {
   Database,
   X,
   RefreshCw,
+  FileDown,
+  Table,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -200,32 +208,26 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
     }
   };
 
-  const downloadTemplate = (type: string) => {
-    // Generate template based on type
-    const format = supportedFormats.find(f => f.type === type);
-    if (!format) return;
+  const downloadTemplate = async (type: string, format: 'csv' | 'xlsx' = 'csv') => {
+    try {
+      const response = await fetch(`/api/templates?type=${type}&format=${format}`);
 
-    const headers = [...format.requiredFields, ...format.optionalFields].join(',');
-    const exampleRow = format.requiredFields.map(field => {
-      switch (field) {
-        case 'título': return 'Ejemplo de título';
-        case 'fecha_inicio':
-        case 'fecha_fin': return '01/01/2024';
-        case 'email': return 'usuario@empresa.com';
-        case 'nombre_completo': return 'Juan Pérez';
-        case 'rol': return 'empleado';
-        default: return 'Ejemplo';
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to download template');
       }
-    }).join(',');
 
-    const csvContent = `${headers}\n${exampleRow}`;
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `plantilla_${type}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plantilla_${type}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading template:', error);
+      alert(`Error al descargar la plantilla: ${error.message}`);
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -306,18 +308,39 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
                         </Badge>
                       ))}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadTemplate(format.type);
-                      }}
-                      disabled={format.restricted}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Plantilla
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={format.restricted}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Plantilla
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadTemplate(format.type, 'csv');
+                          }}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Descargar CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadTemplate(format.type, 'xlsx');
+                          }}
+                        >
+                          <Table className="h-4 w-4 mr-2" />
+                          Descargar Excel
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </div>

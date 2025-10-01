@@ -1,7 +1,7 @@
 ---
 created: 2025-10-01T09:07:54Z
-last_updated: 2025-10-01T09:07:54Z
-version: 1.0
+last_updated: 2025-10-01T11:14:27Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -113,7 +113,8 @@ Activities (Operational)
 **Capabilities**:
 - Bulk objective import
 - Data validation during import
-- Role-based import permissions
+- Role-based import permissions (Corporate and Manager only)
+- Employee restriction enforced (API + UI)
 - Error reporting
 - Template downloads
 
@@ -123,8 +124,14 @@ Activities (Operational)
 2. Domain whitelist verification
 3. Role assignment
 4. Company association
-5. Setup wizard
-6. Pending approval (if required)
+5. Organization creation with AI-enhanced description
+6. Setup wizard
+7. Pending approval (if required)
+
+**AI Features**:
+- Organization description enhancement
+- Uses AI to refine and expand user-written descriptions
+- Contextual improvements based on organization name
 
 ### 7. Multi-tenant Architecture
 **Isolation**: Company-based (company_id)
@@ -294,3 +301,6 @@ Activities (Operational)
 - Spanish-speaking markets (LATAM, Spain)
 - Teams transitioning from spreadsheets
 - Companies wanting modern OKR tools without enterprise complexity
+
+## Update History
+- 2025-10-01T11:14:27Z: Added employee import restrictions and AI-powered organization description enhancement to onboarding flow

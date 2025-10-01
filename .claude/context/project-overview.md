@@ -1,7 +1,7 @@
 ---
 created: 2025-10-01T09:07:54Z
-last_updated: 2025-10-01T09:07:54Z
-version: 1.0
+last_updated: 2025-10-01T11:14:27Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -129,21 +129,27 @@ Activities (Individual Task Level)
 - Data type validation
 - Date format verification
 - Reference integrity (foreign keys)
-- Role-based permission check
+- Role-based permission check (Corporate and Manager only)
+- Employee access restriction (enforced at API and UI level)
 
 **Features**:
 - Template download
 - Error reporting with line numbers
 - Partial import on errors
 - Transaction rollback on failure
+- Role-based UI restrictions
 
-### 6. AI Integration 🔄
+### 6. AI Integration ✅
 
-**Status**: Partial (infrastructure ready)
+**Status**: Partial (some features complete)
 **Providers**:
 - Anthropic Claude (primary)
 - OpenAI GPT models (alternative)
 - Vercel AI Gateway (routing)
+
+**Active Features**:
+- ✅ Organization description enhancement (onboarding)
+- ✅ Text improvement API (`/api/ai/enhance-text`)
 
 **Planned Features**:
 - Daily insights based on user role
@@ -156,7 +162,8 @@ Activities (Individual Task Level)
 - SDKs installed (@ai-sdk/anthropic, @ai-sdk/openai)
 - AI Gateway configured
 - UI components ready (`components/ai/`)
-- Backend integration pending
+- Text enhancement API operational
+- Additional backend integrations pending
 
 ### 7. User Onboarding Flow ✅
 
@@ -171,11 +178,12 @@ Email Invitation → Domain Check → Signup → Pending Approval → Setup Wiza
 1. **Invitation**: Admin invites via email
 2. **Signup**: User creates account with Stack Auth
 3. **Domain Validation**: Email domain checked against whitelist
-4. **Pending Approval**: Admin reviews and approves
-5. **Role Assignment**: Admin assigns role (Corporate/Manager/Employee)
-6. **Company Association**: User linked to company
-7. **Setup Wizard**: Initial profile and preferences
-8. **Dashboard Access**: Full access granted
+4. **Organization Creation**: Create company with AI-enhanced description
+5. **Pending Approval**: Admin reviews and approves
+6. **Role Assignment**: Admin assigns role (Corporate/Manager/Employee)
+7. **Company Association**: User linked to company
+8. **Setup Wizard**: Initial profile and preferences
+9. **Dashboard Access**: Full access granted
 
 **Components**:
 - `app/invite/` - Invitation pages
@@ -408,3 +416,6 @@ npm run dev
 - [NeonDB Docs](https://neon.tech/docs)
 - [Drizzle ORM Docs](https://orm.drizzle.team)
 - [Shadcn/ui Docs](https://ui.shadcn.com)
+
+## Update History
+- 2025-10-01T11:14:27Z: Updated import system with employee restrictions, added AI description enhancement to onboarding flow, updated AI integration status
