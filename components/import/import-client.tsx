@@ -210,7 +210,13 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
 
   const downloadTemplate = async (type: string, format: 'csv' | 'xlsx' = 'csv') => {
     try {
-      const response = await fetch(`/api/templates?type=${type}&format=${format}`);
+      const response = await fetch(`/api/templates?type=${type}&format=${format}`, {
+        method: 'GET',
+        credentials: 'include', // Importante: incluir las cookies de autenticación
+        headers: {
+          'Accept': format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -221,8 +227,21 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `plantilla_${type}.${format}`;
+
+      // Obtener el nombre del archivo desde los headers si está disponible
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = `plantilla_${type}.${format}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a); // Necesario para Firefox
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error('Error downloading template:', error);
