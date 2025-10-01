@@ -16,15 +16,19 @@ if (!projectId || !publishableClientKey || !secretServerKey) {
   console.error('Application will redirect to signup for all requests');
 }
 
-// Determine base URL for the application
+// Determine base URL for the application - flexible for any domain
 const getBaseUrl = () => {
+  // Use explicit configuration if available
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL;
   }
+
+  // Development environment
   if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000';
+    return 'http://localhost:3001';
   }
-  // Production URL for ai-innovation.site
+
+  // Production - return a generic base that Stack Auth will handle dynamically
   return 'https://www.ai-innovation.site';
 };
 

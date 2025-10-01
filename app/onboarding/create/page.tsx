@@ -110,6 +110,13 @@ export default function CreateOrganizationPage() {
         throw new Error(data.error || 'Failed to create organization');
       }
 
+      // Check if user already has an organization
+      if (data.alreadyExists) {
+        toast.info('You already have an organization. Redirecting...');
+        router.push('/tools');
+        return;
+      }
+
       toast.success('Organization created successfully!');
 
       // Redirect to tools

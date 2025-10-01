@@ -88,6 +88,15 @@ export async function generateOrganizationSlug(name: string): Promise<string> {
 export async function createOrganization(input: CreateOrganizationInput) {
   const { name, slug, creatorUserId, creatorEmail, creatorFullName } = input;
 
+  // Check if user already has a profile
+  const existingProfile = await db.query.profiles.findFirst({
+    where: eq(profiles.id, creatorUserId),
+  });
+
+  if (existingProfile) {
+    throw new Error('User already has a profile and organization');
+  }
+
   // Verify slug is available
   const existingOrg = await db.query.companies.findFirst({
     where: eq(companies.slug, slug),

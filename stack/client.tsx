@@ -13,15 +13,24 @@ if (!publishableClientKey) {
   console.error('Missing NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY environment variable');
 }
 
-// Determine base URL for the application
+// Determine base URL for the application - use dynamic detection
 const getBaseUrl = () => {
+  // Always use window location in browser for maximum flexibility
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+
+  // Check for explicit URL configuration for SSR
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL;
   }
+
+  // Development fallback
   if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000';
+    return 'http://localhost:3001';
   }
-  // Production URL for ai-innovation.site
+
+  // Production fallback
   return 'https://www.ai-innovation.site';
 };
 
@@ -35,4 +44,8 @@ export const stackClientApp = new StackClientApp({
   },
   projectId: projectId || '',
   publishableClientKey: publishableClientKey || '',
+  // Enable automatic sign-in for existing users
+  emailConfig: {
+    type: 'standard',
+  },
 });
