@@ -1,7 +1,7 @@
 ---
 created: 2025-09-29T04:50:25Z
-last_updated: 2025-10-01T02:58:50Z
-version: 1.1
+last_updated: 2025-10-01T05:25:53Z
+version: 1.2
 author: Claude Code PM System
 ---
 
@@ -61,22 +61,102 @@ const results = await db.select().from(table).where(eq(table.id, userId));
 // Note: Row-Level Security policies automatically filter by tenant_id
 ```
 
-### Multi-Tenant Pattern (Row-Level Security)
-Tenant isolation using PostgreSQL RLS:
+### Service Layer Pattern (Real Data Infrastructure)
+Centralized data access with RLS context management:
 
 ```typescript
-// Pattern: Setting tenant context for RLS
-await sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
+// Pattern: Service function with RLS context wrapper
+import { withRLSContext } from '@/lib/database/rls-client';
+import { objectives } from '@/db/okr-schema';
 
-// Pattern: All subsequent queries automatically filtered by tenant
-const data = await db.select().from(objectives);
-// Returns only data for current tenant due to RLS policies
+export async function getObjectivesForPage(userId: string) {
+  return withRLSContext(userId, async (db) => {
+    return await db
+      .select({
+        id: objectives.id,
+        title: objectives.title,
+        // ... other fields
+      })
+      .from(objectives)
+      .orderBy(objectives.createdAt);
+  });
+}
 
-// Pattern: Organization service for tenant operations
-import { OrganizationService } from '@/lib/organization/organization-service';
-const orgService = new OrganizationService();
-const org = await orgService.getOrganization(orgId);
+// Pattern: Page component usage
+import { getObjectivesForPage } from '@/lib/services/objectives-service';
+
+export default async function ObjectivesPage() {
+  const user = await stackServerApp.getUser({ or: 'redirect' });
+  const objectives = await getObjectivesForPage(user.id);
+
+  return <ObjectivesView objectives={objectives} />;
+}
 ```
+
+**Service Layer Architecture:**
+- All database queries go through service functions
+- Services use `withRLSContext()` wrapper for tenant isolation
+- Type-safe queries with Drizzle ORM
+- Services located in `lib/services/` directory
+- One service per domain (analytics, objectives, initiatives, activities)
+
+**RLS Context Wrapper Implementation:**
+```typescript
+// lib/database/rls-client.ts
+export async function withRLSContext<T>(
+  userId: string,
+  callback: (db: ReturnType<typeof getDb>) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    // Set user context for RLS policies
+    await client.query(
+      'SELECT set_config($1, $2, false)',
+      ['app.current_user_id', userId]
+    );
+
+    // Execute callback with RLS-enabled database connection
+    const db = drizzle(client, { schema });
+    return await callback(db);
+  } finally {
+    client.release();
+  }
+}
+```
+
+### Multi-Tenant Pattern (Row-Level Security)
+Tenant isolation using PostgreSQL RLS policies:
+
+```typescript
+// Pattern: PostgreSQL RLS function for tenant resolution
+CREATE OR REPLACE FUNCTION get_current_tenant_id()
+RETURNS UUID AS $$
+BEGIN
+  RETURN (
+    SELECT tenant_id
+    FROM neon_auth.users_sync
+    WHERE id = current_setting('app.current_user_id', true)::text
+  );
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+// Pattern: RLS policy on tenant-scoped table
+CREATE POLICY "Tenant isolation for SELECT"
+ON objectives FOR SELECT
+USING (tenant_id = get_current_tenant_id());
+
+// Pattern: All queries automatically filtered by tenant
+// No need to add WHERE tenant_id = ... in application code
+const objectives = await db.select().from(objectives);
+// RLS policies ensure only current tenant's data is returned
+```
+
+**RLS Policy Coverage:**
+- 7 tenant-scoped tables with complete RLS policies
+- 4 operations per table: SELECT, INSERT, UPDATE, DELETE
+- Automatic tenant filtering at database level
+- Zero trust architecture - application cannot bypass policies
+- ⚠️ Critical: Current role has BYPASSRLS privilege (requires fix)
 
 ## Component Patterns
 

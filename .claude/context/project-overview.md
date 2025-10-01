@@ -1,7 +1,7 @@
 ---
 created: 2025-09-29T04:50:25Z
-last_updated: 2025-10-01T02:58:50Z
-version: 1.1
+last_updated: 2025-10-01T05:25:53Z
+version: 1.2
 author: Claude Code PM System
 ---
 
@@ -59,26 +59,38 @@ StratixV2 is a modern, secure OKR (Objectives and Key Results) management platfo
 - shadcn/ui component library with Tailwind CSS
 - Responsive design for desktop and mobile access
 - Dark/light theme support
+- 5/6 pages using real data infrastructure (83% migrated)
 
 **Authentication System:**
 - Stack Auth integration for user management
 - Neon Auth for database-backed profiles
 - JWT token-based session management
 - Multi-provider authentication (Google, GitHub, email)
+- Role-based access control (Corporate, Gerente, Empleado)
 
 **Database Infrastructure:**
 - NeonDB serverless PostgreSQL 17.5
 - Drizzle ORM for type-safe database operations
 - Row Level Security (RLS) for multi-tenant data isolation
 - Automated migration system with Drizzle Kit
-- Complete RLS policy coverage across all tables
-- Tenant context management for secure data access
+- Complete RLS policy coverage across 7 tenant-scoped tables
+- Tenant context management via `withRLSContext()` wrapper
+- ⚠️ Critical: RLS bypass vulnerability requires immediate fix
+
+**Service Layer Architecture:**
+- Centralized data access in `lib/services/` directory
+- Type-safe service functions with Drizzle ORM
+- RLS context wrapper for all database queries
+- 4 service modules: analytics, objectives, initiatives, activities
+- 24 exported functions for comprehensive data operations
+- Full TypeScript strict mode with inferred types
 
 **API Layer:**
 - RESTful API endpoints for all major operations
 - Server-side validation with Zod schemas
 - Error handling and logging
 - Rate limiting and security headers
+- Onboarding and invitation endpoints
 
 ### Integration Points
 
@@ -94,6 +106,8 @@ StratixV2 is a modern, secure OKR (Objectives and Key Results) management platfo
 - `/api/activities` - Activity tracking and updates
 - `/api/profiles` - User profile and role management
 - `/api/analytics` - Performance data and reporting
+- `/api/onboarding/*` - Organization onboarding workflow
+- `/api/invitations/*` - Team invitation management
 
 ### Data Architecture
 
