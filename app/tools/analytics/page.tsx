@@ -14,46 +14,33 @@ import {
   Download,
   Filter
 } from 'lucide-react';
+import {
+  getOKRDashboardStats,
+  getDepartmentProgress,
+  getTopPerformers,
+  getUpcomingDeadlines,
+  getCompletionTrends,
+} from '@/lib/services/analytics-service';
 
 export default async function AnalyticsPage() {
   const user = await stackServerApp.getUser({ or: 'redirect' });
 
-  // TODO: Implementar queries para obtener datos reales de la base de datos
-  const analytics = {
-    overview: {
-      totalObjectives: 12,
-      completedObjectives: 4,
-      activeInitiatives: 24,
-      completedActivities: 156,
-      overallProgress: 68,
-      previousMonthProgress: 52,
-    },
-    departmentProgress: [
-      { department: 'Ventas', progress: 85, target: 90, trend: 'up' },
-      { department: 'Marketing', progress: 72, target: 80, trend: 'up' },
-      { department: 'Desarrollo', progress: 45, target: 70, trend: 'down' },
-      { department: 'Operaciones', progress: 90, target: 85, trend: 'up' },
-      { department: 'Finanzas', progress: 60, target: 75, trend: 'neutral' },
-    ],
-    monthlyTrends: [
-      { month: 'Oct', objectives: 8, initiatives: 18, activities: 95 },
-      { month: 'Nov', objectives: 10, initiatives: 21, activities: 124 },
-      { month: 'Dic', objectives: 11, initiatives: 23, activities: 142 },
-      { month: 'Ene', objectives: 12, initiatives: 24, activities: 156 },
-    ],
-    topPerformers: [
-      { name: 'María García', completed: 12, department: 'Ventas' },
-      { name: 'Carlos López', completed: 10, department: 'IT' },
-      { name: 'Ana Torres', completed: 8, department: 'Marketing' },
-      { name: 'Luis Herrera', completed: 7, department: 'Operaciones' },
-    ],
-    upcomingDeadlines: [
-      { title: 'Lanzar nueva funcionalidad', daysLeft: 15, progress: 78 },
-      { title: 'Completar migración', daysLeft: 23, progress: 45 },
-      { title: 'Campaña Q1', daysLeft: 31, progress: 90 },
-      { title: 'Certificación ISO', daysLeft: 45, progress: 34 },
-    ]
-  };
+  // Fetch all analytics data from database
+  const [dashboardStats, departmentProgress, topPerformers, upcomingDeadlines, completionTrends] =
+    await Promise.all([
+      getOKRDashboardStats(user.id),
+      getDepartmentProgress(user.id),
+      getTopPerformers(user.id, 5),
+      getUpcomingDeadlines(user.id, 30),
+      getCompletionTrends(user.id, 6),
+    ]);
+
+  // Calculate completion rate for each department and determine trend
+  const departmentsWithTrend = departmentProgress.map((dept) => {
+    const targetRate = 75; // Target completion rate
+    const trend = dept.completionRate >= targetRate ? 'up' : dept.completionRate >= targetRate * 0.8 ? 'neutral' : 'down';
+    return { ...dept, trend, targetRate };
+  });
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -108,9 +95,9 @@ export default async function AnalyticsPage() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.overview.totalObjectives}</div>
+            <div className="text-2xl font-bold">{dashboardStats.totalObjectives}</div>
             <p className="text-xs text-muted-foreground">
-              {analytics.overview.completedObjectives} completados
+              {dashboardStats.completedObjectives} completados
             </p>
           </CardContent>
         </Card>
@@ -121,9 +108,9 @@ export default async function AnalyticsPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.overview.overallProgress}%</div>
-            <p className="text-xs text-green-600">
-              +{analytics.overview.overallProgress - analytics.overview.previousMonthProgress}% vs mes anterior
+            <div className="text-2xl font-bold">{dashboardStats.overallProgress}%</div>
+            <p className="text-xs text-muted-foreground">
+              Promedio OKR
             </p>
           </CardContent>
         </Card>
@@ -134,9 +121,9 @@ export default async function AnalyticsPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.overview.activeInitiatives}</div>
+            <div className="text-2xl font-bold">{dashboardStats.activeInitiatives}</div>
             <p className="text-xs text-muted-foreground">
-              Activas este mes
+              Activas ahora
             </p>
           </CardContent>
         </Card>
@@ -147,7 +134,7 @@ export default async function AnalyticsPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.overview.completedActivities}</div>
+            <div className="text-2xl font-bold">{dashboardStats.completedActivities}</div>
             <p className="text-xs text-muted-foreground">
               Completadas
             </p>
@@ -161,7 +148,9 @@ export default async function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round((analytics.overview.completedObjectives / analytics.overview.totalObjectives) * 100)}%
+              {dashboardStats.totalObjectives > 0
+                ? Math.round((dashboardStats.completedObjectives / dashboardStats.totalObjectives) * 100)
+                : 0}%
             </div>
             <p className="text-xs text-muted-foreground">
               Objetivos logrados
@@ -175,7 +164,7 @@ export default async function AnalyticsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.departmentProgress.length}</div>
+            <div className="text-2xl font-bold">{departmentProgress.length}</div>
             <p className="text-xs text-muted-foreground">
               Departamentos activos
             </p>
@@ -193,26 +182,33 @@ export default async function AnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {analytics.departmentProgress.map((dept) => (
-                <div key={dept.department} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">{dept.department}</span>
-                      {getTrendIcon(dept.trend)}
+            {departmentsWithTrend.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No hay datos de departamentos todavía</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {departmentsWithTrend.map((dept) => (
+                  <div key={dept.departmentName} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{dept.departmentName}</span>
+                        {getTrendIcon(dept.trend)}
+                      </div>
+                      <span className={getTrendColor(dept.trend)}>
+                        {dept.completionRate}% / {dept.targetRate}%
+                      </span>
                     </div>
-                    <span className={getTrendColor(dept.trend)}>
-                      {dept.progress}% / {dept.target}%
-                    </span>
+                    <Progress value={dept.completionRate} className="h-2" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Completados: {dept.completedObjectives} de {dept.totalObjectives}</span>
+                      <span>Meta: {dept.targetRate}%</span>
+                    </div>
                   </div>
-                  <Progress value={dept.progress} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Actual: {dept.progress}%</span>
-                    <span>Meta: {dept.target}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -221,28 +217,37 @@ export default async function AnalyticsPage() {
           <CardHeader>
             <CardTitle>Top Performers</CardTitle>
             <CardDescription>
-              Colaboradores con mejor rendimiento este mes
+              Colaboradores con mejor rendimiento
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {analytics.topPerformers.map((performer, index) => (
-                <div key={performer.name} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                      {index + 1}
+            {topPerformers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No hay datos de rendimiento todavía</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {topPerformers.map((performer, index) => (
+                  <div key={performer.userId} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium">{performer.userName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {performer.activeCount} activas
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{performer.name}</p>
-                      <p className="text-sm text-muted-foreground">{performer.department}</p>
-                    </div>
+                    <Badge variant="secondary">
+                      {performer.completedCount} completadas
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">
-                    {performer.completed} completadas
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -253,26 +258,33 @@ export default async function AnalyticsPage() {
           <CardHeader>
             <CardTitle>Tendencias Mensuales</CardTitle>
             <CardDescription>
-              Evolución de objetivos, iniciativas y actividades
+              Evolución de objetivos, iniciativas y actividades completados
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-4 gap-4 text-center">
-                <div className="text-sm font-medium text-muted-foreground">Mes</div>
-                <div className="text-sm font-medium text-muted-foreground">Objetivos</div>
-                <div className="text-sm font-medium text-muted-foreground">Iniciativas</div>
-                <div className="text-sm font-medium text-muted-foreground">Actividades</div>
+            {completionTrends.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No hay datos de tendencias todavía</p>
               </div>
-              {analytics.monthlyTrends.map((trend) => (
-                <div key={trend.month} className="grid grid-cols-4 gap-4 text-center">
-                  <div className="font-medium">{trend.month}</div>
-                  <div>{trend.objectives}</div>
-                  <div>{trend.initiatives}</div>
-                  <div>{trend.activities}</div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 gap-4 text-center">
+                  <div className="text-sm font-medium text-muted-foreground">Mes</div>
+                  <div className="text-sm font-medium text-muted-foreground">Objetivos</div>
+                  <div className="text-sm font-medium text-muted-foreground">Iniciativas</div>
+                  <div className="text-sm font-medium text-muted-foreground">Actividades</div>
                 </div>
-              ))}
-            </div>
+                {completionTrends.map((trend) => (
+                  <div key={trend.month} className="grid grid-cols-4 gap-4 text-center">
+                    <div className="font-medium">{trend.month}</div>
+                    <div>{trend.completedObjectives}</div>
+                    <div>{trend.completedInitiatives}</div>
+                    <div>{trend.completedActivities}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -281,27 +293,54 @@ export default async function AnalyticsPage() {
           <CardHeader>
             <CardTitle>Próximos Vencimientos</CardTitle>
             <CardDescription>
-              Objetivos e iniciativas con fechas límite cercanas
+              Objetivos e iniciativas con fechas límite cercanas (30 días)
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {analytics.upcomingDeadlines.map((item) => (
-                <div key={item.title} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{item.title}</span>
-                    <Badge variant={item.daysLeft <= 20 ? "destructive" : "secondary"}>
-                      {item.daysLeft} días
-                    </Badge>
+            {upcomingDeadlines.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No hay vencimientos próximos</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {upcomingDeadlines.slice(0, 5).map((item) => (
+                  <div key={item.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.type === 'objective' && 'Objetivo'}
+                          {item.type === 'initiative' && 'Iniciativa'}
+                          {item.type === 'activity' && 'Actividad'}
+                          {item.assigneeName && ` • ${item.assigneeName}`}
+                        </p>
+                      </div>
+                      <Badge variant={item.daysRemaining <= 7 ? "destructive" : "secondary"}>
+                        {item.daysRemaining} día{item.daysRemaining !== 1 && 's'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className={
+                          item.priority === 'high' ? 'text-red-600 border-red-600' :
+                          item.priority === 'medium' ? 'text-yellow-600 border-yellow-600' :
+                          'text-gray-600 border-gray-600'
+                        }
+                      >
+                        {item.priority === 'high' && 'Alta'}
+                        {item.priority === 'medium' && 'Media'}
+                        {item.priority === 'low' && 'Baja'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Vence: {item.dueDate.toLocaleDateString('es-ES')}
+                      </span>
+                    </div>
                   </div>
-                  <Progress value={item.progress} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Progreso: {item.progress}%</span>
-                    <span>Vence en {item.daysLeft} días</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

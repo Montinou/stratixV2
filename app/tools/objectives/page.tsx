@@ -4,58 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Plus, Target, Calendar, User, TrendingUp } from 'lucide-react';
+import { getObjectivesForPage, getObjectiveStats } from '@/lib/services/objectives-service';
 
 export default async function ObjectivesPage() {
   const user = await stackServerApp.getUser({ or: 'redirect' });
 
-  // TODO: Implementar queries para obtener objetivos reales de la base de datos
-  const objectives = [
-    {
-      id: '1',
-      title: 'Aumentar la satisfacción del cliente',
-      description: 'Mejorar la experiencia del cliente a través de diversos canales',
-      department: 'Ventas',
-      status: 'in_progress',
-      priority: 'high',
-      progress: 75,
-      targetValue: 90,
-      currentValue: 67.5,
-      unit: '%',
-      startDate: '2024-01-01',
-      endDate: '2024-03-31',
-      assignedTo: 'María García',
-    },
-    {
-      id: '2',
-      title: 'Reducir tiempo de respuesta',
-      description: 'Optimizar procesos para mejorar tiempos de respuesta',
-      department: 'Operaciones',
-      status: 'in_progress',
-      priority: 'medium',
-      progress: 45,
-      targetValue: 24,
-      currentValue: 36,
-      unit: 'horas',
-      startDate: '2024-01-15',
-      endDate: '2024-04-15',
-      assignedTo: 'Juan Pérez',
-    },
-    {
-      id: '3',
-      title: 'Lanzar nueva funcionalidad',
-      description: 'Desarrollar e implementar nueva funcionalidad del producto',
-      department: 'Desarrollo',
-      status: 'draft',
-      priority: 'high',
-      progress: 10,
-      targetValue: 1,
-      currentValue: 0,
-      unit: 'lanzamiento',
-      startDate: '2024-02-01',
-      endDate: '2024-06-30',
-      assignedTo: 'Ana Rodríguez',
-    },
-  ];
+  // Fetch real data from database
+  const objectives = await getObjectivesForPage(user.id);
+  const stats = await getObjectiveStats(user.id);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -138,7 +94,7 @@ export default async function ObjectivesPage() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{objectives.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
               Objetivos activos
             </p>
@@ -151,9 +107,7 @@ export default async function ObjectivesPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {objectives.filter(obj => obj.status === 'in_progress').length}
-            </div>
+            <div className="text-2xl font-bold">{stats.active}</div>
             <p className="text-xs text-muted-foreground">
               Actualmente trabajando
             </p>
@@ -167,7 +121,7 @@ export default async function ObjectivesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(objectives.reduce((acc, obj) => acc + obj.progress, 0) / objectives.length)}%
+              {stats.total > 0 ? stats.averageProgress : 0}%
             </div>
             <p className="text-xs text-muted-foreground">
               De todos los objetivos
@@ -181,9 +135,7 @@ export default async function ObjectivesPage() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {objectives.filter(obj => obj.priority === 'high').length}
-            </div>
+            <div className="text-2xl font-bold">{stats.highPriority}</div>
             <p className="text-xs text-muted-foreground">
               Requieren atención
             </p>
@@ -192,61 +144,73 @@ export default async function ObjectivesPage() {
       </div>
 
       {/* Lista de objetivos */}
-      <div className="space-y-4">
-        {objectives.map((objective) => (
-          <Card key={objective.id} className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg">{objective.title}</CardTitle>
-                  <CardDescription>{objective.description}</CardDescription>
-                </div>
-                <div className="flex space-x-2">
-                  <Badge className={getStatusColor(objective.status)}>
-                    {getStatusLabel(objective.status)}
-                  </Badge>
-                  <Badge className={getPriorityColor(objective.priority)}>
-                    {getPriorityLabel(objective.priority)}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Progreso */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progreso</span>
-                    <span>{objective.progress}%</span>
-                  </div>
-                  <Progress value={objective.progress} className="h-2" />
-                </div>
+      {objectives.length > 0 ? (
+        <div className="space-y-4">
+          {objectives.map((objective) => {
+            const progress = objective.progressPercentage
+              ? Math.round(parseFloat(objective.progressPercentage))
+              : 0;
 
-                {/* Métricas */}
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <Target className="h-4 w-4" />
-                      <span>{objective.currentValue}/{objective.targetValue} {objective.unit}</span>
+            return (
+              <Card key={objective.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{objective.title}</CardTitle>
+                      <CardDescription>{objective.description}</CardDescription>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <User className="h-4 w-4" />
-                      <span>{objective.assignedTo}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{new Date(objective.endDate).toLocaleDateString('es-ES')}</span>
+                    <div className="flex space-x-2">
+                      <Badge className={getStatusColor(objective.status)}>
+                        {getStatusLabel(objective.status)}
+                      </Badge>
+                      <Badge className={getPriorityColor(objective.priority)}>
+                        {getPriorityLabel(objective.priority)}
+                      </Badge>
                     </div>
                   </div>
-                  <Badge variant="outline">{objective.department}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Progreso */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Progreso</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                    </div>
 
-      {objectives.length === 0 && (
+                    {/* Métricas */}
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <div className="flex items-center space-x-4">
+                        {objective.targetValue && objective.currentValue && objective.unit && (
+                          <div className="flex items-center space-x-1">
+                            <Target className="h-4 w-4" />
+                            <span>
+                              {objective.currentValue}/{objective.targetValue} {objective.unit}
+                            </span>
+                          </div>
+                        )}
+                        {objective.assignedToName && (
+                          <div className="flex items-center space-x-1">
+                            <User className="h-4 w-4" />
+                            <span>{objective.assignedToName}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>{new Date(objective.endDate).toLocaleDateString('es-ES')}</span>
+                        </div>
+                      </div>
+                      <Badge variant="outline">{objective.department}</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Target className="h-12 w-12 text-muted-foreground mb-4" />
