@@ -219,22 +219,48 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to download template');
+        let errorMessage = 'Error al descargar la plantilla';
+        try {
+          const error = await response.json();
+          errorMessage = error.error || errorMessage;
+        } catch {
+          // Si no se puede parsear el JSON, usar el mensaje por defecto
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
+
+      // Verificar que realmente obtuvimos un archivo y no un JSON de error
+      if (blob.type === 'application/json') {
+        const text = await blob.text();
+        try {
+          const error = JSON.parse(text);
+          throw new Error(error.error || 'Error al descargar la plantilla');
+        } catch {
+          throw new Error('Error al descargar la plantilla');
+        }
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
 
       // Obtener el nombre del archivo desde los headers si está disponible
       const contentDisposition = response.headers.get('content-disposition');
-      let filename = `plantilla_${type}.${format}`;
+      let filename = `plantilla_${type}_${new Date().toISOString().split('T')[0]}.${format}`;
+
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
+        // Buscar filename*= primero (UTF-8 encoded)
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''(.+?)(?:;|$)/);
+        if (utf8Match) {
+          filename = decodeURIComponent(utf8Match[1]);
+        } else {
+          // Fallback a filename= regular
+          const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
         }
       }
 
@@ -243,6 +269,8 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      console.log(`Template downloaded successfully: ${filename}`);
     } catch (error: any) {
       console.error('Error downloading template:', error);
       alert(`Error al descargar la plantilla: ${error.message}`);

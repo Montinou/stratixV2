@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stackServerApp } from '@/stack/server';
+import { getSafeUser } from '@/lib/stack-auth';
 import { ImportService } from '@/lib/services/import-service';
 import { TemplateService, TemplateType, TemplateFormat } from '@/lib/services/template-service';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if user is authenticated
-    const user = await stackServerApp.getUser();
+    // Check if user is authenticated using safe wrapper
+    const user = await getSafeUser();
 
     if (!user) {
+      console.error('Template download failed: User not authenticated');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -67,10 +68,10 @@ export async function GET(request: NextRequest) {
     let fileName: string;
 
     if (format === 'csv') {
-      contentType = 'text/csv';
+      contentType = 'text/csv; charset=utf-8';
       fileName = `plantilla_${type}_${new Date().toISOString().split('T')[0]}.csv`;
       headers['Content-Type'] = contentType;
-      headers['Content-Disposition'] = `attachment; filename="${fileName}"`;
+      headers['Content-Disposition'] = `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
       headers['Content-Encoding'] = 'UTF-8';
 
       // Add BOM for proper Excel UTF-8 recognition
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       fileName = `plantilla_${type}_${new Date().toISOString().split('T')[0]}.xlsx`;
       headers['Content-Type'] = contentType;
-      headers['Content-Disposition'] = `attachment; filename="${fileName}"`;
+      headers['Content-Disposition'] = `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 
       return new NextResponse(templateContent as Buffer, {
         status: 200,
@@ -104,10 +105,11 @@ export async function GET(request: NextRequest) {
 // Endpoint to get template metadata
 export async function POST(request: NextRequest) {
   try {
-    // Check if user is authenticated
-    const user = await stackServerApp.getUser();
+    // Check if user is authenticated using safe wrapper
+    const user = await getSafeUser();
 
     if (!user) {
+      console.error('Template metadata request failed: User not authenticated');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
