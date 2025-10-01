@@ -7,12 +7,31 @@ import { Plus, Rocket, Calendar, User, DollarSign, Target } from 'lucide-react';
 import { getInitiativesForPage, getInitiativeStats } from '@/lib/services/initiatives-service';
 
 export default async function InitiativesPage() {
-  const user = await stackServerApp.getUser({ or: 'redirect' });
+  let user;
+  let initiatives = [];
+  let stats = {
+    total: 0,
+    active: 0,
+    totalBudget: 0,
+    averageProgress: 0
+  };
 
-  const [initiatives, stats] = await Promise.all([
-    getInitiativesForPage(user.id),
-    getInitiativeStats(user.id),
-  ]);
+  try {
+    user = await stackServerApp.getUser({ or: 'redirect' });
+
+    if (!user || !user.id) {
+      throw new Error('User authentication failed');
+    }
+
+    [initiatives, stats] = await Promise.all([
+      getInitiativesForPage(user.id),
+      getInitiativeStats(user.id),
+    ]);
+  } catch (error) {
+    console.error('Error loading initiatives:', error);
+    // Re-throw to trigger error boundary
+    throw error;
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
