@@ -11,6 +11,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user's company_id from profile
+    const profile = await sql`
+      SELECT company_id FROM profiles WHERE id = ${user.id}
+    `;
+
+    if (!profile[0]?.company_id) {
+      return NextResponse.json({ error: 'User not associated with a company' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const initiativeId = searchParams.get('initiativeId');
 
@@ -19,24 +28,24 @@ export async function GET(request: NextRequest) {
       activities = await sql`
         SELECT
           a.*,
-          p.display_name as owner_name,
+          p.full_name as owner_name,
           i.title as initiative_title
         FROM activities a
         LEFT JOIN profiles p ON a.owner_id = p.id
         LEFT JOIN initiatives i ON a.initiative_id = i.id
-        WHERE a.initiative_id = ${initiativeId}
+        WHERE a.initiative_id = ${initiativeId} AND a.company_id = ${profile[0].company_id}
         ORDER BY a.created_at DESC
       `;
     } else {
       activities = await sql`
         SELECT
           a.*,
-          p.display_name as owner_name,
+          p.full_name as owner_name,
           i.title as initiative_title
         FROM activities a
         LEFT JOIN profiles p ON a.owner_id = p.id
         LEFT JOIN initiatives i ON a.initiative_id = i.id
-        WHERE a.owner_id = ${user.id}
+        WHERE a.company_id = ${profile[0].company_id}
         ORDER BY a.created_at DESC
       `;
     }
@@ -63,8 +72,12 @@ export async function POST(request: NextRequest) {
 
     // Get user's company_id from profile
     const profile = await sql`
-      SELECT company_id, tenant_id FROM profiles WHERE id = ${user.id}
+      SELECT company_id FROM profiles WHERE id = ${user.id}
     `;
+
+    if (!profile[0]?.company_id) {
+      return NextResponse.json({ error: 'User not associated with a company' }, { status: 403 });
+    }
 
     const activity = await sql`
       INSERT INTO activities (
@@ -76,8 +89,7 @@ export async function POST(request: NextRequest) {
         progress,
         start_date,
         end_date,
-        company_id,
-        tenant_id
+        company_id
       )
       VALUES (
         ${title},
@@ -88,8 +100,7 @@ export async function POST(request: NextRequest) {
         ${progress || 0},
         ${start_date},
         ${end_date},
-        ${profile[0]?.company_id || null},
-        ${profile[0]?.tenant_id || null}
+        ${profile[0].company_id}
       )
       RETURNING *
     `;

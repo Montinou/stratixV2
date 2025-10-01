@@ -11,6 +11,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user's company_id from profile
+    const profile = await sql`
+      SELECT company_id FROM profiles WHERE id = ${user.id}
+    `;
+
+    if (!profile[0]?.company_id) {
+      return NextResponse.json({ error: 'User not associated with a company' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const objectiveId = searchParams.get('objectiveId');
 
@@ -19,30 +28,30 @@ export async function GET(request: NextRequest) {
       initiatives = await sql`
         SELECT
           i.*,
-          p.display_name as owner_name,
+          p.full_name as owner_name,
           o.title as objective_title,
           COUNT(DISTINCT a.id) as activity_count
         FROM initiatives i
         LEFT JOIN profiles p ON i.owner_id = p.id
         LEFT JOIN objectives o ON i.objective_id = o.id
         LEFT JOIN activities a ON a.initiative_id = i.id
-        WHERE i.objective_id = ${objectiveId}
-        GROUP BY i.id, p.display_name, o.title
+        WHERE i.objective_id = ${objectiveId} AND i.company_id = ${profile[0].company_id}
+        GROUP BY i.id, p.full_name, o.title
         ORDER BY i.created_at DESC
       `;
     } else {
       initiatives = await sql`
         SELECT
           i.*,
-          p.display_name as owner_name,
+          p.full_name as owner_name,
           o.title as objective_title,
           COUNT(DISTINCT a.id) as activity_count
         FROM initiatives i
         LEFT JOIN profiles p ON i.owner_id = p.id
         LEFT JOIN objectives o ON i.objective_id = o.id
         LEFT JOIN activities a ON a.initiative_id = i.id
-        WHERE i.owner_id = ${user.id}
-        GROUP BY i.id, p.display_name, o.title
+        WHERE i.company_id = ${profile[0].company_id}
+        GROUP BY i.id, p.full_name, o.title
         ORDER BY i.created_at DESC
       `;
     }
@@ -69,8 +78,12 @@ export async function POST(request: NextRequest) {
 
     // Get user's company_id from profile
     const profile = await sql`
-      SELECT company_id, tenant_id FROM profiles WHERE id = ${user.id}
+      SELECT company_id FROM profiles WHERE id = ${user.id}
     `;
+
+    if (!profile[0]?.company_id) {
+      return NextResponse.json({ error: 'User not associated with a company' }, { status: 403 });
+    }
 
     const initiative = await sql`
       INSERT INTO initiatives (
@@ -81,8 +94,7 @@ export async function POST(request: NextRequest) {
         status,
         start_date,
         end_date,
-        company_id,
-        tenant_id
+        company_id
       )
       VALUES (
         ${title},
@@ -92,8 +104,7 @@ export async function POST(request: NextRequest) {
         ${status || 'no_iniciado'},
         ${start_date},
         ${end_date},
-        ${profile[0]?.company_id || null},
-        ${profile[0]?.tenant_id || null}
+        ${profile[0].company_id}
       )
       RETURNING *
     `;

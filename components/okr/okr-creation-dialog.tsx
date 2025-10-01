@@ -20,9 +20,18 @@ import { useEffect } from 'react';
 interface OKRCreationDialogProps {
   objectives?: Array<{ id: string; title: string }>;
   initiatives?: Array<{ id: string; title: string }>;
+  buttonText?: string;
+  buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive';
+  showIcon?: boolean;
 }
 
-export function OKRCreationDialog({ objectives: initialObjectives, initiatives: initialInitiatives }: OKRCreationDialogProps) {
+export function OKRCreationDialog({
+  objectives: initialObjectives,
+  initiatives: initialInitiatives,
+  buttonText = 'Crear OKR',
+  buttonVariant = 'default',
+  showIcon = true
+}: OKRCreationDialogProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('objective');
   const [objectives, setObjectives] = useState(initialObjectives || []);
@@ -70,9 +79,9 @@ export function OKRCreationDialog({ objectives: initialObjectives, initiatives: 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Crear OKR
+        <Button variant={buttonVariant}>
+          {showIcon && <Plus className="mr-2 h-4 w-4" />}
+          {buttonText}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

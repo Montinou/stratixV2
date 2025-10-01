@@ -122,7 +122,6 @@ export async function createOrganization(input: CreateOrganizationInput) {
     role: 'corporativo',
     department: 'General',
     companyId: organization.id,
-    tenantId: organization.id, // tenant_id = organization_id
   }).returning();
 
   return {
@@ -150,7 +149,7 @@ export async function createInvitation(input: CreateInvitationInput) {
   const existingProfile = await db.query.profiles.findFirst({
     where: and(
       eq(profiles.email, email),
-      eq(profiles.tenantId, organizationId)
+      eq(profiles.companyId, organizationId)
     ),
   });
 
@@ -234,7 +233,7 @@ export async function acceptInvitation(input: AcceptInvitationInput) {
   const existingProfile = await db.query.profiles.findFirst({
     where: and(
       eq(profiles.id, userId),
-      eq(profiles.tenantId, invitation.organizationId)
+      eq(profiles.companyId, invitation.organizationId)
     ),
   });
 
@@ -250,7 +249,6 @@ export async function acceptInvitation(input: AcceptInvitationInput) {
     role: invitation.role,
     department: 'General',
     companyId: invitation.organizationId,
-    tenantId: invitation.organizationId,
   }).returning();
 
   // Mark invitation as accepted
@@ -386,7 +384,7 @@ export async function hasOrganizationAccess(userId: string, organizationId: stri
   const profile = await db.query.profiles.findFirst({
     where: and(
       eq(profiles.id, userId),
-      eq(profiles.tenantId, organizationId)
+      eq(profiles.companyId, organizationId)
     ),
   });
 

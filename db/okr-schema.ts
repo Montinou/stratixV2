@@ -45,11 +45,10 @@ export const profiles = pgTable('profiles', {
   department: text('department'),
   managerId: uuid('manager_id'),
   companyId: uuid('company_id'),
-  tenantId: uuid('tenant_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
-  index('profiles_tenant_idx').on(table.tenantId),
+  index('profiles_company_idx').on(table.companyId),
 ]);
 
 // Objectives table - high-level OKR objectives
@@ -65,10 +64,10 @@ export const objectives = pgTable('objectives', {
   end_date: timestamp('end_date').notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  company_id: uuid('company_id'),
-  tenant_id: uuid('tenant_id'),
+  company_id: uuid('company_id').notNull(),
 }, (table) => [
-  index('objectives_tenant_idx').on(table.tenant_id),
+  index('objectives_company_idx').on(table.company_id),
+  index('objectives_owner_idx').on(table.owner_id),
 ]);
 
 // Initiatives table - strategic initiatives linked to objectives
@@ -84,10 +83,10 @@ export const initiatives = pgTable('initiatives', {
   end_date: timestamp('end_date').notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  company_id: uuid('company_id'),
-  tenant_id: uuid('tenant_id'),
+  company_id: uuid('company_id').notNull(),
 }, (table) => [
-  index('initiatives_tenant_idx').on(table.tenant_id),
+  index('initiatives_company_idx').on(table.company_id),
+  index('initiatives_objective_idx').on(table.objective_id),
 ]);
 
 // Activities table - specific activities/tasks linked to initiatives
@@ -103,11 +102,11 @@ export const activities = pgTable('activities', {
   end_date: timestamp('end_date').notNull(),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  company_id: uuid('company_id'),
-  tenant_id: uuid('tenant_id'),
+  company_id: uuid('company_id').notNull(),
   completedAt: timestamp('completed_at'), // Keep this for analytics
 }, (table) => [
-  index('activities_tenant_idx').on(table.tenant_id),
+  index('activities_company_idx').on(table.company_id),
+  index('activities_initiative_idx').on(table.initiative_id),
 ]);
 
 // Comments table - comments for objectives, initiatives, and activities
@@ -118,14 +117,12 @@ export const comments = pgTable('comments', {
   entityId: uuid('entity_id').notNull(),
   authorId: text('author_id').notNull().references(() => usersSyncInNeonAuth.id),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('comments_entity_idx').on(table.entityType, table.entityId),
   index('comments_author_idx').on(table.authorId),
   index('comments_company_idx').on(table.companyId),
-  index('comments_tenant_idx').on(table.tenantId),
 ]);
 
 // Key Results table - specific measurable results for objectives
@@ -140,13 +137,11 @@ export const keyResults = pgTable('key_results', {
   objectiveId: uuid('objective_id').notNull().references(() => objectives.id, { onDelete: 'cascade' }),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
   createdBy: text('created_by').notNull().references(() => usersSyncInNeonAuth.id),
-  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('key_results_objective_idx').on(table.objectiveId),
   index('key_results_company_idx').on(table.companyId),
-  index('key_results_tenant_idx').on(table.tenantId),
 ]);
 
 // Update History table - track changes to OKR entities
@@ -159,13 +154,11 @@ export const updateHistory = pgTable('update_history', {
   newValue: text('new_value'),
   updatedBy: text('updated_by').notNull().references(() => usersSyncInNeonAuth.id),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('update_history_entity_idx').on(table.entityType, table.entityId),
   index('update_history_updated_by_idx').on(table.updatedBy),
   index('update_history_company_idx').on(table.companyId),
-  index('update_history_tenant_idx').on(table.tenantId),
 ]);
 
 // Relations
