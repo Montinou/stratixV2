@@ -23,6 +23,7 @@ interface OKRCreationDialogProps {
   buttonText?: string;
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive';
   showIcon?: boolean;
+  initialTab?: 'objective' | 'initiative' | 'activity';
 }
 
 export function OKRCreationDialog({
@@ -30,10 +31,11 @@ export function OKRCreationDialog({
   initiatives: initialInitiatives,
   buttonText = 'Crear OKR',
   buttonVariant = 'default',
-  showIcon = true
+  showIcon = true,
+  initialTab = 'objective'
 }: OKRCreationDialogProps) {
   const [open, setOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('objective');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [objectives, setObjectives] = useState(initialObjectives || []);
   const [initiatives, setInitiatives] = useState(initialInitiatives || []);
 
@@ -42,8 +44,9 @@ export function OKRCreationDialog({
     if (open) {
       fetchObjectives();
       fetchInitiatives();
+      setActiveTab(initialTab);
     }
-  }, [open]);
+  }, [open, initialTab]);
 
   const fetchObjectives = async () => {
     try {
