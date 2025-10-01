@@ -1,184 +1,410 @@
 ---
-created: 2025-09-29T04:50:25Z
-last_updated: 2025-10-01T05:25:53Z
-version: 1.2
+created: 2025-10-01T09:07:54Z
+last_updated: 2025-10-01T09:07:54Z
+version: 1.0
 author: Claude Code PM System
 ---
 
 # Project Overview
 
-## System Summary
+## High-Level Summary
 
-StratixV2 is a modern, secure OKR (Objectives and Key Results) management platform designed for internal organizational use. Built with Next.js 15 and TypeScript, it provides comprehensive goal tracking, progress monitoring, and performance analytics through a three-tier hierarchical structure.
+**StratixV2** is a modern, full-stack OKR management platform built with Next.js 15, TypeScript, NeonDB (PostgreSQL), and Stack Auth. It enables organizations to align strategy with execution through a three-tiered objective hierarchy (Objectives → Initiatives → Activities), with AI-powered insights and role-based analytics.
 
 ## Feature Catalog
 
-### Core OKR Management
-- **Hierarchical Goal Structure**: Objectives → Initiatives → Activities
-- **Progress Tracking**: Real-time progress indicators with percentage completion
-- **Timeline Management**: Deadline setting and tracking across all levels
-- **Status Management**: Configurable status workflows for each hierarchy level
-- **Assignment System**: Role-based ownership and responsibility delegation
+### 1. Authentication & Authorization ✅
 
-### User Management & Security
-- **Multi-Tenant Architecture**: Complete organization-based isolation with RLS
-- **Stack Auth Integration**: Modern authentication with Google, GitHub, and email options
-- **Role-Based Access Control**: Three-tier permissions (Corporate, Gerente, Empleado)
-- **Organization Onboarding**: Self-service organization creation with approval workflow
-- **Team Invitations**: Secure token-based invitation system
-- **Admin Panel**: Comprehensive user and organization management at `/tools/admin`
-- **Session Management**: Secure JWT-based sessions with Stack Auth
-- **Data Isolation**: PostgreSQL RLS policies for automatic tenant filtering
+**Status**: Complete
+**Components**:
+- Stack Auth integration with NeonAuth
+- Email-based authentication
+- Server-side session management
+- Role-based access control (RBAC)
+- Invitation system
 
-### Analytics & Reporting
-- **Real-time Dashboards**: Interactive progress visualization and performance metrics
-- **Historical Analytics**: Trend analysis and performance over time
-- **Department Views**: Team and department-level performance comparisons
-- **Progress Rollup**: Automated aggregation from activities to objectives
-- **Export Capabilities**: Data export for external reporting and analysis
+**Roles**:
+- **Corporate**: Full access, strategic overview
+- **Manager**: Team management, initiative creation
+- **Employee**: Activity tracking, limited visibility
 
-### AI-Powered Insights
-- **Daily Insights**: Role-specific recommendations and performance analysis
-- **Smart Suggestions**: AI-driven goal and improvement recommendations
-- **Performance Analytics**: Pattern recognition and trend analysis
-- **Automated Reporting**: AI-generated progress summaries and alerts
+**Features**:
+- Login/Logout flows
+- Password reset
+- Email verification
+- Session persistence
+- Protected routes via middleware
 
-### Administrative Tools
-- **User Provisioning**: Automated user setup and role assignment
-- **Access Management**: Granular permission controls and access auditing
-- **System Monitoring**: Health checks and performance monitoring
-- **Data Management**: Backup, recovery, and data integrity tools
+### 2. OKR Management System ✅
 
-## Current System State
+**Status**: Complete
+**Hierarchy**:
 
-### Active Components
+```
+Objectives (Company/Department Level)
+    ↓ contains
+Initiatives (Team/Project Level)
+    ↓ contains
+Activities (Individual Task Level)
+```
 
-**Frontend Application:**
-- Next.js 15 with App Router architecture
-- TypeScript for full type safety
-- shadcn/ui component library with Tailwind CSS
-- Responsive design for desktop and mobile access
-- Dark/light theme support
-- 5/6 pages using real data infrastructure (83% migrated)
+**CRUD Operations**:
+- Create objectives with title, description, target dates
+- Assign owners and responsible parties
+- Track status (planning, in-progress, completed, cancelled)
+- Update progress percentages
+- Add notes and updates
+- Delete with cascade protection
 
-**Authentication System:**
-- Stack Auth integration for user management
-- Neon Auth for database-backed profiles
-- JWT token-based session management
-- Multi-provider authentication (Google, GitHub, email)
-- Role-based access control (Corporate, Gerente, Empleado)
+**Key Features**:
+- Parent-child relationships
+- Automatic progress roll-up
+- Status management
+- Due date tracking
+- Owner assignment
 
-**Database Infrastructure:**
-- NeonDB serverless PostgreSQL 17.5
-- Drizzle ORM for type-safe database operations
-- Row Level Security (RLS) for multi-tenant data isolation
-- Automated migration system with Drizzle Kit
-- Complete RLS policy coverage across 7 tenant-scoped tables
-- Tenant context management via `withRLSContext()` wrapper
-- ⚠️ Critical: RLS bypass vulnerability requires immediate fix
+### 3. Areas & Teams Management ✅
 
-**Service Layer Architecture:**
-- Centralized data access in `lib/services/` directory
-- Type-safe service functions with Drizzle ORM
-- RLS context wrapper for all database queries
-- 4 service modules: analytics, objectives, initiatives, activities
-- 24 exported functions for comprehensive data operations
-- Full TypeScript strict mode with inferred types
+**Status**: Complete
+**Purpose**: Organize objectives by organizational units
 
-**API Layer:**
-- RESTful API endpoints for all major operations
-- Server-side validation with Zod schemas
-- Error handling and logging
-- Rate limiting and security headers
-- Onboarding and invitation endpoints
+**Features**:
+- Create organizational areas (departments, teams)
+- Assign area leaders
+- Associate objectives with areas
+- Team member management
+- Cross-functional collaboration support
 
-### Integration Points
+**Components**:
+- `components/areas/area-form.tsx` - Area creation/editing
+- `components/areas/areas-page-client.tsx` - Area listing
+- `app/api/areas/route.ts` - Area API endpoints
 
-**External Services:**
-- **Vercel**: Hosting and deployment platform
-- **NeonDB**: Primary database service
-- **Stack Auth**: Authentication and user management
-- **AI Providers**: Anthropic/OpenAI for insights generation
+### 4. Analytics Dashboard ✅
 
-**Internal APIs:**
-- `/api/objectives` - Objective CRUD operations
-- `/api/initiatives` - Initiative management
-- `/api/activities` - Activity tracking and updates
-- `/api/profiles` - User profile and role management
-- `/api/analytics` - Performance data and reporting
-- `/api/onboarding/*` - Organization onboarding workflow
-- `/api/invitations/*` - Team invitation management
+**Status**: Complete
+**Location**: `/dashboard` (implied, needs verification)
 
-### Data Architecture
+**Metrics Displayed**:
+- Total objectives count
+- Completion rates by status
+- Progress trends over time
+- Team performance comparison
+- Individual contributions
 
-**Core Entities:**
-- **Users**: Authentication and profile information
-- **Companies**: Organizational structure
-- **Objectives**: High-level strategic goals
-- **Initiatives**: Tactical programs and projects
-- **Activities**: Specific tasks and actions
-- **Progress Records**: Historical tracking data
+**Visualizations**:
+- Bar charts (objective status)
+- Line charts (progress trends)
+- Pie charts (completion distribution)
+- Tables (detailed listings)
 
-**Relationships:**
-- Hierarchical goal structure with parent-child relationships
-- User-role assignments with permission inheritance
-- Company-based data isolation and access control
-- Audit trail for all changes and updates
+**Filtering**:
+- By time period
+- By role (automatic based on user)
+- By area/team
+- By status
 
-## Deployment Architecture
+**Technology**: Recharts library for charts
 
-### Production Environment
-- **Hosting**: Vercel serverless platform
-- **Database**: NeonDB with connection pooling
-- **CDN**: Vercel Edge Network for static assets
-- **SSL**: Automatic HTTPS with Vercel certificates
+### 5. Import System ✅
 
-### Development Environment
-- **Local Development**: Next.js development server with hot reload
-- **Database**: NeonDB development instance
-- **Environment Variables**: Local `.env.development.local` file
-- **Testing**: Jest and React Testing Library integration
+**Status**: Complete
+**Location**: `/import`, `app/api/import/`
 
-## Performance Characteristics
+**Supported Formats**:
+- CSV files (Comma-separated values)
+- XLSX files (Excel spreadsheets)
 
-### Current Metrics
-- **Page Load Time**: Target <2 seconds for all major pages
-- **Database Queries**: Optimized with proper indexing and connection pooling
-- **API Response Time**: Target <500ms for standard operations
-- **Concurrent Users**: Designed to support 1000+ simultaneous users
+**Process Flow**:
+1. Upload file via drag-and-drop or file picker
+2. Parse file (papaparse for CSV, xlsx for Excel)
+3. Validate data against schema (Zod)
+4. Preview data with error highlighting
+5. Confirm import
+6. Bulk insert into database
+7. Show success/error report
 
-### Scalability Features
-- **Serverless Architecture**: Automatic scaling with Vercel and NeonDB
-- **Connection Pooling**: Efficient database connection management
-- **Caching Strategy**: Redis integration for performance optimization
-- **CDN Integration**: Static asset optimization and global distribution
+**Validation Rules**:
+- Required fields check
+- Data type validation
+- Date format verification
+- Reference integrity (foreign keys)
+- Role-based permission check
 
-## Security Implementation
+**Features**:
+- Template download
+- Error reporting with line numbers
+- Partial import on errors
+- Transaction rollback on failure
 
-### Authentication & Authorization
-- **Multi-factor Authentication**: Available through Stack Auth providers
-- **Role-Based Permissions**: Granular access control at data and feature levels
-- **Session Security**: Secure JWT tokens with automatic expiration
-- **Password Security**: Handled by Stack Auth with industry best practices
+### 6. AI Integration 🔄
 
-### Data Protection
-- **Encryption**: TLS 1.3 for all communications
-- **Database Security**: PostgreSQL RLS with user-level data isolation
-- **Input Validation**: Comprehensive validation with Zod schemas
-- **CSRF Protection**: Built-in Next.js security features
+**Status**: Partial (infrastructure ready)
+**Providers**:
+- Anthropic Claude (primary)
+- OpenAI GPT models (alternative)
+- Vercel AI Gateway (routing)
 
-## Monitoring & Maintenance
+**Planned Features**:
+- Daily insights based on user role
+- OKR health analysis
+- Performance predictions
+- Suggested actions
+- Natural language queries
 
-### Health Monitoring
-- **Application Performance**: Real-time performance metrics
-- **Database Health**: Connection and query performance monitoring
-- **Error Tracking**: Comprehensive error logging and alerting
-- **User Analytics**: Usage patterns and feature adoption tracking
+**Current State**:
+- SDKs installed (@ai-sdk/anthropic, @ai-sdk/openai)
+- AI Gateway configured
+- UI components ready (`components/ai/`)
+- Backend integration pending
 
-### Maintenance Procedures
-- **Database Migrations**: Automated schema updates with rollback capability
-- **Dependency Updates**: Regular security and feature updates
-- **Backup Strategy**: Automated database backups with point-in-time recovery
-- **Security Audits**: Regular security assessments and vulnerability scans
+### 7. User Onboarding Flow ✅
 
-StratixV2 represents a comprehensive, production-ready OKR management platform with enterprise-grade security, performance, and scalability characteristics, built using modern web technologies and best practices.
+**Status**: Complete
+**Flow**:
+
+```
+Email Invitation → Domain Check → Signup → Pending Approval → Setup Wizard → Dashboard
+```
+
+**Steps**:
+1. **Invitation**: Admin invites via email
+2. **Signup**: User creates account with Stack Auth
+3. **Domain Validation**: Email domain checked against whitelist
+4. **Pending Approval**: Admin reviews and approves
+5. **Role Assignment**: Admin assigns role (Corporate/Manager/Employee)
+6. **Company Association**: User linked to company
+7. **Setup Wizard**: Initial profile and preferences
+8. **Dashboard Access**: Full access granted
+
+**Components**:
+- `app/invite/` - Invitation pages
+- `app/onboarding/` - Onboarding wizard
+- `app/pending-approval/` - Approval waiting page
+- `app/setup/` - Setup wizard
+
+### 8. Data Security ✅
+
+**Status**: Complete
+**Implementation**:
+
+**Row Level Security (RLS)**:
+- All queries scoped by `company_id`
+- PostgreSQL policies enforce isolation
+- No cross-company data leakage
+
+**Authentication**:
+- JWT tokens from Stack Auth
+- Secure session management
+- HTTPS everywhere
+
+**Input Validation**:
+- Zod schemas on all API endpoints
+- SQL injection prevention (ORM)
+- XSS protection (React escaping)
+
+**Access Control**:
+- Role-based permissions
+- Route protection middleware
+- API endpoint authorization
+
+## Current State
+
+### Production-Ready Features ✅
+- User authentication
+- OKR CRUD operations
+- Areas management
+- Data import (CSV/XLSX)
+- Row Level Security
+- Role-based access
+- Analytics dashboard (basic)
+
+### In Development 🔄
+- Advanced analytics
+- AI insights generation
+- Export functionality
+- Notifications
+- Comments/discussions
+
+### Planned 📋
+- Mobile apps
+- External integrations (Slack, Teams)
+- Public API
+- Advanced reporting
+- Custom dashboards
+
+## Integration Points
+
+### External Services
+1. **NeonDB**: PostgreSQL database hosting
+2. **Stack Auth**: Authentication provider
+3. **Vercel**: Hosting and deployment
+4. **Redis Cloud**: Caching layer
+5. **Brevo**: Email delivery
+6. **AI Providers**: Anthropic, OpenAI
+
+### Internal Modules
+1. **Database Layer**: `lib/database/`
+2. **Auth Layer**: `lib/auth.ts`, `lib/stack-auth*.ts`
+3. **Business Logic**: `lib/services/`, `lib/okr/`
+4. **API Layer**: `app/api/`
+5. **UI Components**: `components/`
+
+## Data Model Summary
+
+### Core Tables
+```
+companies
+    ↓
+users (via neon_auth.users_sync)
+    ↓
+areas (departments/teams)
+    ↓
+objectives
+    ↓
+initiatives
+    ↓
+activities
+```
+
+### Supporting Tables
+- `whitelisted_domains` - Email domain whitelist
+- `whitelisted_emails` - Individual email whitelist
+- `blacklisted_emails` - Blocked emails
+- `user_roles` - Role assignments
+- `company_settings` - Company configurations
+
+### Relationships
+- **Many-to-One**: Objectives → Areas
+- **Many-to-One**: Initiatives → Objectives
+- **Many-to-One**: Activities → Initiatives
+- **Many-to-One**: Users → Companies
+- **Many-to-Many**: Users ↔ Areas (via join table)
+
+## Technical Highlights
+
+### Performance Optimizations
+- Server-side rendering (SSR)
+- Static generation where possible
+- Database connection pooling
+- Redis caching
+- Optimized SQL queries with indexes
+
+### Developer Experience
+- TypeScript strict mode
+- Type-safe database operations (Drizzle ORM)
+- Hot module replacement (Turbopack)
+- ESLint + Prettier
+- Git hooks (future)
+
+### Scalability
+- Serverless architecture (Vercel)
+- Database connection pooling (NeonDB)
+- Horizontal scaling ready
+- CDN for static assets
+
+### Maintainability
+- Component-based architecture
+- Modular code organization
+- Clear separation of concerns
+- Comprehensive documentation (this file!)
+
+## Known Limitations
+
+### Current Constraints
+1. **No Mobile Apps**: Web-only currently
+2. **No Real-time Updates**: Requires page refresh
+3. **Limited Export**: No Excel export yet
+4. **No Integrations**: No third-party tool connections
+5. **Basic AI**: AI features not fully implemented
+6. **Manual Approval**: User approvals not automated
+
+### Technical Debt
+1. Some components need TypeScript improvements
+2. Test coverage needs expansion
+3. Error handling could be more robust
+4. Some UI components need accessibility improvements
+5. Documentation gaps in some modules
+
+## Deployment Status
+
+### Environments
+- **Development**: Local (`localhost:3000`)
+- **Preview**: Vercel preview deployments
+- **Production**: `stratix-v2.vercel.app` (assumed)
+
+### CI/CD
+- Git push triggers Vercel deployment
+- Automatic preview deployments on PRs
+- Production deployment on main branch merge
+
+### Monitoring
+- Vercel Analytics (performance)
+- Vercel Logs (errors, requests)
+- NeonDB monitoring (query performance)
+
+## Access & URLs
+
+### Development
+- Local: `http://localhost:3000`
+- API: `http://localhost:3000/api/*`
+
+### Production
+- Web App: TBD
+- API: Same domain `/api/*`
+
+### Admin Tools
+- Drizzle Studio: `npm run db:studio`
+- Vercel Dashboard: vercel.com
+- NeonDB Console: neon.tech
+- Stack Auth Dashboard: stack-auth.com
+
+## Quick Start Guide
+
+### Prerequisites
+- Node.js 20+
+- npm or pnpm
+- NeonDB account
+- Stack Auth account
+
+### Setup Steps
+```bash
+# 1. Clone repository
+git clone [repository-url]
+cd stratixV2
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment variables
+cp .env.example .env.local
+# Edit .env.local with your credentials
+
+# 4. Run database migrations
+npm run migrate
+
+# 5. Start development server
+npm run dev
+```
+
+### First Login
+1. Navigate to `http://localhost:3000`
+2. Sign up with Stack Auth
+3. Wait for admin approval (or approve yourself in DB)
+4. Complete onboarding
+5. Access dashboard
+
+## Support & Resources
+
+### Documentation
+- README.md - Project readme
+- This file - Comprehensive overview
+- API docs - In progress
+- Component Storybook - Future
+
+### External Resources
+- [Next.js Docs](https://nextjs.org/docs)
+- [Stack Auth Docs](https://docs.stack-auth.com)
+- [NeonDB Docs](https://neon.tech/docs)
+- [Drizzle ORM Docs](https://orm.drizzle.team)
+- [Shadcn/ui Docs](https://ui.shadcn.com)

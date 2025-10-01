@@ -1,232 +1,296 @@
 ---
-created: 2025-09-29T04:50:25Z
-last_updated: 2025-10-01T05:25:53Z
-version: 1.2
+created: 2025-10-01T09:07:54Z
+last_updated: 2025-10-01T09:07:54Z
+version: 1.0
 author: Claude Code PM System
 ---
 
 # Product Context
 
-## Product Overview
+## Product Definition
 
-**StratixV2** is a comprehensive OKR (Objectives and Key Results) Management System designed for modern organizations to align, track, and achieve strategic goals through structured hierarchical planning.
+**Name**: StratixV2
+**Type**: OKR Management System
+**Category**: Enterprise SaaS - Performance Management
+**Language**: Spanish (primary interface)
 
 ## Target Users
 
-### Primary User Personas
+### Primary Personas
 
-**1. Corporate Executive**
-- **Role**: C-level executives, VPs, Directors
-- **Needs**: High-level strategic visibility, organization-wide performance tracking
-- **Access Level**: Full system access with administrative privileges
-- **Key Workflows**: Setting organization objectives, reviewing department performance, strategic reporting
+#### 1. Corporate Level User
+**Role**: C-suite executives, strategic planners
+**Needs**:
+- Company-wide objective visibility
+- Strategic alignment tracking
+- High-level performance metrics
+- AI-powered insights for decision making
 
-**2. Department Manager (Gerente)**
-- **Role**: Department heads, team leads, middle management
-- **Needs**: Team performance management, initiative tracking, progress reporting
-- **Access Level**: Department-specific access with team management capabilities
-- **Key Workflows**: Creating initiatives, managing team OKRs, analyzing department metrics
+**Access Level**: Full visibility across all organizational units
 
-**3. Employee (Empleado)**
-- **Role**: Individual contributors, team members
-- **Needs**: Personal goal tracking, activity management, progress updates
-- **Access Level**: Limited to personal and assigned objectives
-- **Key Workflows**: Updating activity status, viewing personal progress, accessing AI insights
+#### 2. Manager
+**Role**: Department heads, team leaders
+**Needs**:
+- Team objective management
+- Initiative tracking and assignment
+- Team performance monitoring
+- Progress reporting to leadership
 
-### User Journey Mapping
+**Access Level**: Department/team level with creation privileges
 
-**New User Onboarding (Organization Creator):**
-1. Stack Auth authentication (Google, GitHub, email)
-2. Organization creation flow (`/onboarding/create`)
-3. Draft state persistence during setup
-4. Organization submission for approval
-5. Pending approval state (`/pending-approval`)
-6. Admin approval process
-7. Full system access granted
+#### 3. Employee
+**Role**: Individual contributors
+**Needs**:
+- Personal objective tracking
+- Activity updates
+- Progress visibility
+- Alignment with team goals
 
-**New User Onboarding (Invited Team Member):**
-1. Receive invitation email with secure token
-2. Click invitation link (`/invite/[token]`)
-3. Stack Auth authentication (if not logged in)
-4. Accept invitation to join organization
-5. Automatic organization assignment
-6. Immediate access to team's OKR system
-
-**Daily User Flow:**
-1. Dashboard overview with progress indicators
-2. Activity updates and status changes
-3. AI-generated insights and recommendations
-4. Team collaboration and communication
-5. Progress reporting and analytics review
+**Access Level**: Read access to team objectives, write access to assigned activities
 
 ## Core Functionality
 
-### OKR Hierarchy System
+### 1. OKR Hierarchy Management
+**Feature**: Three-tiered objective structure
 
-**Three-Tier Structure:**
-1. **Objectives**: High-level strategic goals
-2. **Initiatives**: Specific projects or programs to achieve objectives
-3. **Activities**: Tactical tasks and actions within initiatives
+```
+Objectives (Strategic)
+    ↓
+Initiatives (Tactical)
+    ↓
+Activities (Operational)
+```
 
-**Key Features:**
-- Hierarchical goal alignment from corporate to individual level
-- Progress tracking with visual indicators
-- Automated rollup reporting
-- Timeline management with deadlines
-- Performance analytics and insights
+**Capabilities**:
+- Create, read, update, delete at each level
+- Parent-child relationships
+- Cascading progress tracking
+- Status management (planning, in-progress, completed, cancelled)
 
-### Authentication & Access Control
+### 2. Areas/Teams Management
+**Purpose**: Organize objectives by organizational unit
 
-**Multi-Tenant Architecture:**
-- Organization-based data isolation via Row-Level Security (RLS)
-- Automatic tenant filtering on all database queries
-- Secure tenant context management
-- Cross-tenant data protection
+**Features**:
+- Area creation and management
+- Team member assignment
+- Cross-functional collaboration
+- Hierarchical organization structure
 
-**Security Features:**
-- Organization-level access control
-- Token-based invitation system
-- Role-based permissions (Corporate/Gerente/Empleado)
-- Secure authentication via Stack Auth/Neon Auth
-- PostgreSQL RLS policies for data isolation
+### 3. Analytics Dashboard
+**Insights Provided**:
+- OKR completion rates
+- Team performance metrics
+- Progress trends over time
+- Bottleneck identification
+- Role-based analytics filtering
 
-**Admin Panel:**
-- User management interface at `/tools/admin`
-- Organization approval workflow
-- Invitation management
-- User role assignment
-- Access permission controls
-- System monitoring and health checks
-
-### Analytics & Insights
-
-**Dashboard Features:**
-- ✅ Real-time progress visualization (implemented with real data)
-- ✅ Interactive charts and metrics (live from database)
-- ✅ Performance trends and analytics (operational)
-- ✅ Department comparison views (service layer implemented)
-- ✅ Individual and team scorecards (fully functional)
-
-**Current Implementation Status:**
-- ✅ OKR Dashboard: 10 key statistics with trending data
-- ✅ Objectives Page: Full CRUD with 5 statistical metrics
-- ✅ Initiatives Page: Budget tracking with 6 metrics
-- ✅ Activities Page: Activity feed with 4 metrics
-- ✅ Updates Page: Timeline and update history
-- ⏸️ Insights Page: Advanced analytics (deferred - 17% remaining)
-
-**AI Integration:**
-- 🔄 Daily insights and recommendations (planned)
-- 🔄 Role-specific suggestions (planned)
-- 🔄 Performance pattern analysis (planned)
-- 🔄 Automated progress summaries (planned)
-- 🔄 Smart goal suggestions (planned)
-
-## Business Requirements
-
-### Functional Requirements
-
-**Core OKR Management:**
-- Create, edit, and delete objectives, initiatives, and activities
-- Assign ownership and deadlines
-- Track progress with percentage completion
-- Support multiple measurement types (binary, percentage, numeric)
-- Hierarchical relationship management
-
-**User Management:**
-- Role-based access control (RBAC)
-- User authentication and session management
-- Profile management and preferences
-- Team and department organization
-- Permission inheritance and override
-
-**Reporting & Analytics:**
-- Progress dashboards with drill-down capability
-- Historical trend analysis
-- Performance comparison reports
-- Export functionality for external reporting
-- Real-time data synchronization
-
-### Non-Functional Requirements
-
-**Performance:**
-- Page load times under 2 seconds
+**Visualization**:
+- Interactive charts (Recharts)
 - Real-time data updates
-- Responsive design for mobile and desktop
-- Scalable to 1000+ concurrent users
-- 99.9% uptime availability
+- Exportable reports
+- Customizable views
 
-**Security:**
-- PostgreSQL Row Level Security (RLS)
-- HTTPS encrypted communications
-- Secure JWT token management
-- Data privacy compliance
-- Regular security audits
+### 4. AI Integration
+**Purpose**: Intelligent insights and recommendations
 
-**Usability:**
-- Intuitive navigation and user interface
-- Consistent design system (shadcn/ui)
-- Accessibility compliance (WCAG 2.1)
-- Multi-language support preparation
-- Mobile-responsive interface
+**Features**:
+- Daily insights based on user role
+- Performance predictions
+- Suggested actions
+- Natural language queries
+- Automated reporting
 
-## Integration Points
+**Providers**:
+- Anthropic (Claude)
+- OpenAI (GPT models)
+- Vercel AI Gateway
 
-### External Systems
-- **Stack Auth**: Authentication and user management
-- **NeonDB**: Primary database storage
-- **Vercel**: Hosting and deployment platform
-- **AI Providers**: Anthropic/OpenAI for insights generation
+### 5. Import/Export System
+**Supported Formats**:
+- CSV files
+- XLSX (Excel) files
 
-### Internal APIs
-- `/api/objectives` - Objective CRUD operations
-- `/api/initiatives` - Initiative management
-- `/api/activities` - Activity tracking
-- `/api/profiles` - User profile management
-- `/api/analytics` - Progress and performance data
+**Capabilities**:
+- Bulk objective import
+- Data validation during import
+- Role-based import permissions
+- Error reporting
+- Template downloads
+
+### 6. User Onboarding
+**Flow**:
+1. Email invitation system
+2. Domain whitelist verification
+3. Role assignment
+4. Company association
+5. Setup wizard
+6. Pending approval (if required)
+
+### 7. Multi-tenant Architecture
+**Isolation**: Company-based (company_id)
+
+**Features**:
+- Complete data isolation between companies
+- Shared user accounts (Stack Auth)
+- Row Level Security in database
+- Company-specific settings
+
+## User Journeys
+
+### Journey 1: Corporate User - Strategic Planning
+1. Log in to dashboard
+2. View company-wide OKR status
+3. Review AI-generated insights
+4. Create new quarterly objectives
+5. Assign initiatives to managers
+6. Monitor progress across teams
+
+### Journey 2: Manager - Team Management
+1. Access team dashboard
+2. Review team objectives
+3. Create initiatives for objectives
+4. Assign activities to team members
+5. Track individual progress
+6. Update status and notes
+7. Report to leadership
+
+### Journey 3: Employee - Activity Updates
+1. View assigned activities
+2. Update progress percentage
+3. Add notes on blockers
+4. Mark activities complete
+5. See alignment with team goals
+6. Request clarification from manager
+
+### Journey 4: Admin - User Management
+1. Receive user signup notification
+2. Review user email/domain
+3. Approve or reject access
+4. Assign role (Corporate/Manager/Employee)
+5. Associate with company
+6. Grant system access
+
+## Key Use Cases
+
+### Strategic Alignment
+- Cascade company objectives to teams
+- Ensure all initiatives support strategic goals
+- Track alignment percentage
+- Identify misaligned efforts
+
+### Performance Tracking
+- Monitor OKR completion rates
+- Track individual and team progress
+- Measure velocity trends
+- Identify high performers and struggling teams
+
+### Collaboration
+- Cross-functional initiative management
+- Shared objective visibility
+- Comment and update threads
+- Status notifications
+
+### Reporting
+- Generate performance reports
+- Export data for presentations
+- Historical trend analysis
+- Compliance documentation
+
+### Data Migration
+- Import existing OKRs from spreadsheets
+- Bulk update capabilities
+- Data validation and cleaning
+- Historical data preservation
+
+## Product Principles
+
+### 1. Clarity Over Complexity
+- Simple, intuitive interfaces
+- Clear hierarchy visualization
+- Minimal clicks to key actions
+- Progressive disclosure of details
+
+### 2. Role-Based Experience
+- Tailored dashboards per role
+- Appropriate access controls
+- Relevant insights for each user
+- Streamlined workflows
+
+### 3. Data Security
+- Company data isolation
+- Row Level Security enforcement
+- Secure authentication (Stack Auth)
+- Audit logging
+
+### 4. Performance
+- Fast page loads (<2s)
+- Responsive interactions
+- Efficient database queries
+- Optimized data fetching
+
+### 5. Scalability
+- Support for 1000+ users per company
+- Unlimited objectives/initiatives
+- Historical data retention
+- Serverless architecture
+
+## Feature Requirements
+
+### Must-Have (MVP)
+- [x] User authentication
+- [x] OKR CRUD operations
+- [x] Role-based access control
+- [x] Basic analytics dashboard
+- [x] Company isolation
+- [x] CSV/XLSX import
+
+### Should-Have (V1)
+- [ ] Advanced analytics
+- [ ] Export functionality
+- [ ] Activity comments/discussion
+- [ ] Notifications system
+- [ ] Mobile-responsive design
+- [ ] Search functionality
+
+### Nice-to-Have (V2)
+- [ ] Mobile apps (iOS/Android)
+- [ ] Slack/Teams integration
+- [ ] Custom reporting builder
+- [ ] API for third-party integrations
+- [ ] Advanced AI features
+- [ ] Automated goal suggestions
 
 ## Success Metrics
 
-### Key Performance Indicators
-
-**User Engagement:**
-- Daily/Weekly/Monthly active users
-- Session duration and frequency
+### User Engagement
+- Daily active users (DAU)
+- Time spent in application
 - Feature adoption rates
-- User retention rates
+- User retention (30/60/90 day)
 
-**Business Impact:**
+### Product Performance
 - OKR completion rates
-- Goal alignment metrics
-- Time-to-insight for decision making
-- User satisfaction scores (NPS)
+- Time to create objectives
+- Data import success rate
+- Page load times
 
-**Technical Performance:**
-- System availability (99.9% target)
-- Page load performance (2s target)
-- API response times (<500ms)
-- Error rates (<1%)
+### Business Impact
+- Number of companies onboarded
+- Paid vs. free tier adoption
+- Customer satisfaction (NPS)
+- Support ticket volume
 
-## Use Cases
+## Competitive Differentiation
 
-### Primary Use Cases
+### Advantages
+1. **AI-Powered Insights**: Proactive recommendations and predictions
+2. **Spanish-First**: Native Spanish interface (underserved market)
+3. **Ease of Use**: Simpler than enterprise competitors (WorkDay, SAP)
+4. **Affordable**: Competitive pricing for SMBs
+5. **Modern Stack**: Fast, reliable, scalable infrastructure
 
-**1. Strategic Planning Cycle**
-- Corporate executives define annual/quarterly objectives
-- Department managers create aligned initiatives
-- Employees define supporting activities
-- Progress tracking and reporting throughout cycle
-
-**2. Performance Management**
-- Regular progress updates and check-ins
-- Performance reviews based on OKR completion
-- Team and individual performance analytics
-- Goal adjustment and realignment as needed
-
-**3. Decision Support**
-- AI-powered insights for performance optimization
-- Data-driven decision making with analytics
-- Resource allocation based on progress data
-- Strategic pivots informed by performance trends
-
-This product context establishes StratixV2 as a comprehensive, user-centric OKR management platform designed to drive organizational alignment and performance through structured goal management, intelligent insights, and secure, scalable infrastructure.
+### Target Market Position
+- SMB to Mid-Market companies (50-500 employees)
+- Spanish-speaking markets (LATAM, Spain)
+- Teams transitioning from spreadsheets
+- Companies wanting modern OKR tools without enterprise complexity

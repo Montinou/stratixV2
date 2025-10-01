@@ -1,397 +1,348 @@
 ---
-created: 2025-09-29T04:50:25Z
-last_updated: 2025-10-01T05:25:53Z
-version: 1.2
+created: 2025-10-01T09:07:54Z
+last_updated: 2025-10-01T09:07:54Z
+version: 1.0
 author: Claude Code PM System
 ---
 
 # System Patterns
 
-## Architectural Patterns
+## Architectural Style
 
-### App Router Pattern (Next.js 15)
-The application follows Next.js 15 App Router conventions with server-side rendering and component-based routing:
+### Overall Architecture
+- **Pattern**: Modern serverless full-stack application
+- **Paradigm**: Server-first with progressive enhancement
+- **Rendering**: Server-Side Rendering (SSR) + Client Components
+- **API**: RESTful endpoints with Next.js API Routes
+
+### Key Characteristics
+- Monolithic repository (monorepo)
+- Type-safe end-to-end with TypeScript
+- Database-first design with ORM
+- Component-based UI architecture
+
+## Design Patterns
+
+### 1. Provider Pattern
+**Location**: `components/providers/`, `app/layout.tsx`
 
 ```typescript
-// app/layout.tsx - Root layout pattern
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+// AuthProvider wraps entire app
+export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <StackProvider>
-          <StackTheme>
-            {children}
-          </StackTheme>
-        </StackProvider>
+    <html>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )
 }
 ```
 
-### Authentication Pattern (Stack Auth)
-Centralized authentication using Stack Auth with provider pattern:
+**Usage**:
+- Authentication state management
+- Theme management (next-themes)
+- Global state distribution
+- React Context for shared state
+
+### 2. Server/Client Component Split
+**Pattern**: Selective client-side hydration
 
 ```typescript
-// Pattern: Authentication provider wrapping
-<StackProvider>
-  <StackTheme>
-    <AuthenticatedApp />
-  </StackTheme>
-</StackProvider>
-
-// Pattern: Hook-based user access
-const user = useUser({ or: "redirect" });
-```
-
-### Database Access Pattern (Drizzle ORM)
-Type-safe database operations with connection pooling and multi-tenant support:
-
-```typescript
-// Pattern: Serverless connection with pooling
-import { neon } from '@neondatabase/serverless';
-const sql = neon(process.env.DATABASE_URL!);
-
-// Pattern: Type-safe queries with tenant isolation (RLS)
-const results = await db.select().from(table).where(eq(table.id, userId));
-// Note: Row-Level Security policies automatically filter by tenant_id
-```
-
-### Service Layer Pattern (Real Data Infrastructure)
-Centralized data access with RLS context management:
-
-```typescript
-// Pattern: Service function with RLS context wrapper
-import { withRLSContext } from '@/lib/database/rls-client';
-import { objectives } from '@/db/okr-schema';
-
-export async function getObjectivesForPage(userId: string) {
-  return withRLSContext(userId, async (db) => {
-    return await db
-      .select({
-        id: objectives.id,
-        title: objectives.title,
-        // ... other fields
-      })
-      .from(objectives)
-      .orderBy(objectives.createdAt);
-  });
+// Server Component (default)
+async function ServerPage() {
+  const data = await db.query.users.findMany()
+  return <ClientComponent data={data} />
 }
 
-// Pattern: Page component usage
-import { getObjectivesForPage } from '@/lib/services/objectives-service';
-
-export default async function ObjectivesPage() {
-  const user = await stackServerApp.getUser({ or: 'redirect' });
-  const objectives = await getObjectivesForPage(user.id);
-
-  return <ObjectivesView objectives={objectives} />;
+// Client Component (explicit)
+'use client'
+function ClientComponent({ data }) {
+  const [state, setState] = useState(data)
+  return <UI />
 }
 ```
 
-**Service Layer Architecture:**
-- All database queries go through service functions
-- Services use `withRLSContext()` wrapper for tenant isolation
-- Type-safe queries with Drizzle ORM
-- Services located in `lib/services/` directory
-- One service per domain (analytics, objectives, initiatives, activities)
+**Benefits**:
+- Reduced JavaScript bundle size
+- Better SEO
+- Faster initial page loads
+- Secure server-side data fetching
 
-**RLS Context Wrapper Implementation:**
+### 3. Repository Pattern
+**Location**: `lib/database/`, `lib/services/`
+
 ```typescript
-// lib/database/rls-client.ts
-export async function withRLSContext<T>(
-  userId: string,
-  callback: (db: ReturnType<typeof getDb>) => Promise<T>
-): Promise<T> {
-  const client = await pool.connect();
-  try {
-    // Set user context for RLS policies
-    await client.query(
-      'SELECT set_config($1, $2, false)',
-      ['app.current_user_id', userId]
-    );
-
-    // Execute callback with RLS-enabled database connection
-    const db = drizzle(client, { schema });
-    return await callback(db);
-  } finally {
-    client.release();
-  }
+// Database operations abstracted
+export const userRepository = {
+  findById: (id) => db.query.users.findFirst({ where: eq(users.id, id) }),
+  create: (data) => db.insert(users).values(data),
+  update: (id, data) => db.update(users).set(data).where(eq(users.id, id))
 }
 ```
 
-### Multi-Tenant Pattern (Row-Level Security)
-Tenant isolation using PostgreSQL RLS policies:
+**Benefits**:
+- Testable data access
+- Centralized query logic
+- Type-safe operations
+
+### 4. API Route Handlers
+**Location**: `app/api/[resource]/route.ts`
 
 ```typescript
-// Pattern: PostgreSQL RLS function for tenant resolution
-CREATE OR REPLACE FUNCTION get_current_tenant_id()
-RETURNS UUID AS $$
-BEGIN
-  RETURN (
-    SELECT tenant_id
-    FROM neon_auth.users_sync
-    WHERE id = current_setting('app.current_user_id', true)::text
-  );
-END;
-$$ LANGUAGE plpgsql STABLE;
-
-// Pattern: RLS policy on tenant-scoped table
-CREATE POLICY "Tenant isolation for SELECT"
-ON objectives FOR SELECT
-USING (tenant_id = get_current_tenant_id());
-
-// Pattern: All queries automatically filtered by tenant
-// No need to add WHERE tenant_id = ... in application code
-const objectives = await db.select().from(objectives);
-// RLS policies ensure only current tenant's data is returned
+export async function GET(req: NextRequest) {
+  // Authentication
+  // Validation
+  // Business logic
+  // Response
+  return NextResponse.json(data)
+}
 ```
 
-**RLS Policy Coverage:**
-- 7 tenant-scoped tables with complete RLS policies
-- 4 operations per table: SELECT, INSERT, UPDATE, DELETE
-- Automatic tenant filtering at database level
-- Zero trust architecture - application cannot bypass policies
-- ⚠️ Critical: Current role has BYPASSRLS privilege (requires fix)
+**Structure**:
+- RESTful conventions (GET, POST, PUT, DELETE)
+- Middleware for auth and validation
+- Error handling with try-catch
+- Type-safe request/response
 
-## Component Patterns
-
-### shadcn/ui Component Pattern
-Consistent component architecture using Class Variance Authority:
+### 5. Form Handling Pattern
+**Libraries**: React Hook Form + Zod
 
 ```typescript
-// Pattern: Component with variants
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-```
-
-### Form Handling Pattern
-React Hook Form with Zod validation:
-
-```typescript
-// Pattern: Form with validation schema
-const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
+const schema = z.object({
+  name: z.string().min(1),
+  email: z.string().email()
 })
 
-const form = useForm<z.infer<typeof formSchema>>({
-  resolver: zodResolver(formSchema),
-  defaultValues: {
-    title: "",
-    description: "",
-  },
+const form = useForm({
+  resolver: zodResolver(schema)
 })
-```
 
-### Server Action Pattern
-API routes following RESTful conventions:
-
-```typescript
-// Pattern: API route with authentication
-export async function GET(request: Request) {
-  const user = await getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Business logic here
-  return NextResponse.json(data);
+async function onSubmit(values) {
+  await api.post('/endpoint', values)
 }
 ```
 
-## State Management Patterns
+**Benefits**:
+- Type-safe validation
+- Declarative schemas
+- Automatic error handling
+- Reusable validation logic
 
-### Local State Pattern
-Component-level state management with React hooks:
-
-```typescript
-// Pattern: Local state with effects
-const [data, setData] = useState<DataType[]>([]);
-const [loading, setLoading] = useState(false);
-const [error, setError] = useState<string | null>(null);
-
-useEffect(() => {
-  fetchData();
-}, []);
-```
-
-### Context Provider Pattern
-Global state management for theme and authentication:
+### 6. Authentication Pattern
+**Provider**: Stack Auth with Server-Side Sessions
 
 ```typescript
-// Pattern: Context with provider
-const ThemeContext = createContext<{
-  theme: Theme;
-  toggleTheme: () => void;
-}>({
-  theme: 'light',
-  toggleTheme: () => {},
-});
+// Server-side
+const user = await stackServerApp.getUser()
+if (!user) redirect('/login')
 
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  // Provider implementation
-};
+// Client-side
+const user = useUser()
+if (!user) return <LoginPrompt />
 ```
+
+**Features**:
+- JWT-based authentication
+- Server and client hooks
+- Automatic session refresh
+- Middleware-based route protection
 
 ## Data Flow Patterns
 
-### Server-to-Client Data Flow
-1. **API Route** → Database query with Drizzle
-2. **Client Component** → Fetch from API route
-3. **State Update** → React state management
-4. **UI Update** → Component re-render
-
-### Authentication Flow
-1. **User Action** → Login attempt
-2. **Stack Auth** → Authentication verification
-3. **Session Creation** → Server-side session management
-4. **Route Protection** → Middleware validation
-5. **Component Access** → User context availability
-
-### Form Submission Flow
-1. **User Input** → Form field changes
-2. **Validation** → Zod schema validation
-3. **Submit Handler** → API call with validated data
-4. **Database Update** → Drizzle ORM operation
-5. **UI Feedback** → Success/error messaging
-
-### Onboarding Flow
-1. **User Signup** → Stack Auth registration
-2. **Check Onboarding Status** → API call to `/api/onboarding/status`
-3. **Draft Management** → Persistent state in `/api/onboarding/draft`
-4. **Organization Creation** → POST to `/api/onboarding/create-organization`
-5. **Approval Workflow** → Pending approval state
-6. **Admin Approval** → Organization activation
-7. **User Access** → Full application access
-
-### Invitation Flow
-1. **Invite Generation** → Admin creates invitation with token
-2. **Email Delivery** → Invitation link sent to user
-3. **Token Validation** → GET `/api/invitations/[token]`
-4. **User Acceptance** → POST `/api/invitations/accept`
-5. **Organization Assignment** → User added to organization
-6. **Access Granted** → User can access tenant data
-
-## Error Handling Patterns
-
-### API Error Pattern
-Consistent error handling across API routes:
-
-```typescript
-// Pattern: Standardized error responses
-try {
-  const result = await operation();
-  return NextResponse.json(result);
-} catch (error) {
-  console.error('Operation failed:', error);
-  return NextResponse.json(
-    { error: 'Internal server error' },
-    { status: 500 }
-  );
-}
+### 1. Server → Client Data Flow
+```
+Database → API Route → Server Component → Client Component → UI
 ```
 
-### Client-Side Error Pattern
-Error boundaries and error state management:
+### 2. Client → Server Data Flow
+```
+User Input → Form Validation → API Call → API Route → Database → Response
+```
 
+### 3. Real-time Updates (Future)
+```
+Database Change → Redis Pub/Sub → WebSocket → Client Update
+```
+
+## Component Patterns
+
+### 1. Composition Pattern
+**Shadcn/ui approach**: Small, composable primitives
+
+```tsx
+<Dialog>
+  <DialogTrigger asChild>
+    <Button>Open</Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Title</DialogTitle>
+    </DialogHeader>
+    <DialogFooter>
+      <Button>Save</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+```
+
+### 2. Render Props / Children Props
+```tsx
+<DataTable
+  columns={columns}
+  data={data}
+  renderCell={(cell) => <CustomCell {...cell} />}
+/>
+```
+
+### 3. Custom Hooks
 ```typescript
-// Pattern: Error state handling
-const [error, setError] = useState<string | null>(null);
-
-const handleSubmit = async (data: FormData) => {
-  try {
-    setError(null);
-    await submitData(data);
-  } catch (err) {
-    setError('Failed to submit data');
-  }
-};
+function useUser() {
+  // Encapsulates auth logic
+  const user = stackServerApp.useUser()
+  const isAdmin = user?.role === 'admin'
+  return { user, isAdmin }
+}
 ```
 
 ## Security Patterns
 
-### Access Control Pattern
-Role-based access control throughout the application:
+### 1. Row Level Security (RLS)
+**Database Level**: PostgreSQL policies
 
-```typescript
-// Pattern: Role-based component rendering
-if (!hasAccess(user.role, 'admin')) {
-  return <AccessDenied />;
-}
-
-// Pattern: API route protection
-const user = await getUser();
-if (!user || !hasPermission(user, 'write')) {
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-}
+```sql
+CREATE POLICY company_isolation ON objectives
+  FOR ALL
+  USING (company_id = current_setting('app.company_id')::uuid);
 ```
 
-### Environment Variable Pattern
-Secure configuration management:
-
+### 2. Authentication Middleware
 ```typescript
-// Pattern: Environment validation
-const requiredEnvVars = [
-  'DATABASE_URL',
-  'NEXT_PUBLIC_STACK_PROJECT_ID',
-  'STACK_SECRET_SERVER_KEY',
-];
-
-requiredEnvVars.forEach(envVar => {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
+export async function middleware(req: NextRequest) {
+  const user = await stackServerApp.getUser()
+  if (!user && isProtectedRoute(req.pathname)) {
+    return NextResponse.redirect('/login')
   }
-});
+}
 ```
 
-## Performance Patterns
+### 3. Input Validation
+- Zod schemas for all API inputs
+- TypeScript for compile-time safety
+- Sanitization of user inputs
 
-### Database Connection Pattern
-Connection pooling and efficient queries:
+## Error Handling Patterns
+
+### 1. API Error Responses
+```typescript
+try {
+  const result = await operation()
+  return NextResponse.json(result)
+} catch (error) {
+  if (error instanceof ValidationError) {
+    return NextResponse.json({ error: error.message }, { status: 400 })
+  }
+  return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+}
+```
+
+### 2. React Error Boundaries
+```tsx
+// app/error.tsx
+'use client'
+export default function Error({ error, reset }) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={reset}>Try again</button>
+    </div>
+  )
+}
+```
+
+## Caching Strategy
+
+### 1. Redis Caching
+- Session data
+- Frequently accessed data
+- Rate limiting counters
+
+### 2. Next.js Caching
+- Static page generation
+- Incremental Static Regeneration (ISR)
+- API route caching
+
+## File Upload Pattern
+
+### CSV/XLSX Import
+```typescript
+1. Client uploads file → React Dropzone
+2. Parse on server → papaparse/xlsx
+3. Validate data → Zod schemas
+4. Bulk insert → Drizzle ORM transactions
+5. Return results → Success/error report
+```
+
+## Styling Patterns
+
+### 1. Utility-First CSS
+**Tailwind CSS**: Inline utility classes
+
+```tsx
+<div className="flex items-center gap-4 p-4 rounded-lg bg-card">
+  <Avatar className="h-12 w-12" />
+  <div className="flex-1">
+    <h3 className="text-lg font-semibold">Title</h3>
+    <p className="text-sm text-muted-foreground">Description</p>
+  </div>
+</div>
+```
+
+### 2. CSS Variables for Theming
+```css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 221.2 83.2% 53.3%;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+}
+```
+
+### 3. Component Variants
+**CVA (Class Variance Authority)**:
 
 ```typescript
-// Pattern: Connection management
-const db = neon(process.env.DATABASE_URL!, {
-  poolSize: 10,
-  connectionTimeoutMillis: 5000,
-});
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground",
+        outline: "border border-input bg-background"
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 px-3"
+      }
+    }
+  }
+)
 ```
 
-### Component Optimization Pattern
-Memoization and lazy loading:
+## Testing Patterns (Emerging)
 
-```typescript
-// Pattern: Memoized expensive components
-const ExpensiveComponent = memo(({ data }: { data: ComplexData }) => {
-  const processedData = useMemo(() => processData(data), [data]);
-  return <div>{/* Rendered content */}</div>;
-});
+### 1. Playwright for E2E
+- Browser automation
+- User flow testing
+- Integration testing
 
-// Pattern: Lazy loading
-const LazyComponent = lazy(() => import('./HeavyComponent'));
-```
-
-These patterns ensure consistency, maintainability, and scalability throughout the StratixV2 OKR Management System while leveraging modern React and Next.js best practices.
+### 2. Unit Testing (Future)
+- Jest + Testing Library
+- Component testing
+- Utility function testing

@@ -1,159 +1,171 @@
 ---
-created: 2025-09-29T04:50:25Z
-last_updated: 2025-09-29T04:50:25Z
+created: 2025-10-01T09:07:54Z
+last_updated: 2025-10-01T09:07:54Z
 version: 1.0
 author: Claude Code PM System
 ---
 
 # Project Structure
 
-## Root Directory Overview
+## Directory Organization
 
+### Root Structure
 ```
 stratixV2/
-├── .claude/                    # Claude Code configuration
-│   ├── CLAUDE.md              # Project-specific instructions
-│   ├── context/               # Project context documentation
-│   ├── epics/                 # Epic planning and tracking
-│   └── prds/                  # Product requirement documents
-├── app/                       # Next.js App Router structure
-│   ├── api/                   # API routes
-│   │   ├── invitations/       # Invitation system endpoints
-│   │   └── onboarding/        # Onboarding flow endpoints
-│   ├── setup/                 # Setup and initialization pages
-│   ├── tools/                 # Internal tools and admin pages
-│   ├── handler/               # Stack Auth handler routes
-│   ├── onboarding/            # Onboarding UI pages
-│   │   └── create/            # Organization creation page
-│   ├── invite/                # Invitation acceptance pages
-│   ├── pending-approval/      # Pending approval page
-│   ├── favicon.ico           # Application favicon
-│   ├── globals.css           # Global CSS styles
-│   ├── layout.tsx            # Root layout component
-│   ├── loading.tsx           # Global loading component
-│   └── page.tsx              # Homepage component
-├── components/               # React components
-│   ├── admin/               # Admin panel components
-│   ├── navigation/          # Navigation components
-│   ├── okr/                # OKR (Objectives & Key Results) components
-│   ├── providers/          # React context providers
-│   └── ui/                 # shadcn/ui component library
-├── lib/                     # Utility libraries and configurations
-│   ├── ai/                 # AI integration utilities
-│   ├── cache/              # Caching utilities (Redis)
-│   ├── okr/                # OKR business logic
-│   ├── organization/       # Organization and multi-tenant services
-│   ├── access.ts           # Access control utilities
-│   ├── admin.ts            # Admin functionality
-│   ├── auth.ts             # Authentication utilities (enhanced for multi-tenant)
-│   ├── setup.ts            # Setup utilities
-│   └── utils.ts            # General utilities
-├── db/                      # Database configuration
-│   └── okr-schema.ts       # Enhanced schema with tenant support
-├── config/                  # Application configuration files
-├── drizzle/                # Database migrations and schema
-│   ├── 0004_add_tenant_id.sql        # Multi-tenant migration
-│   ├── 0005_rls_policies.sql         # RLS policies
-│   └── 0006_onboarding_invitations.sql  # Onboarding tables
-├── scripts/                # Utility scripts
-│   └── migrate-existing-data.ts  # Data migration script
-├── types/                  # TypeScript type definitions
-├── hooks/                  # Custom React hooks
-├── stack/                  # Stack Auth configuration
-│   ├── client.tsx          # Client-side Stack Auth
-│   └── server.tsx          # Server-side Stack Auth
-├── middleware.ts           # Next.js middleware
-├── next.config.ts          # Next.js configuration
-└── docs/                   # Project documentation
+├── app/                    # Next.js App Router pages
+├── components/             # React components
+├── lib/                    # Libraries and utilities
+├── db/                     # Database schemas
+├── drizzle/               # Database migrations
+├── public/                # Static assets
+├── .claude/               # Claude Code configuration
+├── .github/               # GitHub workflows
+└── node_modules/          # Dependencies
 ```
 
-## Application Architecture
+### App Directory (`/app`)
+Application pages using Next.js 15 App Router:
 
-### App Router Structure (`app/`)
-- **Nested routing**: Using Next.js 15 App Router pattern
-- **Layout hierarchy**: Root layout with nested page-specific layouts
-- **Route organization**:
-  - `/setup` - Initial application setup
-  - `/tools` - Internal administrative tools
-  - `/handler` - Stack Auth authentication handlers
+```
+app/
+├── api/                    # API routes
+│   ├── activities/         # Activity CRUD endpoints
+│   ├── areas/             # Areas management
+│   ├── import/            # CSV/XLSX import endpoints
+│   ├── initiatives/       # Initiative endpoints
+│   ├── invitations/       # User invitation system
+│   ├── objectives/        # Objective endpoints
+│   └── onboarding/        # Onboarding flow
+├── handler/               # Stack Auth handlers
+├── invite/                # Invitation pages
+├── onboarding/            # Onboarding pages
+├── pending-approval/      # Approval workflow
+├── setup/                 # Setup wizard
+├── tools/                 # Admin tools
+├── error.tsx              # Error boundary
+├── layout.tsx             # Root layout with providers
+├── loading.tsx            # Loading state
+└── page.tsx               # Landing/home page
+```
 
-### Component Organization (`components/`)
+### Components Directory (`/components`)
+Reusable UI components organized by domain:
 
-**UI Components (`ui/`):**
-- Built with shadcn/ui and Radix UI primitives
-- Consistent design system components
-- Fully typed with TypeScript
-- Customizable through Tailwind CSS
+```
+components/
+├── admin/                 # Admin-specific components
+├── ai/                    # AI integration components
+├── areas/                 # Areas management UI
+│   ├── area-form.tsx      # Area creation/edit form
+│   └── areas-page-client.tsx  # Areas listing page
+├── charts/                # Chart components (Recharts)
+├── dashboard/             # Dashboard widgets
+├── import/                # Import UI components
+├── navigation/            # Navigation components
+├── okr/                   # OKR-specific components
+├── providers/             # React context providers
+└── ui/                    # Base Shadcn/ui components
+    ├── button.tsx
+    ├── dialog.tsx
+    ├── form.tsx
+    └── [50+ shadcn components]
+```
 
-**Feature Components:**
-- `admin/` - Administrative interface components
-- `okr/` - Objectives and Key Results management
-- `navigation/` - Site navigation and menu components
-- `providers/` - React Context providers for state management
+### Library Directory (`/lib`)
+Core application logic and utilities:
 
-### Library Structure (`lib/`)
+```
+lib/
+├── ai/                    # AI integration utilities
+├── cache/                 # Caching utilities (Redis)
+├── database/              # Database utilities
+├── okr/                   # OKR business logic
+├── organization/          # Organization management
+├── services/              # Business services
+├── access.ts              # Access control
+├── admin.ts               # Admin utilities
+├── auth.ts                # Authentication helpers
+├── setup.ts               # Setup utilities
+├── stack-auth-bypass.ts   # Auth bypass for migrations
+├── stack-auth-utils.ts    # Stack Auth utilities
+├── stack-auth.ts          # Stack Auth configuration
+└── utils.ts               # General utilities
+```
 
-**Core Utilities:**
-- `auth.ts` - Stack Auth integration and utilities
-- `access.ts` - Role-based access control (RBAC)
-- `admin.ts` - Admin panel functionality
-- `utils.ts` - General utility functions
+### Database Directory (`/db`)
+Database schemas and configuration:
 
-**Feature Libraries:**
-- `ai/` - AI integration and utilities
-- `okr/` - Business logic for OKR management
-- `cache/` - Redis caching implementation
+```
+db/
+├── schema.ts              # Main application schema
+└── neon_auth_schema.ts    # NeonAuth user sync schema
+```
 
-### Database Structure (`drizzle/`)
-- Migration files for database schema evolution
-- Drizzle ORM configuration
-- Schema definitions and relationships
-
-## File Naming Conventions
+## File Naming Patterns
 
 ### Components
-- **React Components**: PascalCase (e.g., `UserProfile.tsx`)
-- **Page Components**: lowercase (e.g., `page.tsx`, `layout.tsx`)
-- **Hook files**: camelCase with 'use' prefix (e.g., `useAuth.ts`)
+- **Page Components**: `[feature]-page-client.tsx` (client components)
+- **Form Components**: `[feature]-form.tsx`
+- **Layout Components**: `layout.tsx`
+- **UI Components**: `[component-name].tsx` (kebab-case)
 
-### Utilities and Libraries
-- **Utility files**: kebab-case (e.g., `user-utils.ts`)
-- **Configuration**: kebab-case (e.g., `auth-config.ts`)
-- **Types**: PascalCase (e.g., `UserTypes.ts`)
+### API Routes
+- **CRUD Routes**: `app/api/[resource]/route.ts`
+- **Actions**: `app/api/[resource]/[action]/route.ts`
+
+### Type Definitions
+- **Schemas**: `[feature]-schema.ts`
+- **Types**: `types.ts` or `[feature]-types.ts`
+
+## Module Organization
+
+### API Layer
+- RESTful endpoints in `app/api/`
+- Route handlers follow Next.js conventions
+- Middleware for authentication and validation
+
+### Component Layer
+- Domain-specific components in named folders
+- Shared UI components in `components/ui/`
+- Providers in `components/providers/`
+
+### Service Layer
+- Business logic in `lib/services/`
+- Database operations in `lib/database/`
+- Authentication in `lib/auth.ts` and `lib/stack-auth*.ts`
+
+### Data Layer
+- Drizzle ORM schemas in `db/schema.ts`
+- Type-safe database operations
+- Row Level Security policies in PostgreSQL
+
+## Key Directories
+
+### Configuration
+- `.claude/` - Claude Code configuration and context
+- `.github/` - GitHub Actions workflows
+- `drizzle/` - Database migration files
+
+### Development
+- `node_modules/` - NPM dependencies
+- `.next/` - Next.js build output (gitignored)
+
+### Static Assets
+- `public/` - Public static files
+- `app/globals.css` - Global styles
+- `app/favicon.ico` - Application favicon
 
 ## Import Patterns
 
-**Absolute Imports**: Configured with TypeScript path mapping
+### Path Aliases
+TypeScript configured with `@/*` alias pointing to root:
 ```typescript
-import { Button } from '@/components/ui/button'
-import { getCurrentUser } from '@/lib/auth'
+import { Button } from "@/components/ui/button"
+import { db } from "@/lib/database/client"
+import { stackServerApp } from "@/lib/stack-auth"
 ```
 
-**Barrel Exports**: Used for component groups
-```typescript
-// components/okr/index.ts
-export { ObjectiveCard } from './ObjectiveCard'
-export { KeyResultForm } from './KeyResultForm'
-```
-
-## Asset Organization
-
-**Static Assets** (`public/`):
-- Images, icons, and other static resources
-- Logo and branding assets
-- Documentation images
-
-**Styles**:
-- Global styles in `app/globals.css`
-- Component-specific styles via Tailwind CSS classes
-- CSS variables for theming in global stylesheet
-
-## Configuration Files
-
-- `next.config.ts` - Next.js configuration with TypeScript
-- `drizzle.config.ts` - Database ORM configuration
-- `tsconfig.json` - TypeScript compiler options
-- `components.json` - shadcn/ui component configuration
-- `.env.development.local` - Local environment variables
-
-This structure supports a scalable internal tools application with clear separation of concerns, modern React patterns, and enterprise-grade authentication and database integration.
+### Module Resolution
+- Uses `bundler` module resolution (tsconfig.json)
+- Supports ES modules
+- TypeScript strict mode enabled

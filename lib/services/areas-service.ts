@@ -16,7 +16,7 @@ export interface Area {
   color: string | null;
   icon: string | null;
   createdBy: string;
-  organizationId: string | null;
+  companyId: string;
   createdAt: Date;
   updatedAt: Date;
   parentAreaName?: string | null;
@@ -35,7 +35,7 @@ export interface CreateAreaInput {
   color?: string;
   icon?: string;
   createdBy: string;
-  organizationId?: string;
+  companyId: string;
 }
 
 export interface UpdateAreaInput {
@@ -68,7 +68,7 @@ export async function getAreasForPage(userId: string): Promise<Area[]> {
         color: areas.color,
         icon: areas.icon,
         createdBy: areas.createdBy,
-        organizationId: areas.organizationId,
+        companyId: areas.companyId,
         createdAt: areas.createdAt,
         updatedAt: areas.updatedAt,
         parentAreaName: sql<string>`parent_area.name`,
@@ -146,7 +146,7 @@ export async function createArea(input: CreateAreaInput): Promise<Area> {
         color: input.color || null,
         icon: input.icon || null,
         createdBy: input.createdBy,
-        organizationId: input.organizationId || null
+        companyId: input.companyId
       })
       .returning();
 

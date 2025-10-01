@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack/server';
 import { getAreasForPage, createArea } from '@/lib/services/areas-service';
+import { neon } from '@neondatabase/serverless';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 // GET /api/areas
 export async function GET() {
@@ -31,6 +34,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user's company_id from profile
+    const profile = await sql`
+      SELECT company_id FROM profiles WHERE id = ${user.id}
+    `;
+
+    if (!profile[0]?.company_id) {
+      return NextResponse.json({ error: 'User not associated with a company' }, { status: 403 });
+    }
+
     const body = await request.json();
 
     // Validate required fields
@@ -43,7 +55,8 @@ export async function POST(request: Request) {
 
     const area = await createArea({
       ...body,
-      created_by: user.id
+      createdBy: user.id,
+      companyId: profile[0].company_id
     });
 
     return NextResponse.json(area, { status: 201 });

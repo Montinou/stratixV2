@@ -124,11 +124,11 @@ export const areas = pgTable('areas', {
   color: varchar('color', { length: 7 }),
   icon: varchar('icon', { length: 50 }),
   createdBy: uuid('created_by').notNull(),
-  organizationId: uuid('organization_id'),
+  companyId: uuid('company_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
-  index('areas_organization_idx').on(table.organizationId),
+  index('areas_company_idx').on(table.companyId),
   index('areas_parent_idx').on(table.parentAreaId),
   index('areas_manager_idx').on(table.managerId),
   index('areas_status_idx').on(table.status),

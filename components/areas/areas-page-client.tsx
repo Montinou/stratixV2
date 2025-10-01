@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Building, Users, DollarSign, MoreHorizontal, Edit, Trash, Building2 } from 'lucide-react';
 import { AreaDialog } from './area-dialog';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface AreasPageClientProps {
   areas: any[];
@@ -39,6 +39,7 @@ interface AreasPageClientProps {
 }
 
 export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientProps) {
+  const { toast } = useToast();
   const [areas, setAreas] = useState(initialAreas);
   const [deleteAreaId, setDeleteAreaId] = useState<string | null>(null);
 

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface AreaFormProps {
   area?: any;
@@ -15,13 +15,14 @@ interface AreaFormProps {
 }
 
 export function AreaForm({ area, onSuccess, onCancel }: AreaFormProps) {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [areas, setAreas] = useState<Array<{ id: string; name: string }>>([]);
   const [formData, setFormData] = useState({
     name: area?.name || '',
     description: area?.description || '',
     code: area?.code || '',
-    parent_area_id: area?.parent_area_id || '',
+    parentAreaId: area?.parentAreaId || '',
     budget: area?.budget || '',
     headcount: area?.headcount || 0,
     status: area?.status || 'active',
@@ -146,7 +147,7 @@ export function AreaForm({ area, onSuccess, onCancel }: AreaFormProps) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="parent_area">Área Padre</Label>
-          <Select value={formData.parent_area_id} onValueChange={(value) => handleChange('parent_area_id', value)}>
+          <Select value={formData.parentAreaId} onValueChange={(value) => handleChange('parentAreaId', value)}>
             <SelectTrigger>
               <SelectValue placeholder="Selecciona área padre" />
             </SelectTrigger>
