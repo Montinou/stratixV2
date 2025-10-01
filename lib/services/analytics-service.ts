@@ -58,9 +58,9 @@ export async function getOKRDashboardStats(
     const objectiveStats = await db
       .select({
         total: count(),
-        active: sql<number>`COUNT(*) FILTER (WHERE ${objectives.status} = 'in_progress')::int`,
-        completed: sql<number>`COUNT(*) FILTER (WHERE ${objectives.status} = 'completed')::int`,
-        avgProgress: sql<string>`COALESCE(AVG(CAST(${objectives.progressPercentage} AS NUMERIC)), 0)`,
+        active: sql<number>`COUNT(*) FILTER (WHERE ${objectives.status} = 'en_progreso')::int`,
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${objectives.status} = 'completo')::int`,
+        avgProgress: sql<string>`COALESCE(AVG(CAST(${objectives.progress} AS NUMERIC)), 0)`,
       })
       .from(objectives);
 
@@ -68,9 +68,9 @@ export async function getOKRDashboardStats(
     const initiativeStats = await db
       .select({
         total: count(),
-        active: sql<number>`COUNT(*) FILTER (WHERE ${initiatives.status} = 'in_progress')::int`,
-        blocked: sql<number>`COUNT(*) FILTER (WHERE ${initiatives.status} = 'cancelled')::int`,
-        avgProgress: sql<string>`COALESCE(AVG(CAST(${initiatives.progressPercentage} AS NUMERIC)), 0)`,
+        active: sql<number>`COUNT(*) FILTER (WHERE ${initiatives.status} = 'en_progreso')::int`,
+        blocked: sql<number>`COUNT(*) FILTER (WHERE ${initiatives.status} = 'bloqueado')::int`,
+        avgProgress: sql<string>`COALESCE(AVG(CAST(${initiatives.progress} AS NUMERIC)), 0)`,
       })
       .from(initiatives);
 
@@ -78,9 +78,9 @@ export async function getOKRDashboardStats(
     const activityStats = await db
       .select({
         total: count(),
-        pending: sql<number>`COUNT(*) FILTER (WHERE ${activities.status} = 'todo')::int`,
-        completed: sql<number>`COUNT(*) FILTER (WHERE ${activities.status} = 'completed')::int`,
-        overdue: sql<number>`COUNT(*) FILTER (WHERE ${activities.dueDate} < NOW() AND ${activities.status} != 'completed')::int`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE ${activities.status} = 'no_iniciado')::int`,
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${activities.status} = 'completo')::int`,
+        overdue: sql<number>`COUNT(*) FILTER (WHERE ${activities.end_date} < NOW() AND ${activities.status} != 'completo')::int`,
       })
       .from(activities);
 
@@ -94,11 +94,11 @@ export async function getOKRDashboardStats(
     // Calculate days to nearest deadline
     const nextDeadline = await db
       .select({
-        daysRemaining: sql<number>`EXTRACT(DAY FROM (MIN(${objectives.endDate}) - NOW()))::int`,
+        daysRemaining: sql<number>`EXTRACT(DAY FROM (MIN(${objectives.end_date}) - NOW()))::int`,
       })
       .from(objectives)
       .where(
-        sql`${objectives.status} != 'completed' AND ${objectives.endDate} > NOW()`
+        sql`${objectives.status} != 'completo' AND ${objectives.end_date} > NOW()`
       );
 
     const objStats = objectiveStats[0] || {
@@ -388,9 +388,9 @@ export async function getUpcomingDeadlines(
       )
       .where(
         and(
-          sql`${objectives.status} != 'completed'`,
-          sql`${objectives.endDate} >= CURRENT_DATE`,
-          sql`${objectives.endDate} <= CURRENT_DATE + interval '${sql.raw(days.toString())} days'`
+          sql`${objectives.status} != 'completo'`,
+          sql`${objectives.end_date} >= CURRENT_DATE`,
+          sql`${objectives.end_date} <= CURRENT_DATE + interval '${sql.raw(days.toString())} days'`
         )
       );
 
