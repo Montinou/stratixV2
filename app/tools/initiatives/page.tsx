@@ -6,6 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { Plus, Rocket, Calendar, User, DollarSign, Target } from 'lucide-react';
 import { getInitiativesForPage, getInitiativeStats } from '@/lib/services/initiatives-service';
 
+export const dynamic = 'force-dynamic';
+
 export default async function InitiativesPage() {
   let user;
   let initiatives = [];
@@ -20,7 +22,9 @@ export default async function InitiativesPage() {
     user = await stackServerApp.getUser({ or: 'redirect' });
 
     if (!user || !user.id) {
-      throw new Error('User authentication failed');
+      console.error('User authentication failed - redirecting to login');
+      // Don't throw, let the redirect happen
+      return null;
     }
 
     [initiatives, stats] = await Promise.all([
@@ -29,8 +33,14 @@ export default async function InitiativesPage() {
     ]);
   } catch (error) {
     console.error('Error loading initiatives:', error);
-    // Re-throw to trigger error boundary
-    throw error;
+    // Don't re-throw, show empty state instead
+    initiatives = [];
+    stats = {
+      total: 0,
+      active: 0,
+      totalBudget: 0,
+      averageProgress: 0
+    };
   }
 
   const getStatusColor = (status: string) => {

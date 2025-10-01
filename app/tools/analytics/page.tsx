@@ -22,18 +22,43 @@ import {
   getCompletionTrends,
 } from '@/lib/services/analytics-service';
 
-export default async function AnalyticsPage() {
-  const user = await stackServerApp.getUser({ or: 'redirect' });
+export const dynamic = 'force-dynamic';
 
-  // Fetch all analytics data from database
-  const [dashboardStats, departmentProgress, topPerformers, upcomingDeadlines, completionTrends] =
-    await Promise.all([
-      getOKRDashboardStats(user.id),
-      getDepartmentProgress(user.id),
-      getTopPerformers(user.id, 5),
-      getUpcomingDeadlines(user.id, 30),
-      getCompletionTrends(user.id, 6),
-    ]);
+export default async function AnalyticsPage() {
+  let user;
+  let dashboardStats = {
+    totalObjectives: 0,
+    completedObjectives: 0,
+    activeInitiatives: 0,
+    overallProgress: 0,
+    riskObjectives: 0
+  };
+  let departmentProgress = [];
+  let topPerformers = [];
+  let upcomingDeadlines = [];
+  let completionTrends = [];
+
+  try {
+    user = await stackServerApp.getUser({ or: 'redirect' });
+
+    if (!user || !user.id) {
+      console.error('User authentication failed - redirecting to login');
+      return null;
+    }
+
+    // Fetch all analytics data from database
+    [dashboardStats, departmentProgress, topPerformers, upcomingDeadlines, completionTrends] =
+      await Promise.all([
+        getOKRDashboardStats(user.id),
+        getDepartmentProgress(user.id),
+        getTopPerformers(user.id, 5),
+        getUpcomingDeadlines(user.id, 30),
+        getCompletionTrends(user.id, 6),
+      ]);
+  } catch (error) {
+    console.error('Error loading analytics:', error);
+    // Use empty state on error
+  }
 
   // Calculate completion rate for each department and determine trend
   const departmentsWithTrend = departmentProgress.map((dept) => {

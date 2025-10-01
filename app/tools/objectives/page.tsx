@@ -6,12 +6,34 @@ import { Progress } from '@/components/ui/progress';
 import { Plus, Target, Calendar, User, TrendingUp } from 'lucide-react';
 import { getObjectivesForPage, getObjectiveStats } from '@/lib/services/objectives-service';
 
-export default async function ObjectivesPage() {
-  const user = await stackServerApp.getUser({ or: 'redirect' });
+export const dynamic = 'force-dynamic';
 
-  // Fetch real data from database
-  const objectives = await getObjectivesForPage(user.id);
-  const stats = await getObjectiveStats(user.id);
+export default async function ObjectivesPage() {
+  let user;
+  let objectives = [];
+  let stats = {
+    total: 0,
+    active: 0,
+    completed: 0,
+    overdue: 0
+  };
+
+  try {
+    user = await stackServerApp.getUser({ or: 'redirect' });
+
+    if (!user || !user.id) {
+      console.error('User authentication failed - redirecting to login');
+      return null;
+    }
+
+    // Fetch real data from database
+    objectives = await getObjectivesForPage(user.id);
+    stats = await getObjectiveStats(user.id);
+  } catch (error) {
+    console.error('Error loading objectives:', error);
+    // Use empty state on error
+    objectives = [];
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {

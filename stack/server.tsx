@@ -16,13 +16,25 @@ if (!projectId || !publishableClientKey || !secretServerKey) {
   console.error('Application will redirect to signup for all requests');
 }
 
+// Determine base URL for the application
+const getBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+  // Production URL for ai-innovation.site
+  return 'https://www.ai-innovation.site';
+};
+
 // Server-side configuration - use fallbacks to prevent crashes
 export const stackServerApp = new StackServerApp({
   tokenStore: 'nextjs-cookie',
   urls: {
     afterSignIn: '/tools',
     afterSignUp: '/tools',
-    baseUrl: process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : undefined,
+    baseUrl: getBaseUrl(),
   },
   projectId: projectId || 'missing',
   publishableClientKey: publishableClientKey || 'missing',
