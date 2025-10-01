@@ -14,7 +14,7 @@ echo "┌───────────────────────�
 echo "│ Claude Code Project Management  │"
 echo "│ by https://x.com/aroussi        │"
 echo "└─────────────────────────────────┘"
-echo "https://github.com/automazeio/ccpm"
+echo "https://github.com/Montinou/stratixV2.git"
 echo ""
 echo ""
 
@@ -94,7 +94,7 @@ if git rev-parse --git-dir > /dev/null 2>&1; then
     echo "  ✅ Remote configured: $remote_url"
     
     # Check if remote is the CCPM template repository
-    if [[ "$remote_url" == *"automazeio/ccpm"* ]] || [[ "$remote_url" == *"automazeio/ccpm.git"* ]]; then
+    if [[ "$remote_url" == *"Montinou/stratixV2.git"* ]] || [[ "$remote_url" == *"Montinou/stratixV2.git"* ]]; then
       echo ""
       echo "  ⚠️ WARNING: Your remote origin points to the CCPM template repository!"
       echo "  This means any issues you create will go to the template repo, not your project."
@@ -102,7 +102,7 @@ if git rev-parse --git-dir > /dev/null 2>&1; then
       echo "  To fix this:"
       echo "  1. Fork the repository or create your own on GitHub"
       echo "  2. Update your remote:"
-      echo "     git remote set-url origin https://github.com/YOUR_USERNAME/YOUR_REPO.git"
+      echo "     git remote set-url origin https://github.com/Montinou/stratixV2.git"
       echo ""
     fi
   else

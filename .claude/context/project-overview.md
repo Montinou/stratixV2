@@ -1,7 +1,7 @@
 ---
 created: 2025-09-29T04:50:25Z
-last_updated: 2025-09-29T04:50:25Z
-version: 1.0
+last_updated: 2025-10-01T02:58:50Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -21,11 +21,14 @@ StratixV2 is a modern, secure OKR (Objectives and Key Results) management platfo
 - **Assignment System**: Role-based ownership and responsibility delegation
 
 ### User Management & Security
+- **Multi-Tenant Architecture**: Complete organization-based isolation with RLS
 - **Stack Auth Integration**: Modern authentication with Google, GitHub, and email options
 - **Role-Based Access Control**: Three-tier permissions (Corporate, Gerente, Empleado)
-- **Email Access Control**: Domain whitelisting and individual email approval/blacklist
-- **Admin Panel**: Comprehensive user management at `/tools/admin`
+- **Organization Onboarding**: Self-service organization creation with approval workflow
+- **Team Invitations**: Secure token-based invitation system
+- **Admin Panel**: Comprehensive user and organization management at `/tools/admin`
 - **Session Management**: Secure JWT-based sessions with Stack Auth
+- **Data Isolation**: PostgreSQL RLS policies for automatic tenant filtering
 
 ### Analytics & Reporting
 - **Real-time Dashboards**: Interactive progress visualization and performance metrics
@@ -64,10 +67,12 @@ StratixV2 is a modern, secure OKR (Objectives and Key Results) management platfo
 - Multi-provider authentication (Google, GitHub, email)
 
 **Database Infrastructure:**
-- NeonDB serverless PostgreSQL
+- NeonDB serverless PostgreSQL 17.5
 - Drizzle ORM for type-safe database operations
-- Row Level Security (RLS) for data protection
-- Automated migration system
+- Row Level Security (RLS) for multi-tenant data isolation
+- Automated migration system with Drizzle Kit
+- Complete RLS policy coverage across all tables
+- Tenant context management for secure data access
 
 **API Layer:**
 - RESTful API endpoints for all major operations

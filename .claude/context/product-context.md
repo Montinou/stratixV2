@@ -1,7 +1,7 @@
 ---
 created: 2025-09-29T04:50:25Z
-last_updated: 2025-09-29T04:50:25Z
-version: 1.0
+last_updated: 2025-10-01T02:58:50Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -35,12 +35,22 @@ author: Claude Code PM System
 
 ### User Journey Mapping
 
-**New User Onboarding:**
+**New User Onboarding (Organization Creator):**
 1. Stack Auth authentication (Google, GitHub, email)
-2. Profile setup with role assignment
-3. Company/department association
-4. Introduction to OKR hierarchy
-5. First objective creation or assignment
+2. Organization creation flow (`/onboarding/create`)
+3. Draft state persistence during setup
+4. Organization submission for approval
+5. Pending approval state (`/pending-approval`)
+6. Admin approval process
+7. Full system access granted
+
+**New User Onboarding (Invited Team Member):**
+1. Receive invitation email with secure token
+2. Click invitation link (`/invite/[token]`)
+3. Stack Auth authentication (if not logged in)
+4. Accept invitation to join organization
+5. Automatic organization assignment
+6. Immediate access to team's OKR system
 
 **Daily User Flow:**
 1. Dashboard overview with progress indicators
@@ -67,17 +77,25 @@ author: Claude Code PM System
 
 ### Authentication & Access Control
 
+**Multi-Tenant Architecture:**
+- Organization-based data isolation via Row-Level Security (RLS)
+- Automatic tenant filtering on all database queries
+- Secure tenant context management
+- Cross-tenant data protection
+
 **Security Features:**
-- Email-based access control system
-- Domain whitelisting for company access
-- Individual email approval/blacklisting
+- Organization-level access control
+- Token-based invitation system
 - Role-based permissions (Corporate/Gerente/Empleado)
 - Secure authentication via Stack Auth/Neon Auth
+- PostgreSQL RLS policies for data isolation
 
 **Admin Panel:**
 - User management interface at `/tools/admin`
-- Access permission controls
+- Organization approval workflow
+- Invitation management
 - User role assignment
+- Access permission controls
 - System monitoring and health checks
 
 ### Analytics & Insights

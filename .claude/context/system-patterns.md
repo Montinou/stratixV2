@@ -1,7 +1,7 @@
 ---
 created: 2025-09-29T04:50:25Z
-last_updated: 2025-09-29T04:50:25Z
-version: 1.0
+last_updated: 2025-10-01T02:58:50Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -49,15 +49,33 @@ const user = useUser({ or: "redirect" });
 ```
 
 ### Database Access Pattern (Drizzle ORM)
-Type-safe database operations with connection pooling:
+Type-safe database operations with connection pooling and multi-tenant support:
 
 ```typescript
 // Pattern: Serverless connection with pooling
 import { neon } from '@neondatabase/serverless';
 const sql = neon(process.env.DATABASE_URL!);
 
-// Pattern: Type-safe queries
+// Pattern: Type-safe queries with tenant isolation (RLS)
 const results = await db.select().from(table).where(eq(table.id, userId));
+// Note: Row-Level Security policies automatically filter by tenant_id
+```
+
+### Multi-Tenant Pattern (Row-Level Security)
+Tenant isolation using PostgreSQL RLS:
+
+```typescript
+// Pattern: Setting tenant context for RLS
+await sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
+
+// Pattern: All subsequent queries automatically filtered by tenant
+const data = await db.select().from(objectives);
+// Returns only data for current tenant due to RLS policies
+
+// Pattern: Organization service for tenant operations
+import { OrganizationService } from '@/lib/organization/organization-service';
+const orgService = new OrganizationService();
+const org = await orgService.getOrganization(orgId);
 ```
 
 ## Component Patterns
@@ -179,6 +197,23 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 3. **Submit Handler** → API call with validated data
 4. **Database Update** → Drizzle ORM operation
 5. **UI Feedback** → Success/error messaging
+
+### Onboarding Flow
+1. **User Signup** → Stack Auth registration
+2. **Check Onboarding Status** → API call to `/api/onboarding/status`
+3. **Draft Management** → Persistent state in `/api/onboarding/draft`
+4. **Organization Creation** → POST to `/api/onboarding/create-organization`
+5. **Approval Workflow** → Pending approval state
+6. **Admin Approval** → Organization activation
+7. **User Access** → Full application access
+
+### Invitation Flow
+1. **Invite Generation** → Admin creates invitation with token
+2. **Email Delivery** → Invitation link sent to user
+3. **Token Validation** → GET `/api/invitations/[token]`
+4. **User Acceptance** → POST `/api/invitations/accept`
+5. **Organization Assignment** → User added to organization
+6. **Access Granted** → User can access tenant data
 
 ## Error Handling Patterns
 

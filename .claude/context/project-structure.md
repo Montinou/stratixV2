@@ -13,11 +13,20 @@ author: Claude Code PM System
 stratixV2/
 ├── .claude/                    # Claude Code configuration
 │   ├── CLAUDE.md              # Project-specific instructions
-│   └── context/               # Project context documentation
+│   ├── context/               # Project context documentation
+│   ├── epics/                 # Epic planning and tracking
+│   └── prds/                  # Product requirement documents
 ├── app/                       # Next.js App Router structure
+│   ├── api/                   # API routes
+│   │   ├── invitations/       # Invitation system endpoints
+│   │   └── onboarding/        # Onboarding flow endpoints
 │   ├── setup/                 # Setup and initialization pages
 │   ├── tools/                 # Internal tools and admin pages
 │   ├── handler/               # Stack Auth handler routes
+│   ├── onboarding/            # Onboarding UI pages
+│   │   └── create/            # Organization creation page
+│   ├── invite/                # Invitation acceptance pages
+│   ├── pending-approval/      # Pending approval page
 │   ├── favicon.ico           # Application favicon
 │   ├── globals.css           # Global CSS styles
 │   ├── layout.tsx            # Root layout component
@@ -33,17 +42,26 @@ stratixV2/
 │   ├── ai/                 # AI integration utilities
 │   ├── cache/              # Caching utilities (Redis)
 │   ├── okr/                # OKR business logic
+│   ├── organization/       # Organization and multi-tenant services
 │   ├── access.ts           # Access control utilities
 │   ├── admin.ts            # Admin functionality
-│   ├── auth.ts             # Authentication utilities
+│   ├── auth.ts             # Authentication utilities (enhanced for multi-tenant)
 │   ├── setup.ts            # Setup utilities
 │   └── utils.ts            # General utilities
 ├── db/                      # Database configuration
+│   └── okr-schema.ts       # Enhanced schema with tenant support
 ├── config/                  # Application configuration files
 ├── drizzle/                # Database migrations and schema
+│   ├── 0004_add_tenant_id.sql        # Multi-tenant migration
+│   ├── 0005_rls_policies.sql         # RLS policies
+│   └── 0006_onboarding_invitations.sql  # Onboarding tables
+├── scripts/                # Utility scripts
+│   └── migrate-existing-data.ts  # Data migration script
 ├── types/                  # TypeScript type definitions
 ├── hooks/                  # Custom React hooks
 ├── stack/                  # Stack Auth configuration
+│   ├── client.tsx          # Client-side Stack Auth
+│   └── server.tsx          # Server-side Stack Auth
 ├── middleware.ts           # Next.js middleware
 ├── next.config.ts          # Next.js configuration
 └── docs/                   # Project documentation

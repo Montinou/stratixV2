@@ -25,7 +25,7 @@ Do not bother the user with preflight checks progress ("I'm not going to ..."). 
    Follow `/rules/github-operations.md` - check remote origin:
    ```bash
    remote_url=$(git remote get-url origin 2>/dev/null || echo "")
-   if [[ "$remote_url" == *"automazeio/ccpm"* ]]; then
+   if [[ "$remote_url" == *"Montinou/stratixV2.git"* ]]; then
      echo "❌ ERROR: Cannot sync to CCPM template repository!"
      echo "Update your remote: git remote set-url origin https://github.com/YOUR_USERNAME/YOUR_REPO.git"
      exit 1
