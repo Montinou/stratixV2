@@ -1,19 +1,12 @@
 import { stackServerApp } from '@/stack/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, Rocket, Activity, TrendingUp, Users, Clock } from 'lucide-react';
+import { getOKRDashboardStats } from '@/lib/services/analytics-service';
 
 export default async function OKRDashboard() {
   const user = await stackServerApp.getUser({ or: 'redirect' });
 
-  // TODO: Implementar queries para obtener datos reales de la base de datos
-  const stats = {
-    totalObjectives: 12,
-    activeInitiatives: 24,
-    completedActivities: 156,
-    overallProgress: 78,
-    teamMembers: 8,
-    daysToDeadline: 45,
-  };
+  const stats = await getOKRDashboardStats(user.id);
 
   return (
     <div className="space-y-6 p-6">
@@ -38,7 +31,7 @@ export default async function OKRDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalObjectives}</div>
             <p className="text-xs text-muted-foreground">
-              Total activos
+              {stats.activeObjectives} activos
             </p>
           </CardContent>
         </Card>
@@ -101,7 +94,7 @@ export default async function OKRDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.daysToDeadline}</div>
+            <div className="text-2xl font-bold">{stats.daysToDeadline ?? '-'}</div>
             <p className="text-xs text-muted-foreground">
               Días restantes
             </p>
