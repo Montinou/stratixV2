@@ -23,6 +23,7 @@ export const priorityEnum = pgEnum('priority', ['low', 'medium', 'high']);
 export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'accepted', 'expired', 'revoked']);
 export const onboardingStatusEnum = pgEnum('onboarding_status', ['in_progress', 'completed', 'abandoned']);
 export const onboardingStepEnum = pgEnum('onboarding_step', ['create_org', 'accept_invite', 'complete_profile']);
+export const areaStatusEnum = pgEnum('area_status', ['active', 'inactive', 'planning']);
 
 // Companies table - organization information
 export const companies = pgTable('companies', {
@@ -107,6 +108,30 @@ export const activities = pgTable('activities', {
 }, (table) => [
   index('activities_company_idx').on(table.companyId),
   index('activities_initiative_idx').on(table.initiativeId),
+]);
+
+// Areas table - organizational areas/departments
+export const areas = pgTable('areas', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  code: varchar('code', { length: 50 }).unique(),
+  parentAreaId: uuid('parent_area_id'),
+  managerId: uuid('manager_id'),
+  budget: numeric('budget', { precision: 15, scale: 2 }),
+  headcount: integer('headcount').default(0),
+  status: areaStatusEnum('status').default('active'),
+  color: varchar('color', { length: 7 }),
+  icon: varchar('icon', { length: 50 }),
+  createdBy: uuid('created_by').notNull(),
+  organizationId: uuid('organization_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('areas_organization_idx').on(table.organizationId),
+  index('areas_parent_idx').on(table.parentAreaId),
+  index('areas_manager_idx').on(table.managerId),
+  index('areas_status_idx').on(table.status),
 ]);
 
 // Comments table - comments for objectives, initiatives, and activities

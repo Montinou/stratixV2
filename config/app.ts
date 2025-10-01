@@ -7,7 +7,8 @@ import {
   BarChart3,
   Brain,
   Upload,
-  Settings
+  Settings,
+  Building
 } from 'lucide-react';
 
 export const appConfig = {
@@ -38,6 +39,11 @@ export const appConfig = {
         title: 'Actividades',
         icon: Activity,
         url: '/tools/activities',
+      },
+      {
+        title: 'Áreas',
+        icon: Building,
+        url: '/tools/areas',
       },
       {
         title: 'Analytics',
