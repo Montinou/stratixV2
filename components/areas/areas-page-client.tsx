@@ -145,7 +145,7 @@ export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientP
     <Card
       key={area.id}
       className="hover:shadow-md transition-shadow"
-      style={{ marginLeft: `${area.level * 2}rem` }}
+      style={{ marginLeft: `${area.level * 1}rem` }}
     >
       <CardHeader>
         <div className="flex items-start justify-between">
@@ -205,21 +205,21 @@ export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientP
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 text-sm">
           {area.budget && (
             <div className="flex items-center space-x-1 text-muted-foreground">
-              <DollarSign className="h-4 w-4" />
-              <span>Presupuesto: {formatCurrency(area.budget)}</span>
+              <DollarSign className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Presupuesto: {formatCurrency(area.budget)}</span>
             </div>
           )}
           <div className="flex items-center space-x-1 text-muted-foreground">
-            <Users className="h-4 w-4" />
-            <span>Personal: {area.headcount || 0}</span>
+            <Users className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">Personal: {area.headcount || 0}</span>
           </div>
           {area.manager_name && (
             <div className="flex items-center space-x-1 text-muted-foreground">
-              <Users className="h-4 w-4" />
-              <span>Manager: {area.manager_name}</span>
+              <Users className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">Manager: {area.manager_name}</span>
             </div>
           )}
         </div>
@@ -235,21 +235,23 @@ export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientP
   );
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Áreas Organizacionales
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gestiona la estructura organizacional de tu empresa
           </p>
         </div>
-        <AreaDialog />
+        <div className="flex justify-start sm:justify-end">
+          <AreaDialog />
+        </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Áreas</CardTitle>
