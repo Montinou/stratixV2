@@ -4,69 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Plus, Rocket, Calendar, User, DollarSign, Target } from 'lucide-react';
+import { getInitiativesForPage, getInitiativeStats } from '@/lib/services/initiatives-service';
 
 export default async function InitiativesPage() {
   const user = await stackServerApp.getUser({ or: 'redirect' });
 
-  // TODO: Implementar queries para obtener iniciativas reales de la base de datos
-  const initiatives = [
-    {
-      id: '1',
-      title: 'Implementar chatbot de atención al cliente',
-      description: 'Desarrollar y desplegar un chatbot para mejorar la atención al cliente 24/7',
-      status: 'in_progress',
-      priority: 'high',
-      progress: 65,
-      budget: 50000,
-      startDate: '2024-01-15',
-      endDate: '2024-04-15',
-      assignedTo: 'Carlos López',
-      objectiveTitle: 'Aumentar la satisfacción del cliente',
-      department: 'Tecnología',
-    },
-    {
-      id: '2',
-      title: 'Automatizar proceso de facturación',
-      description: 'Crear sistema automatizado para reducir tiempos de facturación',
-      status: 'planning',
-      priority: 'medium',
-      progress: 15,
-      budget: 30000,
-      startDate: '2024-02-01',
-      endDate: '2024-05-30',
-      assignedTo: 'Laura Martínez',
-      objectiveTitle: 'Reducir tiempo de respuesta',
-      department: 'Finanzas',
-    },
-    {
-      id: '3',
-      title: 'Campaña de marketing digital',
-      description: 'Lanzar campaña integral para aumentar reconocimiento de marca',
-      status: 'in_progress',
-      priority: 'high',
-      progress: 80,
-      budget: 75000,
-      startDate: '2024-01-01',
-      endDate: '2024-03-31',
-      assignedTo: 'Pedro Sánchez',
-      objectiveTitle: 'Lanzar nueva funcionalidad',
-      department: 'Marketing',
-    },
-    {
-      id: '4',
-      title: 'Migración a la nube',
-      description: 'Migrar infraestructura actual a servicios en la nube',
-      status: 'completed',
-      priority: 'high',
-      progress: 100,
-      budget: 120000,
-      startDate: '2023-10-01',
-      endDate: '2024-01-31',
-      assignedTo: 'Ana García',
-      objectiveTitle: 'Modernizar infraestructura',
-      department: 'IT',
-    },
-  ];
+  const [initiatives, stats] = await Promise.all([
+    getInitiativesForPage(user.id),
+    getInitiativeStats(user.id),
+  ]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -124,11 +70,16 @@ export default async function InitiativesPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: string | null) => {
+    if (!amount) return 'N/A';
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR'
-    }).format(amount);
+    }).format(Number(amount));
+  };
+
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('es-ES');
   };
 
   return (
@@ -156,7 +107,7 @@ export default async function InitiativesPage() {
             <Rocket className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{initiatives.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
               Iniciativas registradas
             </p>
@@ -169,9 +120,7 @@ export default async function InitiativesPage() {
             <Rocket className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {initiatives.filter(init => init.status === 'in_progress').length}
-            </div>
+            <div className="text-2xl font-bold">{stats.active}</div>
             <p className="text-xs text-muted-foreground">
               En ejecución
             </p>
@@ -185,7 +134,10 @@ export default async function InitiativesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(initiatives.reduce((acc, init) => acc + init.budget, 0))}
+              {new Intl.NumberFormat('es-ES', {
+                style: 'currency',
+                currency: 'EUR'
+              }).format(stats.totalBudget)}
             </div>
             <p className="text-xs text-muted-foreground">
               Inversión total
@@ -200,7 +152,7 @@ export default async function InitiativesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(initiatives.reduce((acc, init) => acc + init.progress, 0) / initiatives.length)}%
+              {Math.round(stats.averageProgress)}%
             </div>
             <p className="text-xs text-muted-foreground">
               De todas las iniciativas
@@ -210,71 +162,66 @@ export default async function InitiativesPage() {
       </div>
 
       {/* Lista de iniciativas */}
-      <div className="space-y-4">
-        {initiatives.map((initiative) => (
-          <Card key={initiative.id} className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg">{initiative.title}</CardTitle>
-                  <CardDescription>{initiative.description}</CardDescription>
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Target className="h-4 w-4" />
-                    <span>Objetivo: {initiative.objectiveTitle}</span>
+      {initiatives.length > 0 ? (
+        <div className="space-y-4">
+          {initiatives.map((initiative) => (
+            <Card key={initiative.id} className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg">{initiative.title}</CardTitle>
+                    <CardDescription>{initiative.description}</CardDescription>
+                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                      <Target className="h-4 w-4" />
+                      <span>Objetivo: {initiative.objectiveTitle}</span>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Badge className={getStatusColor(initiative.status)}>
+                      {getStatusLabel(initiative.status)}
+                    </Badge>
+                    <Badge className={getPriorityColor(initiative.priority)}>
+                      {getPriorityLabel(initiative.priority)}
+                    </Badge>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  <Badge className={getStatusColor(initiative.status)}>
-                    {getStatusLabel(initiative.status)}
-                  </Badge>
-                  <Badge className={getPriorityColor(initiative.priority)}>
-                    {getPriorityLabel(initiative.priority)}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Progreso */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progreso</span>
-                    <span>{initiative.progress}%</span>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Progreso */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progreso</span>
+                      <span>{initiative.progressPercentage ? Math.round(Number(initiative.progressPercentage)) : 0}%</span>
+                    </div>
+                    <Progress value={initiative.progressPercentage ? Number(initiative.progressPercentage) : 0} className="h-2" />
                   </div>
-                  <Progress value={initiative.progress} className="h-2" />
-                </div>
 
-                {/* Información adicional */}
-                <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-1">
-                    <DollarSign className="h-4 w-4" />
-                    <span>Presupuesto: {formatCurrency(initiative.budget)}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <User className="h-4 w-4" />
-                    <span>Responsable: {initiative.assignedTo}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>Inicio: {new Date(initiative.startDate).toLocaleDateString('es-ES')}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>Fin: {new Date(initiative.endDate).toLocaleDateString('es-ES')}</span>
+                  {/* Información adicional */}
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <DollarSign className="h-4 w-4" />
+                      <span>Presupuesto: {formatCurrency(initiative.budget)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <User className="h-4 w-4" />
+                      <span>Responsable: {initiative.assignedToName || 'Sin asignar'}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>Inicio: {formatDate(initiative.startDate)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-4 w-4" />
+                      <span>Fin: {formatDate(initiative.endDate)}</span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Departamento */}
-                <div className="flex justify-end">
-                  <Badge variant="outline">{initiative.department}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {initiatives.length === 0 && (
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Rocket className="h-12 w-12 text-muted-foreground mb-4" />
