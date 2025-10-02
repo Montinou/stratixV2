@@ -27,7 +27,7 @@ interface InvitationData {
 }
 
 export default function AcceptInvitationPage() {
-  const user = useUser({ or: 'redirect' });
+  const user = useUser();
   const router = useRouter();
   const params = useParams();
   const token = params.token as string;
@@ -37,8 +37,17 @@ export default function AcceptInvitationPage() {
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Redirect to sign-up if not authenticated, preserving the token
+  useEffect(() => {
+    if (!user) {
+      router.push(`/handler/sign-up?after=${encodeURIComponent(`/invite/${token}`)}`);
+    }
+  }, [user, router, token]);
+
   useEffect(() => {
     async function loadInvitation() {
+      if (!user) return; // Don't load invitation if not authenticated
+
       try {
         const response = await fetch(`/api/invitations/${token}`);
         const data = await response.json();
@@ -57,7 +66,7 @@ export default function AcceptInvitationPage() {
     }
 
     loadInvitation();
-  }, [token]);
+  }, [token, user]);
 
   const handleAccept = async () => {
     if (!invitation) return;
@@ -250,7 +259,7 @@ export default function AcceptInvitationPage() {
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            Your email ({user.primaryEmail}) must match the invitation email
+            Your email ({user?.primaryEmail || invitation.email}) must match the invitation email
           </p>
         </CardContent>
       </Card>
