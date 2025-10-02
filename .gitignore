@@ -44,3 +44,6 @@ yarn-error.log*
 next-env.d.ts
 .env*.local
 .mcp.json
+# test artifacts and screenshots
+.playwright-mcp/*.png
+test-results-*.md
