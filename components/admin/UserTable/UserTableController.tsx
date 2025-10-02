@@ -5,22 +5,34 @@ import { Toaster } from '@/components/ui/sonner';
 import db from '@/db';
 import { profiles } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
+import { withRLSContext } from '@/lib/db/rls-context';
 
 export default async function UsersPage() {
   // Get current user's company
   const currentUser = await stackServerApp.getUser({ or: 'throw' });
-  const currentProfile = await db.query.profiles.findFirst({
-    where: eq(profiles.id, currentUser.id),
+
+  // Ejecutar queries con RLS context para seguridad adicional
+  const { currentProfile, companyProfiles } = await withRLSContext(async () => {
+    const currentProfile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, currentUser.id),
+    });
+
+    if (!currentProfile?.companyId) {
+      throw new Error('No company assigned to user');
+    }
+
+    // Get all users from current user's company
+    // RLS garantiza que solo veremos perfiles de nuestra company
+    const companyProfiles = await db.query.profiles.findMany({
+      where: eq(profiles.companyId, currentProfile.companyId),
+    });
+
+    return { currentProfile, companyProfiles };
   });
 
   if (!currentProfile?.companyId) {
     return <div>No company assigned to user</div>;
   }
-
-  // Get all users from current user's company
-  const companyProfiles = await db.query.profiles.findMany({
-    where: eq(profiles.companyId, currentProfile.companyId),
-  });
 
   // Get Stack users for these profiles
   const usersResult = await stackServerApp.listUsers({
