@@ -1,202 +1,218 @@
 ---
-created: 2025-10-01T09:07:54Z
-last_updated: 2025-10-01T11:14:27Z
+created: 2025-10-02T03:02:00Z
+last_updated: 2025-10-02T03:36:10Z
 version: 1.1
 author: Claude Code PM System
 ---
 
 # Technology Context
 
-## Core Technologies
+## Language & Runtime
 
-### Runtime & Framework
-- **Node.js**: v24.5.0 (latest LTS)
-- **NPM**: v11.5.1
-- **Next.js**: 15.3.3 with App Router and Turbopack
-- **React**: 18.3.1 with Server Components
-- **TypeScript**: v5 with strict mode
+**Primary Language:** TypeScript 5.x
+- Strict mode enabled
+- Type safety enforced throughout
+- Full ES2022+ feature support
 
-### Language Configuration
-- **Target**: ES2017
-- **Module System**: ESNext with bundler resolution
-- **Strict Mode**: Enabled
-- **JSX**: preserve (handled by Next.js)
+**Runtime:** Node.js 20+
+- Modern JavaScript features
+- Native ESM support
+- Optimal performance
 
 ## Frontend Stack
 
+### Framework
+- **Next.js 15.3.3**
+  - App Router architecture
+  - React Server Components
+  - Server Actions support
+  - Turbopack for development
+  - Edge runtime capabilities
+
 ### UI Framework
-- **Styling**: Tailwind CSS 4.1.9 with PostCSS
-- **Component Library**: Shadcn/ui (Radix UI primitives)
-- **Icons**: Lucide React v0.513.0
-- **Fonts**: Inter (sans-serif), JetBrains Mono (monospace)
+- **React 18.3.1**
+  - Concurrent features
+  - Automatic batching
+  - Transitions API
+  - Server Components
+
+### Styling
+- **Tailwind CSS 4.x**
+  - Utility-first approach
+  - CSS variables for theming
+  - PostCSS processing
+  - JIT compiler
+
+- **Tailwind Plugins:**
+  - `tw-animate-css` v1.3.4 - Animation utilities
+  - `prettier-plugin-tailwindcss` v0.6.12 - Auto-formatting
+
+### Component Libraries
+- **Shadcn/ui** - Component collection built on:
+  - Radix UI primitives (v1.x)
+  - Class Variance Authority (CVA) v0.7.1
+  - Tailwind Merge v3.3.0
+  - Lucide React v0.513.0 (icons)
 
 ### UI Components (Radix UI)
-- 30+ Radix UI components installed:
-  - Accordion, Alert Dialog, Avatar, Checkbox
-  - Dialog, Dropdown Menu, Hover Card, Label
-  - Navigation Menu, Popover, Progress, Radio Group
-  - Scroll Area, Select, Separator, Slider
-  - Switch, Tabs, Toggle, Tooltip, etc.
+- Accordion, AlertDialog, AspectRatio
+- Avatar, Checkbox, Collapsible
+- ContextMenu, Dialog, DropdownMenu
+- HoverCard, Label, Menubar
+- NavigationMenu, Popover, Progress
+- RadioGroup, ScrollArea, Select
+- Separator, Slider, Slot
+- Switch, Tabs, Toggle
+- ToggleGroup, Tooltip
 
-### Form & Validation
-- **Forms**: React Hook Form v7.57.0
-- **Validation**: Zod v3.25.57
-- **Resolvers**: @hookform/resolvers v5.0.1
+### Additional UI
+- **Vaul v1.1.2** - Drawer component
+- **Sonner v2.0.5** - Toast notifications
+- **CMDK v1.1.1** - Command menu
+- **Input OTP v1.4.2** - OTP input
+- **Embla Carousel v8.6.0** - Carousel component
+- **React Resizable Panels v3.0.2** - Resizable layouts
 
-### Data Visualization
-- **Charts**: Recharts v2.15.3
-- **Tables**: TanStack React Table v8.21.3
-
-### Additional UI Libraries
-- **Carousel**: Embla Carousel React v8.6.0
-- **File Upload**: React Dropzone v14.3.8
-- **Resizable Panels**: React Resizable Panels v3.0.2
-- **Toast Notifications**: Sonner v2.0.5
-- **Drawer**: Vaul v1.1.2
-- **Command Palette**: CMDK v1.1.1
-- **OTP Input**: Input OTP v1.4.2
-- **Theme**: Next Themes v0.4.6
-
-### Data Processing
-- **CSV Parser**: papaparse v5.5.3
-- **Excel**: xlsx v0.18.5
-
-## Backend Stack
+## Backend & Data
 
 ### Database
-- **Provider**: NeonDB (PostgreSQL 17.5)
-- **Client**: @neondatabase/serverless v1.0.1
-- **ORM**: Drizzle ORM v0.44.5
-- **Schema Management**: Drizzle Kit v0.31.1
-- **Direct Client**: pg v8.16.3
+- **NeonDB** (PostgreSQL 17.5)
+  - Serverless PostgreSQL
+  - Connection pooling
+  - SSL connections required
+  - Row Level Security (RLS) enabled
 
-### Database Features
-- Connection pooling enabled
-- SSL/TLS required
-- Row Level Security (RLS)
-- Schema filtering: `public`, `neon_auth`
+- **@neondatabase/serverless v1.0.1** - Serverless driver
+- **pg v8.16.3** - PostgreSQL client
+- **Drizzle ORM v0.44.5** - Type-safe ORM
+- **Drizzle Kit v0.31.1** - Migration tool
 
 ### Authentication
-- **Provider**: Stack Auth (@stackframe/stack v2.8.41)
-- **Integration**: NeonAuth (native Neon integration)
-- **Session Management**: Server-side with cookies
-- **Middleware**: Custom auth middleware
+- **Stack Auth (@stackframe/stack) v2.8.41**
+  - NeonAuth integration
+  - JWT-based sessions
+  - SSR support
+  - OAuth providers
 
-### Caching
-- **Redis Client**: ioredis v5.8.0
-- **Use Cases**: Session caching, rate limiting
+### API & Data Fetching
+- **Next.js API Routes** - Server endpoints
+- **React Server Components** - Data fetching
+- **Server Actions** - Mutations
+
+### Email Services
+- **Brevo (Sendinblue)** - Transactional email service
+  - API-based email sending
+  - Template management
+  - Webhook support for email events
+  - No npm package required (REST API)
 
 ## AI Integration
 
-### AI SDKs
-- **Vercel AI SDK**: ai v4.0.58
-- **Anthropic**: @ai-sdk/anthropic v1.0.11
-- **OpenAI**: @ai-sdk/openai v1.0.22
-- **Gateway**: Vercel AI Gateway (configured)
+- **Vercel AI SDK v4.0.58** - Core AI utilities
+- **@ai-sdk/anthropic v1.0.11** - Claude integration
+- **@ai-sdk/openai v1.0.22** - OpenAI integration
 
-## Development Dependencies
+## Data Visualization
 
-### Type Definitions
-- @types/node v20
-- @types/react v19
-- @types/react-dom v19
-- @types/papaparse v5.3.16
-- @types/pg v8.15.5
+- **Recharts v2.15.3** - Chart library
+- **TanStack Table v8.21.3** - Data tables
+- **Date-fns v3.6.0** - Date formatting
 
-### Build Tools
-- **TypeScript Compiler**: v5
-- **PostCSS**: @tailwindcss/postcss v4
-- **TSX**: tsx v4.19.4 (TypeScript execution)
+## Forms & Validation
 
-### Testing
-- **Browser Automation**: Playwright v1.55.1
+- **React Hook Form v7.57.0** - Form management
+- **Zod v3.25.57** - Schema validation
+- **@hookform/resolvers v5.0.1** - Validation integration
 
-### Code Quality
-- **Linting**: ESLint (Next.js config)
-- **Formatting**: Prettier v3.5.3
-- **Prettier Plugins**: prettier-plugin-tailwindcss v0.6.12
+## File Processing
 
-### Utilities
-- **Class Management**: clsx v2.1.1, tailwind-merge v3.3.0
-- **Variants**: class-variance-authority v0.7.1
-- **Date Utilities**: date-fns v3.6.0
-- **Environment**: dotenv v16.5.0
-- **Animation**: tw-animate-css v1.3.4
-- **Faker**: @faker-js/faker v10.0.0 (testing data)
+- **XLSX v0.18.5** - Excel file handling
+- **PapaParse v5.5.3** - CSV parsing
+- **React Dropzone v14.3.8** - File uploads
 
-## Environment Configuration
+## Caching & Performance
 
-### Required Variables
-```env
-# Database
-DATABASE_URL=postgresql://...
-DATABASE_URL_UNPOOLED=postgresql://...
-NEON_PROJECT_ID=quiet-salad-84768604
-
-# Authentication
-NEXT_PUBLIC_STACK_PROJECT_ID=...
-NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY=...
-STACK_SECRET_SERVER_KEY=...
-
-# AI Gateway
-AI_GATEWAY_API_KEY=...
-
-# Redis
-REDIS_URL=redis://...
-
-# Email (Brevo)
-BREVO_API_KEY=...
-BREVO_SENDER_EMAIL=...
-
-# Vercel
-VERCEL_TOKEN=xlZfF4ANIRFDqJDBLSlAWRMp
-```
+- **ioredis v5.8.0** - Redis client for caching
+- **Next.js Image Optimization** - Automatic image optimization
+- **Edge Runtime** - Global edge deployment
 
 ## Development Tools
 
-### Package Manager
-- **Primary**: pnpm (recommended)
-- **Alternative**: npm
-- **Scripts**: 10+ custom scripts defined
+### Build Tools
+- **TypeScript Compiler** - Type checking
+- **ESLint** - Code linting (ignored in builds currently)
+- **Prettier v3.5.3** - Code formatting
 
-### Build Configuration
-- **Next.js**: Turbopack for fast builds
-- **TypeScript**: Incremental compilation
-- **CSS**: Tailwind with JIT mode
+### Testing
+- **Playwright v1.55.1** - E2E testing
+- **@faker-js/faker v10.0.0** - Test data generation
 
-### Database Tools
-- **Migrations**: Drizzle Kit
-- **Studio**: Drizzle Studio (visual DB manager)
-- **CLI**: psql for direct queries
+### Development
+- **tsx v4.19.4** - TypeScript execution
+- **dotenv v16.5.0** - Environment variables
+- **Turbopack** - Fast bundler (dev mode)
 
-### Deployment
-- **Platform**: Vercel
-- **CLI**: Vercel CLI with token auth
-- **Environment**: Development, Preview, Production
+## Deployment
 
-## Version Compatibility
+### Platform
+- **Vercel** - Primary deployment platform
+  - Edge functions
+  - Serverless functions
+  - Automatic deployments
+  - Preview deployments
 
-### Node.js Requirements
-- Minimum: Node.js 20
-- Current: Node.js 24.5.0
-- Package Manager: npm 11.5.1 or pnpm latest
+### Environment Variables
+**Required:**
+- `DATABASE_URL` - NeonDB pooled connection
+- `DATABASE_URL_UNPOOLED` - Direct connection for RLS
+- `NEON_PROJECT_ID` - NeonDB project identifier
+- `NEXT_PUBLIC_STACK_PROJECT_ID` - Stack Auth project
+- `NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY` - Stack public key
+- `STACK_SECRET_SERVER_KEY` - Stack secret key
+- `VERCEL_TOKEN` - Vercel CLI token
 
-### Browser Support
-- Modern browsers with ES2017+ support
-- Next.js handles polyfills automatically
+**Optional (Email Services):**
+- `BREVO_API_KEY` - Brevo transactional email API key
 
-## External Services
+## Utilities & Helpers
 
-### Production Services
-- **Database**: NeonDB (PostgreSQL as a Service)
-- **Auth**: Stack Auth (Authentication as a Service)
-- **Hosting**: Vercel (Serverless deployment)
-- **Redis**: Redis Cloud (Caching)
-- **Email**: Brevo (formerly Sendinblue)
+- **clsx v2.1.1** - Conditional classnames
+- **class-variance-authority v0.7.1** - Component variants
+- **tailwind-merge v3.3.0** - Tailwind class merging
+- **next-themes v0.4.6** - Theme management
 
-### Development Services
-- **Git**: GitHub (version control)
-- **CI/CD**: GitHub Actions + Vercel
+## Type Definitions
 
-## Update History
-- 2025-10-01T11:14:27Z: Added data processing libraries (papaparse v5.5.3, xlsx v0.18.5) and type definitions (@types/papaparse v5.3.16)
+- `@types/node` - Node.js types
+- `@types/react` - React types
+- `@types/react-dom` - React DOM types
+- `@types/papaparse` - PapaParse types
+- `@types/pg` - PostgreSQL types
+
+## Package Manager
+
+**npm** - Used for dependency management
+- Lock file: `package-lock.json`
+- Scripts for dev, build, deploy
+
+## Key Dependencies Summary
+
+**Total Dependencies:** 45 production packages
+**Total Dev Dependencies:** 12 packages
+
+### Critical Path
+1. Next.js 15 (Framework)
+2. React 18 (UI Library)
+3. TypeScript 5 (Language)
+4. NeonDB + Drizzle (Database)
+5. Stack Auth (Authentication)
+6. Tailwind + Shadcn (UI/Styling)
+7. Vercel AI SDK (AI Features)
+
+## Version Constraints
+
+- **Node.js:** >=20.0.0
+- **npm:** Latest stable
+- **Next.js:** 15.x (App Router required)
+- **React:** 18.x
+- **TypeScript:** 5.x

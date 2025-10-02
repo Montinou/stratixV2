@@ -1,564 +1,459 @@
 ---
-created: 2025-10-01T09:07:54Z
-last_updated: 2025-10-01T09:07:54Z
+created: 2025-10-02T03:39:52Z
+last_updated: 2025-10-02T03:39:52Z
 version: 1.0
 author: Claude Code PM System
 ---
 
 # Project Style Guide
 
-## Code Standards
+## Code Organization
 
-### TypeScript Standards
+### Directory Structure
+- `app/` - Next.js App Router pages and layouts
+- `components/` - Reusable React components
+- `lib/` - Utility functions and services
+- `db/` - Database schema and migrations
+- `types/` - TypeScript type definitions
+- `public/` - Static assets
 
-#### Type Definitions
-- **Always use TypeScript**: No `.js` or `.jsx` files
-- **Strict mode enabled**: No `any` types without justification
-- **Explicit return types**: For all functions
-- **Interface over type**: For object shapes
+### File Naming Conventions
+- **Components**: PascalCase (e.g., `ObjectiveCard.tsx`)
+- **Utilities**: kebab-case (e.g., `format-date.ts`)
+- **Pages**: kebab-case (e.g., `objectives/page.tsx`)
+- **Types**: PascalCase (e.g., `Objective.ts`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_ROUTES.ts`)
+
+## TypeScript Standards
+
+### Type Safety
+- **Strict mode enabled**: All TypeScript strict checks enforced
+- **Explicit types**: Prefer explicit type annotations over inference for public APIs
+- **No `any`**: Use `unknown` or proper types instead
+- **Type imports**: Use `import type` for type-only imports
 
 ```typescript
 // ✅ Good
-interface User {
+import type { Objective } from '@/types/Objective';
+export function createObjective(data: CreateObjectiveInput): Promise<Objective> {
+  // implementation
+}
+
+// ❌ Bad
+import { Objective } from '@/types/Objective';
+export function createObjective(data: any) {
+  // implementation
+}
+```
+
+### Interface vs Type
+- **Interfaces**: For object shapes that may be extended
+- **Types**: For unions, intersections, and mapped types
+
+```typescript
+// ✅ Interface for extensible objects
+interface BaseObjective {
   id: string;
   name: string;
-  email: string;
 }
 
-async function getUser(id: string): Promise<User> {
-  return await db.query.users.findFirst({ where: eq(users.id, id) });
-}
+// ✅ Type for unions
+type ObjectiveStatus = 'active' | 'completed' | 'archived';
 
-// ❌ Bad
-function getUser(id) {
-  return db.query.users.findFirst({ where: eq(users.id, id) });
-}
+// ✅ Type for complex compositions
+type ObjectiveWithProgress = Objective & { progress: number };
 ```
 
-#### Null Safety
-- Use optional chaining: `user?.profile?.name`
-- Use nullish coalescing: `value ?? defaultValue`
-- Avoid loose equality: Use `===` and `!==`
+## React Patterns
 
+### Component Structure
 ```typescript
-// ✅ Good
-const name = user?.profile?.name ?? 'Anonymous';
+// ✅ Recommended component structure
+import type { ComponentProps } from 'react';
 
-if (status === 'active') {
-  // ...
-}
-
-// ❌ Bad
-const name = user && user.profile && user.profile.name || 'Anonymous';
-
-if (status == 'active') {
-  // ...
-}
-```
-
-### Naming Conventions
-
-#### Variables & Functions
-- **camelCase**: For variables, functions, methods
-- **Descriptive names**: No single letters except loops
-- **Boolean prefixes**: `is`, `has`, `should`, `can`
-
-```typescript
-// ✅ Good
-const userProfile = getUserProfile();
-const isAuthenticated = checkAuth();
-const hasPermission = user.role === 'admin';
-
-function calculateTotalProgress(objectives: Objective[]): number {
-  // ...
-}
-
-// ❌ Bad
-const up = getUserProfile();
-const auth = checkAuth();
-const perm = user.role === 'admin';
-
-function calc(objs) {
-  // ...
-}
-```
-
-#### Components
-- **PascalCase**: For React components and types
-- **Kebab-case**: For component files
-
-```typescript
-// File: components/okr/objective-card.tsx
-export function ObjectiveCard({ objective }: ObjectiveCardProps) {
-  // ...
-}
-
-// File: components/dashboard/analytics-chart.tsx
-export function AnalyticsChart({ data }: AnalyticsChartProps) {
-  // ...
-}
-```
-
-#### Constants
-- **UPPER_SNAKE_CASE**: For true constants
-- **camelCase**: For configuration objects
-
-```typescript
-// ✅ Good
-const MAX_UPLOAD_SIZE = 5 * 1024 * 1024; // 5MB
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-const formConfig = {
-  maxLength: 100,
-  required: true
-};
-
-// ❌ Bad
-const maxuploadsize = 5242880;
-const FORM_CONFIG = {
-  maxLength: 100
-};
-```
-
-#### Database Tables & Columns
-- **snake_case**: For database identifiers
-- **Descriptive names**: Full words, not abbreviations
-
-```typescript
-// ✅ Good
-export const objectivesTable = pgTable('objectives', {
-  id: uuid('id').primaryKey(),
-  companyId: uuid('company_id').notNull(),
-  createdAt: timestamp('created_at').defaultNow()
-});
-
-// ❌ Bad
-export const objTbl = pgTable('objs', {
-  id: uuid('id').primaryKey(),
-  cId: uuid('c_id').notNull(),
-  crAt: timestamp('cr_at').defaultNow()
-});
-```
-
-### File Structure Patterns
-
-#### Component Files
-```typescript
-// File: components/okr/objective-card.tsx
-
-// 1. Imports (grouped)
-import { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import type { Objective } from '@/lib/types';
-
-// 2. Types/Interfaces
 interface ObjectiveCardProps {
   objective: Objective;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
+  onUpdate?: (id: string) => void;
 }
 
-// 3. Component
-export function ObjectiveCard({ objective, onEdit, onDelete }: ObjectiveCardProps) {
-  // 3a. Hooks
-  const [isExpanded, setIsExpanded] = useState(false);
+export function ObjectiveCard({ objective, onUpdate }: ObjectiveCardProps) {
+  // Hooks first
+  const [isEditing, setIsEditing] = useState(false);
 
-  // 3b. Derived state
-  const isComplete = objective.status === 'completed';
-
-  // 3c. Handlers
-  const handleEdit = () => {
-    onEdit?.(objective.id);
+  // Event handlers
+  const handleSave = async () => {
+    // implementation
   };
 
-  // 3d. Render
+  // Render
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{objective.title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* ... */}
-      </CardContent>
+      {/* JSX */}
     </Card>
   );
 }
 ```
 
-#### API Route Files
+### Server vs Client Components
+- **Default to Server Components**: Unless interactivity is needed
+- **Use 'use client'**: Only when necessary (state, effects, browser APIs)
+- **Server Actions**: For mutations and data fetching
+
 ```typescript
-// File: app/api/objectives/route.ts
+// ✅ Server Component (default)
+export default async function ObjectivesPage() {
+  const objectives = await getObjectives();
+  return <ObjectiveList objectives={objectives} />;
+}
 
-// 1. Imports
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { db } from '@/lib/database/client';
-import { stackServerApp } from '@/lib/stack-auth';
+// ✅ Client Component (when needed)
+'use client';
+export function ObjectiveForm() {
+  const [name, setName] = useState('');
+  // interactive logic
+}
+```
 
-// 2. Validation schemas
-const createObjectiveSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().optional(),
-  areaId: z.string().uuid()
-});
+### Hooks Usage
+- **useState**: Local component state
+- **useEffect**: Side effects with cleanup
+- **useMemo**: Expensive computations
+- **useCallback**: Stable function references
 
-// 3. Route handlers
-export async function GET(req: NextRequest) {
+```typescript
+// ✅ Proper useEffect with cleanup
+useEffect(() => {
+  const channel = supabase.channel('objectives')
+    .on('postgres_changes', handler)
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
+```
+
+## Database Patterns
+
+### Query Organization
+- **Services**: Database logic in `lib/database/services.ts`
+- **No client queries**: All queries server-side only
+- **Type-safe queries**: Use Drizzle ORM with typed schema
+- **Connection management**: Use pooled connections from `lib/database/client.ts`
+
+```typescript
+// ✅ Good - Service layer
+export async function getObjectiveById(id: string, companyId: string) {
+  const db = await getDb();
+  return db.query.objectives.findFirst({
+    where: and(
+      eq(objectives.id, id),
+      eq(objectives.companyId, companyId)
+    ),
+  });
+}
+
+// ❌ Bad - Direct query in component
+const objective = await db.select().from(objectives).where(...);
+```
+
+### Row Level Security
+- **Company isolation**: All queries filtered by `company_id`
+- **RLS policies**: Enforced at PostgreSQL level
+- **No client access**: Direct database access prohibited
+- **API routes**: All data access through server-side API routes
+
+## API Route Standards
+
+### Route Structure
+- **File naming**: `route.ts` for API routes
+- **HTTP methods**: GET, POST, PUT, DELETE, PATCH
+- **Response format**: Consistent JSON structure
+- **Error handling**: Try-catch with proper error responses
+
+```typescript
+// ✅ API Route Pattern
+export async function GET(request: Request) {
   try {
-    // Authentication
-    const user = await stackServerApp.getUser();
+    const user = await getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Business logic
-    const objectives = await db.query.objectives.findMany({
-      where: eq(objectives.companyId, user.companyId)
-    });
-
-    // Response
-    return NextResponse.json(objectives);
+    const data = await fetchData(user.companyId);
+    return NextResponse.json({ data });
   } catch (error) {
-    console.error('GET /api/objectives error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
-
-export async function POST(req: NextRequest) {
-  // Similar structure...
-}
 ```
 
-### Comment Style
-
-#### When to Comment
-- **Complex logic**: Explain "why", not "what"
-- **Business rules**: Document requirements
-- **Workarounds**: Explain temporary solutions
-- **TODOs**: Track future improvements
-
+### Response Patterns
 ```typescript
-// ✅ Good - Explains why
-// We use company_id filter to enforce RLS at application level
-// in addition to database policies for defense in depth
-const objectives = await db.query.objectives.findMany({
-  where: eq(objectives.companyId, user.companyId)
+// ✅ Success response
+return NextResponse.json({
+  data: result,
+  success: true
 });
 
-// Business rule: Managers can only create initiatives under
-// objectives owned by their area
-if (user.role === 'manager' && !userOwnsArea(objective.areaId)) {
-  throw new Error('Insufficient permissions');
-}
-
-// TODO: Implement caching here once Redis is configured
-// Issue: #123
-const analytics = await calculateAnalytics(companyId);
-
-// ❌ Bad - States the obvious
-// Get objectives from database
-const objectives = await db.query.objectives.findMany();
-
-// Loop through users
-for (const user of users) {
-  // ...
-}
+// ✅ Error response
+return NextResponse.json({
+  error: 'Validation failed',
+  details: validationErrors
+}, { status: 400 });
 ```
 
-#### JSDoc for Public APIs
-```typescript
-/**
- * Calculates the completion percentage for an objective based on its initiatives.
- *
- * @param objectiveId - The UUID of the objective
- * @returns A number between 0 and 100 representing completion percentage
- * @throws {NotFoundError} If objective doesn't exist
- */
-export async function calculateObjectiveProgress(objectiveId: string): Promise<number> {
-  // Implementation
-}
-```
+## Styling Standards
 
-## React/Next.js Conventions
+### Tailwind CSS
+- **Utility classes**: Primary styling approach
+- **CSS variables**: For theming (`--primary`, `--secondary`)
+- **Component classes**: Avoid custom CSS when possible
+- **Responsive design**: Mobile-first with breakpoints
 
-### Component Patterns
-
-#### Server vs. Client Components
-```typescript
-// ✅ Server Component (default) - Good for:
-// - Data fetching
-// - Direct database access
-// - No interactivity
-async function ObjectivesPage() {
-  const objectives = await db.query.objectives.findMany();
-  return <ObjectiveList objectives={objectives} />;
-}
-
-// ✅ Client Component - Good for:
-// - Interactive features
-// - Browser APIs
-// - State management
-'use client'
-function ObjectiveForm() {
-  const [title, setTitle] = useState('');
-  // ...
-}
-```
-
-#### Custom Hooks
-```typescript
-// File: lib/hooks/use-user.ts
-
-'use client'
-import { useUser as useStackUser } from '@stackframe/stack';
-
-export function useUser() {
-  const stackUser = useStackUser();
-
-  const isAdmin = stackUser?.role === 'corporate';
-  const isManager = stackUser?.role === 'manager';
-  const isEmployee = stackUser?.role === 'employee';
-
-  return {
-    user: stackUser,
-    isAdmin,
-    isManager,
-    isEmployee,
-    isAuthenticated: !!stackUser
-  };
-}
-```
-
-### Styling Conventions
-
-#### Tailwind CSS Usage
 ```tsx
-// ✅ Good - Semantic grouping, readable
-<div className="flex items-center gap-4 rounded-lg bg-card p-4 shadow-sm">
-  <Avatar className="h-10 w-10" />
-  <div className="flex-1 space-y-1">
-    <h3 className="text-sm font-medium">User Name</h3>
-    <p className="text-xs text-muted-foreground">user@example.com</p>
-  </div>
+// ✅ Good - Utility classes with variables
+<div className="bg-primary text-primary-foreground rounded-lg p-4">
+  <h2 className="text-lg font-semibold">Title</h2>
 </div>
 
-// ❌ Bad - Hard to read
-<div className="flex items-center gap-4 rounded-lg bg-card p-4 shadow-sm"><Avatar className="h-10 w-10" /><div className="flex-1 space-y-1"><h3 className="text-sm font-medium">User Name</h3><p className="text-xs text-muted-foreground">user@example.com</p></div></div>
+// ❌ Bad - Inline styles
+<div style={{ backgroundColor: '#000', color: '#fff' }}>
+  <h2 style={{ fontSize: '18px' }}>Title</h2>
+</div>
 ```
 
-#### CSS Variables
-```css
-/* ✅ Good - Use design system variables */
-.custom-card {
-  background: hsl(var(--card));
-  color: hsl(var(--card-foreground));
-  border: 1px solid hsl(var(--border));
-}
+### Shadcn/ui Components
+- **CLI installation**: Use `npx shadcn@latest add <component>`
+- **No modifications**: Don't edit installed components directly
+- **Composition**: Combine components for custom needs
+- **Variants**: Use CVA for component variants
 
-/* ❌ Bad - Hardcoded colors */
-.custom-card {
-  background: #ffffff;
-  color: #000000;
-  border: 1px solid #e5e7eb;
-}
-```
-
-## Database Conventions
-
-### Query Patterns
 ```typescript
-// ✅ Good - Type-safe with Drizzle
-const objective = await db.query.objectives.findFirst({
-  where: and(
-    eq(objectives.id, objectiveId),
-    eq(objectives.companyId, user.companyId)
-  ),
-  with: {
-    initiatives: true,
-    area: true
-  }
-});
+// ✅ Component with variants
+import { cva } from 'class-variance-authority';
 
-// ✅ Good - Transactions for related operations
-await db.transaction(async (tx) => {
-  const objective = await tx.insert(objectives).values(data).returning();
-  await tx.insert(audit_logs).values({
-    action: 'create_objective',
-    objectiveId: objective.id
-  });
-});
-
-// ❌ Bad - Raw SQL without reason
-await db.execute('SELECT * FROM objectives WHERE id = $1', [objectiveId]);
-```
-
-### Migration Patterns
-```typescript
-// File: drizzle/0001_add_areas.ts
-
-import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
-
-export async function up(db) {
-  await db.schema.createTable('areas', {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: varchar('name', { length: 200 }).notNull(),
-    companyId: uuid('company_id').notNull().references(() => companies.id),
-    createdAt: timestamp('created_at').defaultNow().notNull()
-  });
-
-  await db.schema.createIndex('areas_company_id_idx')
-    .on('areas', 'company_id');
-}
-```
-
-## Testing Conventions (Future)
-
-### Test File Structure
-```typescript
-// File: __tests__/lib/services/objective-service.test.ts
-
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { calculateObjectiveProgress } from '@/lib/services/objective-service';
-
-describe('ObjectiveService', () => {
-  describe('calculateObjectiveProgress', () => {
-    it('returns 0 for objective with no initiatives', async () => {
-      const progress = await calculateObjectiveProgress('obj-123');
-      expect(progress).toBe(0);
-    });
-
-    it('calculates average progress from initiatives', async () => {
-      // Setup test data
-      // Run calculation
-      // Assert result
-    });
-  });
-});
-```
-
-## Git Conventions
-
-### Commit Messages
-Format: `<type>: <subject>`
-
-**Types**:
-- `feat`: New feature
-- `fix`: Bug fix
-- `refactor`: Code refactoring
-- `docs`: Documentation
-- `style`: Formatting, missing semicolons
-- `test`: Adding tests
-- `chore`: Maintenance tasks
-
-```bash
-# ✅ Good
-feat: implement CSV and XLSX import functionality with role-based permissions
-fix: correct schema field naming for consistency
-refactor: extract objective service into separate module
-docs: update README with deployment instructions
-
-# ❌ Bad
-updated stuff
-fix bug
-new feature
-changes
-```
-
-### Branch Naming
-- `feature/description` - New features
-- `fix/description` - Bug fixes
-- `refactor/description` - Code improvements
-- `docs/description` - Documentation
-
-```bash
-# ✅ Good
-feature/csv-import
-fix/auth-redirect-loop
-refactor/objective-service
-docs/api-endpoints
-
-# ❌ Bad
-new-stuff
-bugfix
-temp
-test-branch
-```
-
-## Error Handling
-
-### API Error Responses
-```typescript
-// ✅ Good - Consistent error structure
-return NextResponse.json(
+const buttonVariants = cva(
+  'rounded-md font-medium',
   {
-    error: 'Validation failed',
-    details: validationErrors,
-    code: 'VALIDATION_ERROR'
-  },
-  { status: 400 }
+    variants: {
+      variant: {
+        default: 'bg-primary text-primary-foreground',
+        outline: 'border border-input',
+      },
+    },
+  }
 );
+```
 
-// ✅ Good - Proper error logging
-catch (error) {
-  console.error('Failed to create objective:', {
-    error: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined,
-    userId: user?.id,
-    timestamp: new Date().toISOString()
+## Form Handling
+
+### React Hook Form + Zod
+- **Schema validation**: Zod for type-safe validation
+- **Form state**: React Hook Form for form management
+- **Server Actions**: For form submission
+
+```typescript
+// ✅ Form pattern
+const formSchema = z.object({
+  name: z.string().min(3, 'Name must be at least 3 characters'),
+  description: z.string().optional(),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+export function ObjectiveForm() {
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
   });
 
-  return NextResponse.json(
-    { error: 'Internal server error', code: 'INTERNAL_ERROR' },
-    { status: 500 }
+  const onSubmit = async (data: FormData) => {
+    await createObjective(data);
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        {/* form fields */}
+      </form>
+    </Form>
   );
 }
 ```
 
+## Import/Export Patterns
+
+### Import Order
+1. External dependencies
+2. Internal aliases (`@/`)
+3. Relative imports
+4. Type imports (at the end)
+
+```typescript
+// ✅ Correct import order
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { formatDate } from '../utils/format-date';
+import type { Objective } from '@/types/Objective';
+```
+
+### Export Patterns
+- **Named exports**: Prefer named exports for components
+- **Default exports**: Use for pages and layouts (Next.js requirement)
+- **Barrel files**: Use `index.ts` for re-exporting
+
+```typescript
+// ✅ Named exports
+export function ObjectiveCard() { }
+export function ObjectiveList() { }
+
+// ✅ Default export for pages
+export default function ObjectivesPage() { }
+```
+
+## Error Handling
+
+### Client-Side
+- **Try-catch**: Wrap async operations
+- **Toast notifications**: User-friendly error messages
+- **Error boundaries**: For component-level errors
+
+```typescript
+// ✅ Error handling pattern
+try {
+  await saveObjective(data);
+  toast.success('Objective saved successfully');
+} catch (error) {
+  console.error('Failed to save objective:', error);
+  toast.error('Failed to save objective. Please try again.');
+}
+```
+
+### Server-Side
+- **Validation errors**: 400 status with details
+- **Authorization errors**: 401/403 status
+- **Server errors**: 500 status with generic message
+- **Logging**: Console.error for debugging
+
+## Testing Standards
+
+### Test Organization
+- **E2E tests**: Playwright in `tests/` directory
+- **Test naming**: Descriptive test names with action and expected result
+- **Test data**: Use Faker.js for realistic test data
+- **No mocks**: Test against real services
+
+```typescript
+// ✅ E2E test pattern
+test('should create new objective successfully', async ({ page }) => {
+  await page.goto('/objectives');
+  await page.click('button:has-text("New Objective")');
+  await page.fill('input[name="name"]', 'Test Objective');
+  await page.click('button:has-text("Create")');
+
+  await expect(page.locator('text=Test Objective')).toBeVisible();
+});
+```
+
+## Documentation Standards
+
+### Code Comments
+- **JSDoc**: For public functions and components
+- **Inline comments**: For complex logic only
+- **TODO comments**: With context and assignee
+
+```typescript
+/**
+ * Creates a new objective in the database
+ * @param data - The objective data to create
+ * @param companyId - The company ID for RLS filtering
+ * @returns The created objective with generated ID
+ */
+export async function createObjective(
+  data: CreateObjectiveInput,
+  companyId: string
+): Promise<Objective> {
+  // Implementation
+}
+
+// TODO(agustin): Optimize this query for large datasets
+```
+
+### README Files
+- **Project root**: Setup instructions, architecture overview
+- **Feature docs**: In `docs/` directory
+- **API documentation**: OpenAPI/Swagger for public APIs
+
 ## Security Best Practices
 
-### Input Validation
+### Authentication
+- **Stack Auth**: Use for all authentication flows
+- **Session validation**: Server-side session checks
+- **Protected routes**: Middleware for route protection
+
+### Authorization
+- **Role-based**: Company admin, manager, member, viewer roles
+- **Company isolation**: RLS ensures data separation
+- **API protection**: All API routes require authentication
+
+### Data Validation
+- **Input validation**: Zod schemas for all inputs
+- **SQL injection**: Drizzle ORM prevents injection
+- **XSS prevention**: React escapes by default
+
+## Performance Guidelines
+
+### Code Splitting
+- **Dynamic imports**: For large components
+- **Route-based**: Automatic with Next.js App Router
+- **Component-based**: Use `next/dynamic` for heavy components
+
 ```typescript
-// ✅ Always validate user input
-const schema = z.object({
-  title: z.string().min(1).max(200),
-  email: z.string().email()
-});
+// ✅ Dynamic import for heavy component
+import dynamic from 'next/dynamic';
 
-const validated = schema.parse(req.body);
-
-// ✅ Sanitize HTML if displaying user content
-import DOMPurify from 'dompurify';
-const clean = DOMPurify.sanitize(userInput);
+const AnalyticsDashboard = dynamic(
+  () => import('@/components/AnalyticsDashboard'),
+  { loading: () => <LoadingSpinner /> }
+);
 ```
 
-### Authentication Checks
-```typescript
-// ✅ Check auth first in every API route
-const user = await stackServerApp.getUser();
-if (!user) {
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-}
+### Database Optimization
+- **Connection pooling**: Always use pooled connections
+- **Query optimization**: Use indexes, avoid N+1 queries
+- **Caching**: Redis for frequently accessed data
 
-// ✅ Validate permissions
-if (user.role !== 'corporate' && user.role !== 'manager') {
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-}
+### Image Optimization
+- **next/image**: Always use Next.js Image component
+- **Formats**: WebP with fallbacks
+- **Sizing**: Specify width and height
+
+## Git Workflow
+
+### Commit Messages
+- **Conventional commits**: `feat:`, `fix:`, `docs:`, `refactor:`
+- **Descriptive**: Clear explanation of changes
+- **Scope**: Include affected module/feature
+
+```
+feat(objectives): add bulk import functionality
+fix(auth): resolve session expiration issue
+docs(api): update authentication documentation
+refactor(db): optimize objective queries with indexes
 ```
 
-### Database Security
-```typescript
-// ✅ Always filter by company_id
-const objectives = await db.query.objectives.findMany({
-  where: and(
-    eq(objectives.companyId, user.companyId),
-    eq(objectives.id, requestedId)
-  )
-});
+### Branch Strategy
+- **main**: Production-ready code
+- **feature/***: New features
+- **fix/***: Bug fixes
+- **hotfix/***: Urgent production fixes
 
-// ❌ Never trust user input for company_id
-// This could allow data leakage!
-const objectives = await db.query.objectives.findMany({
-  where: eq(objectives.companyId, req.body.companyId) // DANGEROUS!
-});
-```
+### Pull Requests
+- **Descriptive title**: Clear summary of changes
+- **Description**: What, why, and how
+- **Testing**: Evidence of testing
+- **Screenshots**: For UI changes

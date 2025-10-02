@@ -1,282 +1,186 @@
 ---
-created: 2025-10-01T09:07:54Z
-last_updated: 2025-10-01T09:07:54Z
+created: 2025-10-02T03:39:52Z
+last_updated: 2025-10-02T03:39:52Z
 version: 1.0
 author: Claude Code PM System
 ---
 
 # Project Brief
 
-## What It Does
+## Project Name
 
-**StratixV2** is a comprehensive OKR (Objectives and Key Results) management system that helps organizations align, track, and achieve their strategic goals through a hierarchical objective structure with AI-powered insights.
+**StratixV2** - Strategic Planning and OKR Management Platform
 
-### Core Capabilities
+## Project Purpose
 
-1. **Hierarchical Goal Management**
-   - Define strategic Objectives
-   - Break down into tactical Initiatives
-   - Track operational Activities
-   - Cascade goals throughout organization
+Build a modern, multi-tenant SaaS application that enables organizations to manage their strategic planning through OKRs (Objectives and Key Results), track execution through initiatives and activities, and measure progress with real-time analytics.
 
-2. **Multi-Tenant Platform**
-   - Isolated company workspaces
-   - Role-based access (Corporate, Manager, Employee)
-   - Secure data separation
-   - White-label potential
+## Business Objectives
 
-3. **Analytics & Insights**
-   - Real-time progress tracking
-   - Visual performance dashboards
-   - AI-generated insights
-   - Trend analysis
+1. **Provide Strategic Clarity**: Help organizations align their teams around common objectives
+2. **Enable Progress Tracking**: Give visibility into goal achievement across all levels
+3. **Support Multi-Tenant Operations**: Serve multiple companies with isolated data and custom branding
+4. **Streamline Collaboration**: Facilitate team coordination and communication around strategic goals
+5. **Deliver Actionable Insights**: Provide analytics that inform strategic decisions
 
-4. **Collaboration Features**
-   - Team area management
-   - Cross-functional initiatives
-   - Progress updates
-   - Status tracking
+## Technical Objectives
 
-5. **Data Management**
-   - CSV/XLSX bulk import
-   - Data validation
-   - Export capabilities
-   - Historical tracking
+1. **Modern Architecture**: Leverage Next.js 15 App Router and React Server Components
+2. **Database-First Security**: Implement Row Level Security at PostgreSQL level
+3. **Serverless Deployment**: Deploy to Vercel Edge for global performance
+4. **Type Safety**: Full TypeScript implementation with Drizzle ORM
+5. **Scalable Infrastructure**: NeonDB serverless PostgreSQL with connection pooling
 
-## Why It Exists
+## Scope
 
-### Problem Statement
-Organizations struggle with:
-- **Strategy Execution Gap**: 67% of well-formulated strategies fail due to poor execution
-- **Alignment Issues**: Teams don't understand how their work connects to company goals
-- **Visibility Problems**: Leadership lacks real-time insight into progress
-- **Manual Tracking**: Spreadsheets are error-prone, outdated, and don't scale
-- **Language Barriers**: Most OKR tools are English-first, underserving Spanish markets
+### In Scope
+- OKR hierarchy management (objectives, key results, initiatives, activities)
+- Multi-tenant company management with data isolation
+- User authentication and authorization via Stack Auth
+- Email invitation system with Brevo integration
+- Company-specific theming and branding
+- Data import/export functionality (CSV/XLSX)
+- Real-time dashboards and analytics
+- Role-based access control
+- Administrative tools and settings
 
-### Solution Approach
-StratixV2 solves these problems by:
-- **Clear Hierarchy**: Three-level structure (Objectives → Initiatives → Activities)
-- **Real-Time Visibility**: Live dashboards with up-to-date progress
-- **AI Assistance**: Intelligent insights and recommendations
-- **Role-Based Views**: Each user sees relevant information for their level
-- **Data Import**: Easy migration from existing spreadsheets
-- **Spanish-First**: Native Spanish interface for LATAM/Spain markets
+### Out of Scope (Current Phase)
+- Mobile native applications
+- Third-party integrations (Slack, Teams, etc.)
+- Advanced AI/ML features
+- Custom workflow automation
+- API for external systems
+- White-label reseller program
+
+## Constraints
+
+### Technical Constraints
+- Must use Next.js 15 with App Router architecture
+- PostgreSQL database with Row Level Security required
+- Vercel deployment platform (Edge runtime)
+- TypeScript strict mode enforced
+- No client-side database queries (security requirement)
+
+### Business Constraints
+- Multi-tenant architecture (shared infrastructure, isolated data)
+- Company data must never leak between tenants
+- Email delivery dependent on Brevo service availability
+- Free tier limitations on NeonDB connections
+
+### Resource Constraints
+- Single development team
+- No dedicated DevOps/infrastructure team
+- Limited budget for third-party services
+- Development timeline constraints
+
+## Stakeholders
+
+### Primary Stakeholders
+- **Product Owner**: Defines features and priorities
+- **Development Team**: Implements and maintains the platform
+- **End Users**: Companies using the platform for strategic planning
+
+### Secondary Stakeholders
+- **System Administrators**: Manage company settings and invitations
+- **Support Team**: Assist users with onboarding and issues
+- **Infrastructure Providers**: Vercel, NeonDB, Brevo, Stack Auth
 
 ## Success Criteria
 
 ### Technical Success
-- [x] Successfully migrated from Supabase to NeonDB
-- [x] Implemented Stack Auth authentication
-- [x] Row Level Security working correctly
-- [x] Application builds and deploys to Vercel
-- [x] All core CRUD operations functional
-- [x] CSV/XLSX import working
-
-### Product Success
-- [ ] Users can create and manage complete OKR hierarchies
-- [ ] Analytics dashboard provides actionable insights
-- [ ] Import process successfully migrates data from spreadsheets
-- [ ] Role-based permissions prevent unauthorized access
-- [ ] AI insights generate relevant recommendations
-- [ ] Page load times under 2 seconds
+- [ ] Application builds and deploys successfully
+- [ ] All automated tests pass
+- [ ] TypeScript strict mode with zero errors
+- [ ] Row Level Security properly enforced
+- [ ] API response times < 200ms (p95)
+- [ ] Database connection pooling working
+- [ ] Email delivery rate > 95%
 
 ### Business Success
-- [ ] 10+ companies onboarded (pilot phase)
-- [ ] 90%+ user satisfaction rating
-- [ ] 50%+ OKR completion rate improvement vs. spreadsheets
-- [ ] <5% data migration error rate
-- [ ] 80%+ feature adoption rate
+- [ ] User onboarding flow completion > 80%
+- [ ] Active weekly users per company > 70%
+- [ ] Objective creation rate steady growth
+- [ ] Zero data leakage incidents
+- [ ] Customer satisfaction score > 4.0/5.0
 
-## Project Scope
+### User Success
+- [ ] Time to first objective < 5 minutes
+- [ ] Invitation acceptance rate > 60%
+- [ ] Feature adoption across modules > 50%
+- [ ] User retention rate > 85% monthly
 
-### In Scope
-✅ **Authentication & Authorization**
-- Stack Auth integration
-- Role-based access control
-- Company-based isolation
-- Invitation system
+## Risks and Mitigations
 
-✅ **OKR Management**
-- Objectives CRUD
-- Initiatives CRUD
-- Activities CRUD
-- Status management
+### Technical Risks
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| Database connection limits | High | Medium | Connection pooling + NeonDB autoscaling |
+| Email delivery failures | Medium | Low | Database-first design (email non-blocking) |
+| Multi-tenant data leakage | Critical | Low | RLS + extensive testing + security audits |
+| Third-party service outages | Medium | Medium | Graceful degradation + status monitoring |
 
-✅ **Analytics**
-- Dashboard with charts
-- Progress tracking
-- Role-based filtering
-- Key metrics
+### Business Risks
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| Low user adoption | High | Medium | User onboarding optimization + training |
+| Competition from established tools | Medium | High | Focus on unique features (RLS, custom branding) |
+| Scalability issues | High | Low | Serverless architecture + monitoring |
 
-✅ **Data Management**
-- CSV import
-- XLSX import
-- Data validation
-- Error reporting
+## Dependencies
 
-✅ **Areas/Teams**
-- Area management
-- Team organization
-- Member assignment
+### External Services
+- **NeonDB**: PostgreSQL database hosting
+- **Vercel**: Application hosting and edge deployment
+- **Stack Auth**: Authentication and user management
+- **Brevo**: Transactional email delivery
 
-✅ **User Management**
-- Onboarding flow
-- Pending approvals
-- Role assignment
-- Company association
+### Internal Dependencies
+- Database schema migrations
+- Email template design and testing
+- User acceptance testing
+- Documentation and training materials
 
-### Out of Scope (Future Phases)
-❌ **Mobile Applications**
-- Native iOS app
-- Native Android app
-- Mobile-specific features
+## Timeline and Milestones
 
-❌ **Integrations**
-- Slack notifications
-- Microsoft Teams
-- Jira sync
-- Google Calendar
+### Phase 1: MVP (Completed)
+- ✅ Core OKR management functionality
+- ✅ Multi-tenant architecture with RLS
+- ✅ User authentication system
+- ✅ Basic dashboards and analytics
+- ✅ Data import/export
 
-❌ **Advanced Features**
-- Custom reporting builder
-- Public API
-- Webhooks
-- SSO/SAML
+### Phase 2: Enhancement (Current)
+- ✅ Email invitation system
+- ✅ Company theming and branding
+- 🔄 Mobile responsiveness improvements
+- 🔄 Advanced analytics dashboards
+- 📋 Automated notification workflows
 
-❌ **Advanced AI**
-- Goal recommendations
-- Automated OKR generation
-- Predictive analytics
-- Natural language OKR creation
+### Phase 3: Growth (Planned)
+- 📋 API for third-party integrations
+- 📋 Advanced reporting features
+- 📋 AI-powered insights
+- 📋 Mobile applications
+- 📋 Marketplace integrations
 
-## Timeline
+## Budget Considerations
 
-### Completed Milestones
-- ✅ **Phase 1**: Infrastructure Setup (Completed)
-  - NeonDB migration
-  - Stack Auth implementation
-  - Base application structure
+### Infrastructure Costs
+- NeonDB: Serverless PostgreSQL (pay-per-use)
+- Vercel: Hosting and edge deployment (pro plan)
+- Brevo: Email sending (tiered pricing)
+- Stack Auth: Authentication (per-user pricing)
 
-- ✅ **Phase 2**: Core Features (Completed)
-  - OKR management system
-  - Authentication flow
-  - Basic analytics
-  - Areas management
+### Development Costs
+- Development time and effort
+- Testing and quality assurance
+- Documentation and training
+- Security audits
 
-- ✅ **Phase 3**: Data Features (Completed)
-  - CSV import
-  - XLSX import
-  - Data validation
-  - Error handling
+## Quality Standards
 
-### Current Phase
-- 🔄 **Phase 4**: Refinement (In Progress)
-  - UI/UX improvements
-  - Bug fixes
-  - Performance optimization
-  - Testing
-
-### Upcoming Phases
-- ⏳ **Phase 5**: Advanced Analytics (Q2 2025)
-  - Enhanced dashboards
-  - Custom reports
-  - Export functionality
-  - Historical trends
-
-- ⏳ **Phase 6**: Collaboration (Q3 2025)
-  - Comments/discussions
-  - Notifications
-  - Activity feeds
-  - Real-time updates
-
-## Key Stakeholders
-
-### Development Team
-- **Technical Lead**: System architecture, database design
-- **Frontend Developer**: UI components, user interactions
-- **Backend Developer**: API design, business logic
-- **DevOps**: Deployment, monitoring, infrastructure
-
-### Product Team
-- **Product Manager**: Feature prioritization, roadmap
-- **UX Designer**: User experience, interface design
-- **QA Engineer**: Testing, quality assurance
-- **Technical Writer**: Documentation
-
-### Business Stakeholders
-- **Founder/CEO**: Vision, strategy, funding
-- **Sales Team**: Customer acquisition, feedback
-- **Customer Success**: Onboarding, support
-- **Early Adopters**: Pilot testing, feedback
-
-## Constraints & Dependencies
-
-### Technical Constraints
-- **Database**: NeonDB PostgreSQL (vendor lock-in acceptable)
-- **Auth**: Stack Auth (external dependency)
-- **Hosting**: Vercel serverless (execution time limits)
-- **Budget**: Free/low-cost tiers during development
-
-### Business Constraints
-- **Timeline**: MVP needed for pilot customers
-- **Resources**: Small development team
-- **Market**: Focus on Spanish-speaking markets initially
-- **Competition**: Need differentiation from established players
-
-### Dependencies
-- **External Services**:
-  - NeonDB availability
-  - Stack Auth uptime
-  - Vercel platform stability
-  - AI provider APIs (Anthropic, OpenAI)
-
-- **Technical**:
-  - Next.js framework updates
-  - React ecosystem stability
-  - Database migration tools
-  - Third-party libraries
-
-## Risk Management
-
-### High-Risk Items
-1. **Data Security**: Company data isolation must be bulletproof
-   - Mitigation: Row Level Security + audit logging
-
-2. **Performance**: Dashboard load times with large datasets
-   - Mitigation: Pagination, caching, query optimization
-
-3. **AI Cost**: Unpredictable AI API costs
-   - Mitigation: Rate limiting, usage monitoring, caching
-
-### Medium-Risk Items
-1. **Stack Auth Dependency**: External auth service downtime
-   - Mitigation: Graceful degradation, status monitoring
-
-2. **Data Migration**: Import errors causing data loss
-   - Mitigation: Validation, preview, rollback capability
-
-3. **Multi-tenancy Bugs**: Data leakage between companies
-   - Mitigation: Extensive testing, security audits
-
-## Project Goals
-
-### Short-Term (3 months)
-1. Complete all MVP features
-2. Launch pilot with 5-10 companies
-3. Gather user feedback
-4. Fix critical bugs
-5. Optimize performance
-
-### Medium-Term (6-12 months)
-1. Scale to 50+ companies
-2. Add advanced features
-3. Build mobile apps
-4. Integrate with popular tools
-5. Establish market presence
-
-### Long-Term (1-2 years)
-1. Market leader in Spanish OKR tools
-2. 500+ companies
-3. Profitable business model
-4. Expand to other languages
-5. Platform ecosystem with API
+- **Code Quality**: TypeScript strict mode, ESLint rules, Prettier formatting
+- **Testing**: Playwright E2E tests for critical workflows
+- **Security**: Regular security audits, RLS verification, penetration testing
+- **Performance**: Core Web Vitals targets, API response time monitoring
+- **Documentation**: Up-to-date technical and user documentation
