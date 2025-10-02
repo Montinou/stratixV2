@@ -27,7 +27,6 @@ export class ObjectiveService {
 
     return await OKRDatabaseClient.getObjectives({
       companyId: userProfile.companyId,
-      tenantId: userProfile.tenantId,
       ...filters,
     });
   }
@@ -54,14 +53,13 @@ export class ObjectiveService {
     }
 
     // Check permissions - only corporativo and gerente can create objectives
-    if (!['corporativo', 'gerente'].includes(userProfile.roleType)) {
+    if (!['corporativo', 'gerente'].includes(userProfile.role)) {
       throw new Error('Insufficient permissions to create objectives');
     }
 
     const result = await OKRDatabaseClient.createObjective({
       ...data,
-      companyId: userProfile.companyId,
-      tenantId: userProfile.tenantId,
+      companyId: userProfile.companyId!,
     });
 
     revalidatePath('/tools/objectives');
@@ -92,7 +90,7 @@ export class ObjectiveService {
 
     // Check permissions - users can only update their assigned objectives
     // unless they are corporativo or gerente
-    if (userProfile.roleType === 'empleado' && data.assignedTo !== user.id) {
+    if (userProfile.role === 'empleado' && data.assignedTo !== user.id) {
       throw new Error('Insufficient permissions to update this objective');
     }
 
@@ -105,8 +103,7 @@ export class ObjectiveService {
         entityId: objectiveId,
         field: Object.keys(data)[0],
         newValue: Object.values(data)[0]?.toString(),
-        companyId: userProfile.companyId,
-        tenantId: userProfile.tenantId,
+        companyId: userProfile.companyId!,
       });
     }
 
@@ -135,7 +132,6 @@ export class InitiativeService {
 
     return await OKRDatabaseClient.getInitiatives({
       companyId: userProfile.companyId,
-      tenantId: userProfile.tenantId,
       ...filters,
     });
   }
@@ -161,7 +157,7 @@ export class InitiativeService {
     }
 
     // Check permissions
-    if (!['corporativo', 'gerente'].includes(userProfile.roleType)) {
+    if (!['corporativo', 'gerente'].includes(userProfile.role)) {
       throw new Error('Insufficient permissions to create initiatives');
     }
 
@@ -192,7 +188,6 @@ export class ActivityService {
 
     return await OKRDatabaseClient.getActivities({
       companyId: userProfile.companyId,
-      tenantId: userProfile.tenantId,
       ...filters,
     });
   }
@@ -256,8 +251,7 @@ export class AnalyticsService {
     }
 
     return await OKRDatabaseClient.getAnalytics({
-      companyId: userProfile.companyId,
-      tenantId: userProfile.tenantId,
+      companyId: userProfile.companyId!,
     });
   }
 
@@ -283,7 +277,6 @@ export class AnalyticsService {
 
     const objectives = await OKRDatabaseClient.getObjectives({
       companyId: userProfile.companyId,
-      tenantId: userProfile.tenantId,
       department,
     });
 
@@ -330,10 +323,9 @@ export class ProfileService {
     const updateData = {
       userId: user.id,
       fullName: data.fullName || currentProfile.fullName,
-      roleType: currentProfile.roleType, // Keep existing role
-      department: data.department || currentProfile.department,
-      companyId: currentProfile.companyId,
-      tenantId: currentProfile.tenantId,
+      role: currentProfile.role, // Keep existing role
+      department: data.department || currentProfile.department || '',
+      companyId: currentProfile.companyId!,
     };
 
     const result = await OKRDatabaseClient.upsertUserProfile(updateData);
@@ -348,10 +340,9 @@ export class ProfileService {
    */
   static async initializeProfile(data: {
     fullName: string;
-    roleType: 'corporativo' | 'gerente' | 'empleado';
+    role: 'corporativo' | 'gerente' | 'empleado';
     department: string;
     companyId: string;
-    tenantId: string;
   }) {
     const user = await stackServerApp.getUser({ or: 'throw' });
 

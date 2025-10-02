@@ -48,10 +48,10 @@ export async function ensureUserProfile(userId: string, userEmail: string, fullN
   });
 
   if (existing) {
-    // Update tenant_id if not set
-    if (!existing.tenantId) {
+    // Update company_id if not set
+    if (!existing.companyId) {
       await db.update(profiles)
-        .set({ tenantId: DEFAULT_ORG_ID })
+        .set({ companyId: DEFAULT_ORG_ID })
         .where(eq(profiles.id, userId));
     }
     return existing;
@@ -65,7 +65,6 @@ export async function ensureUserProfile(userId: string, userEmail: string, fullN
     role: 'corporativo', // All users are corporativo for now
     department: 'General',
     companyId: DEFAULT_ORG_ID,
-    tenantId: DEFAULT_ORG_ID, // tenantId = companyId for now
   }).returning();
 
   return profile;

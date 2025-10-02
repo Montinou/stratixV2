@@ -26,7 +26,7 @@ export class OKRDatabaseClient {
     if (!user) return null;
 
     const profile = await db.query.profiles.findFirst({
-      where: eq(profiles.userId, user.id),
+      where: eq(profiles.id, user.id),
       with: {
         company: true,
       },
@@ -40,7 +40,7 @@ export class OKRDatabaseClient {
    */
   static async getUserProfile(userId: string) {
     return await db.query.profiles.findFirst({
-      where: eq(profiles.userId, userId),
+      where: eq(profiles.id, userId),
       with: {
         company: true,
       },
@@ -53,19 +53,25 @@ export class OKRDatabaseClient {
   static async upsertUserProfile(data: {
     userId: string;
     fullName: string;
-    roleType: 'corporativo' | 'gerente' | 'empleado';
+    role: 'corporativo' | 'gerente' | 'empleado';
     department: string;
     companyId: string;
-    tenantId: string;
   }) {
     return await db
       .insert(profiles)
-      .values(data)
+      .values({
+        id: data.userId,
+        email: '', // Will be set by trigger or separately
+        fullName: data.fullName,
+        role: data.role,
+        department: data.department,
+        companyId: data.companyId,
+      })
       .onConflictDoUpdate({
-        target: profiles.userId,
+        target: profiles.id,
         set: {
           fullName: data.fullName,
-          roleType: data.roleType,
+          role: data.role,
           department: data.department,
           updatedAt: new Date(),
         },
@@ -78,7 +84,6 @@ export class OKRDatabaseClient {
    */
   static async getObjectives(filters: {
     companyId?: string;
-    tenantId?: string;
     department?: string;
     status?: string;
     assignedTo?: string;
@@ -123,7 +128,6 @@ export class OKRDatabaseClient {
    */
   static async getInitiatives(filters: {
     companyId?: string;
-    tenantId?: string;
     objectiveId?: string;
     status?: string;
     assignedTo?: string;
@@ -168,7 +172,6 @@ export class OKRDatabaseClient {
    */
   static async getActivities(filters: {
     companyId?: string;
-    tenantId?: string;
     initiativeId?: string;
     status?: string;
     assignedTo?: string;
@@ -228,7 +231,6 @@ export class OKRDatabaseClient {
     startDate: Date;
     endDate: Date;
     companyId: string;
-    tenantId: string;
     assignedTo?: string;
   }) {
     const user = await stackServerApp.getUser({ or: 'throw' });
@@ -267,13 +269,11 @@ export class OKRDatabaseClient {
    */
   static async getAnalytics(filters: {
     companyId: string;
-    tenantId: string;
     startDate?: Date;
     endDate?: Date;
   }) {
     const whereConditions = [
       eq(objectives.companyId, filters.companyId),
-      eq(objectives.tenantId, filters.tenantId),
     ];
 
     if (filters.startDate) {
@@ -300,10 +300,7 @@ export class OKRDatabaseClient {
         count: count(),
       })
       .from(initiatives)
-      .where(and(
-        eq(initiatives.companyId, filters.companyId),
-        eq(initiatives.tenantId, filters.tenantId)
-      ))
+      .where(eq(initiatives.companyId, filters.companyId))
       .groupBy(initiatives.status);
 
     // Get activity counts
@@ -313,10 +310,7 @@ export class OKRDatabaseClient {
         count: count(),
       })
       .from(activities)
-      .where(and(
-        eq(activities.companyId, filters.companyId),
-        eq(activities.tenantId, filters.tenantId)
-      ))
+      .where(eq(activities.companyId, filters.companyId))
       .groupBy(activities.status);
 
     // Get progress by department
@@ -345,12 +339,12 @@ export class OKRDatabaseClient {
     const userProfile = await this.getUserProfile(userId);
     if (!userProfile) throw new Error('User profile not found');
 
-    const { companyId, tenantId } = userProfile;
+    const { companyId } = userProfile;
+    if (!companyId) throw new Error('User profile has no company');
 
     // Get user's assigned objectives
     const userObjectives = await this.getObjectives({
       companyId,
-      tenantId,
       assignedTo: userId,
       limit: 10,
     });
@@ -358,7 +352,6 @@ export class OKRDatabaseClient {
     // Get user's assigned activities that are due soon
     const upcomingActivities = await this.getActivities({
       companyId,
-      tenantId,
       assignedTo: userId,
       limit: 10,
     });
@@ -366,7 +359,6 @@ export class OKRDatabaseClient {
     // Get overdue activities
     const overdueActivities = await this.getActivities({
       companyId,
-      tenantId,
       assignedTo: userId,
       overdue: true,
       limit: 5,
@@ -375,7 +367,6 @@ export class OKRDatabaseClient {
     // Get analytics for company
     const analytics = await this.getAnalytics({
       companyId,
-      tenantId,
     });
 
     return {
@@ -397,7 +388,6 @@ export class OKRDatabaseClient {
     oldValue?: string;
     newValue?: string;
     companyId: string;
-    tenantId: string;
   }) {
     const user = await stackServerApp.getUser({ or: 'throw' });
 
