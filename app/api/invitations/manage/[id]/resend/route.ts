@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack/server';
 import { sendInvitationEmail, sendReminderEmail } from '@/lib/services/brevo';
-import db from '@/db';
+import { withRLSContext } from '@/lib/database/rls-client';
 import { organizationInvitations } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
 
@@ -26,28 +26,32 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Get authenticated user
     const user = await stackServerApp.getUser({ or: 'redirect' });
 
-    // Get invitation with relationships
-    const invitation = await db.query.organizationInvitations.findFirst({
-      where: eq(organizationInvitations.id, id),
-      with: {
-        organization: true,
-        inviter: true,
-      },
+    // Get invitation with relationships using RLS
+    const invitation = await withRLSContext(user.id, async (db) => {
+      return await db.query.organizationInvitations.findFirst({
+        where: eq(organizationInvitations.id, id),
+        with: {
+          organization: true,
+          inviter: true,
+        },
+      });
     });
 
     if (!invitation) {
-      return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Invitación no encontrada' }, { status: 404 });
     }
 
-    // Verify user has access to the organization
-    const userProfile = await db.query.profiles.findFirst({
-      where: (profiles, { eq, and }) =>
-        and(eq(profiles.id, user.id), eq(profiles.companyId, invitation.organizationId)),
+    // Verify user has access to the organization using RLS
+    const userProfile = await withRLSContext(user.id, async (db) => {
+      return await db.query.profiles.findFirst({
+        where: (profiles, { eq, and }) =>
+          and(eq(profiles.id, user.id), eq(profiles.companyId, invitation.organizationId)),
+      });
     });
 
     if (!userProfile) {
       return NextResponse.json(
-        { error: 'You do not have access to this organization' },
+        { error: 'No tienes acceso a esta organización' },
         { status: 403 }
       );
     }
@@ -55,7 +59,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Only corporate and manager roles can resend invitations
     if (!['corporativo', 'gerente'].includes(userProfile.role)) {
       return NextResponse.json(
-        { error: 'You do not have permission to resend invitations' },
+        { error: 'No tienes permiso para reenviar invitaciones' },
         { status: 403 }
       );
     }
@@ -63,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Only pending invitations can be resent
     if (invitation.status !== 'pending') {
       return NextResponse.json(
-        { error: `Cannot resend ${invitation.status} invitation` },
+        { error: `No se puede reenviar una invitación con estado: ${invitation.status}` },
         { status: 400 }
       );
     }
@@ -71,7 +75,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Check if expired
     if (invitation.expiresAt < new Date()) {
       return NextResponse.json(
-        { error: 'Invitation has expired. Please create a new one.' },
+        { error: 'La invitación ha expirado. Por favor, crea una nueva.' },
         { status: 400 }
       );
     }
@@ -107,23 +111,25 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // Update invitation timestamp
-    await db
-      .update(organizationInvitations)
-      .set({ updatedAt: new Date() })
-      .where(eq(organizationInvitations.id, id));
+    // Update invitation timestamp using RLS
+    await withRLSContext(user.id, async (db) => {
+      return await db
+        .update(organizationInvitations)
+        .set({ updatedAt: new Date() })
+        .where(eq(organizationInvitations.id, id));
+    });
 
     return NextResponse.json({
       success: true,
-      message: isReminder ? 'Reminder sent successfully' : 'Invitation resent successfully',
+      message: isReminder ? 'Recordatorio enviado exitosamente' : 'Invitación reenviada exitosamente',
     });
   } catch (error) {
-    console.error('Error resending invitation:', error);
+    console.error('Error al reenviar invitación:', error);
 
     return NextResponse.json(
       {
-        error: 'Failed to resend invitation',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Error al reenviar la invitación',
+        details: error instanceof Error ? error.message : 'Error desconocido',
       },
       { status: 500 }
     );

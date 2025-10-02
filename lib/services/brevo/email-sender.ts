@@ -50,14 +50,19 @@ function getSenderConfig(): { email: string; name: string } {
  * Get base URL for the application
  */
 function getBaseUrl(): string {
-  // In production, use VERCEL_URL or custom domain
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+  // Priority 1: Use custom domain from environment (e.g., ai-innovation.site)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
   }
 
-  // In development
+  // Priority 2: In development
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3000';
+  }
+
+  // Priority 3: Use VERCEL_URL (preview deployments)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
   }
 
   // Fallback

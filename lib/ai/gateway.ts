@@ -4,7 +4,7 @@ import { generateText, streamText, generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { stackServerApp } from '@/stack/server';
-import db from '@/db';
+import { withRLSContext } from '@/lib/database/rls-client';
 import {
   aiUsageTracking,
   conversations,
@@ -105,8 +105,8 @@ export class AIGatewayService {
 
       return result;
     } catch (error) {
-      console.error('AI Gateway error:', error);
-      throw new Error('Failed to generate completion');
+      console.error('Error en AI Gateway:', error);
+      throw new Error('Error al generar completado');
     }
   }
 
@@ -199,8 +199,8 @@ export class AIGatewayService {
 
       return result.object;
     } catch (error) {
-      console.error('AI Gateway structured generation error:', error);
-      throw new Error('Failed to generate structured data');
+      console.error('Error en generación estructurada de AI Gateway:', error);
+      throw new Error('Error al generar datos estructurados');
     }
   }
 
@@ -216,35 +216,41 @@ export class AIGatewayService {
     } = {}
   ) {
     const user = await stackServerApp.getUser({ or: 'throw' });
-    const userProfile = await db.query.profiles.findFirst({
-      where: eq(profiles.id, user.id),
-      with: { company: true },
+    const userProfile = await withRLSContext(user.id, async (db) => {
+      return await db.query.profiles.findFirst({
+        where: eq(profiles.id, user.id),
+        with: { company: true },
+      });
     });
 
     if (!userProfile) {
-      throw new Error('User profile not found');
+      throw new Error('Perfil de usuario no encontrado');
     }
 
     const { model = 'gpt-4o-mini', context = {} } = options;
 
     let conversation;
 
-    // Get or create conversation
+    // Get or create conversation using RLS
     if (conversationId) {
-      conversation = await db.query.conversations.findFirst({
-        where: eq(conversations.id, conversationId),
-        with: { messages: { orderBy: [desc(conversationMessages.createdAt)] } },
+      conversation = await withRLSContext(user.id, async (db) => {
+        return await db.query.conversations.findFirst({
+          where: eq(conversations.id, conversationId),
+          with: { messages: { orderBy: [desc(conversationMessages.createdAt)] } },
+        });
       });
     }
 
     if (!conversation) {
-      // Create new conversation
-      const [newConversation] = await db.insert(conversations).values({
-        userId: user.id,
-        title: message.slice(0, 100) + '...',
-        context: context,
-        companyId: userProfile.companyId,
-      }).returning();
+      // Create new conversation using RLS
+      const [newConversation] = await withRLSContext(user.id, async (db) => {
+        return await db.insert(conversations).values({
+          userId: user.id,
+          title: message.slice(0, 100) + '...',
+          context: context,
+          companyId: userProfile.companyId,
+        }).returning();
+      });
 
       conversation = { ...newConversation, messages: [] };
     }
@@ -276,32 +282,38 @@ export class AIGatewayService {
 
       const responseTime = Date.now() - startTime;
 
-      // Save user message
-      await db.insert(conversationMessages).values({
-        conversationId: conversation.id,
-        role: 'user',
-        content: message,
-        companyId: userProfile.companyId
+      // Save user message using RLS
+      await withRLSContext(user.id, async (db) => {
+        await db.insert(conversationMessages).values({
+          conversationId: conversation.id,
+          role: 'user',
+          content: message,
+          companyId: userProfile.companyId
+        });
       });
 
-      // Save assistant response
-      await db.insert(conversationMessages).values({
-        conversationId: conversation.id,
-        role: 'assistant',
-        content: result.text,
-        tokensUsed: result.usage.totalTokens,
-        responseTimeMs: responseTime,
-        companyId: userProfile.companyId
+      // Save assistant response using RLS
+      await withRLSContext(user.id, async (db) => {
+        await db.insert(conversationMessages).values({
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: result.text,
+          tokensUsed: result.usage.totalTokens,
+          responseTimeMs: responseTime,
+          companyId: userProfile.companyId
+        });
       });
 
-      // Update conversation
-      await db.update(conversations)
-        .set({
-          lastMessageAt: new Date(),
-          messageCount: conversation.messageCount + 2,
-          tokensUsed: (conversation.tokensUsed || 0) + result.usage.totalTokens,
-        })
-        .where(eq(conversations.id, conversation.id));
+      // Update conversation using RLS
+      await withRLSContext(user.id, async (db) => {
+        await db.update(conversations)
+          .set({
+            lastMessageAt: new Date(),
+            messageCount: conversation.messageCount + 2,
+            tokensUsed: (conversation.tokensUsed || 0) + result.usage.totalTokens,
+          })
+          .where(eq(conversations.id, conversation.id));
+      });
 
       // Track usage
       await this.trackUsage({
@@ -319,8 +331,8 @@ export class AIGatewayService {
         usage: result.usage,
       };
     } catch (error) {
-      console.error('AI Chat error:', error);
-      throw new Error('Failed to generate chat response');
+      console.error('Error en chat de AI:', error);
+      throw new Error('Error al generar respuesta de chat');
     }
   }
 
@@ -333,36 +345,38 @@ export class AIGatewayService {
     context: Record<string, any>;
   }) {
     const user = await stackServerApp.getUser({ or: 'throw' });
-    const userProfile = await db.query.profiles.findFirst({
-      where: eq(db.profiles?.userId, user.id),
-      with: { company: true },
+    const userProfile = await withRLSContext(user.id, async (db) => {
+      return await db.query.profiles.findFirst({
+        where: eq(profiles.id, user.id),
+        with: { company: true },
+      });
     });
 
     if (!userProfile) {
-      throw new Error('User profile not found');
+      throw new Error('Perfil de usuario no encontrado');
     }
 
     const systemPrompt = `
-      You are an expert OKR advisor. Analyze the provided data and generate actionable insights.
-      Focus on:
-      - Performance trends and patterns
-      - Risk identification
-      - Optimization opportunities
-      - Strategic recommendations
+      Eres un asesor experto en OKRs. Analiza los datos proporcionados y genera insights accionables.
+      Enfócate en:
+      - Tendencias y patrones de rendimiento
+      - Identificación de riesgos
+      - Oportunidades de optimización
+      - Recomendaciones estratégicas
 
-      Provide insights that are:
-      - Specific and actionable
-      - Data-driven
-      - Relevant to the user's role (${userProfile.roleType})
-      - Focused on ${data.type} level analysis
+      Proporciona insights que sean:
+      - Específicos y accionables
+      - Basados en datos
+      - Relevantes para el rol del usuario (${userProfile.role})
+      - Enfocados en análisis a nivel de ${data.type}
     `;
 
     const prompt = `
-      Analyze this OKR data and provide insights:
+      Analiza estos datos de OKR y proporciona insights:
 
-      Context: ${JSON.stringify(data.context, null, 2)}
+      Contexto: ${JSON.stringify(data.context, null, 2)}
 
-      Generate specific insights and recommendations.
+      Genera insights específicos y recomendaciones.
     `;
 
     try {
@@ -372,17 +386,19 @@ export class AIGatewayService {
         maxTokens: 1500,
       });
 
-      // Save insight to database
-      await db.insert(aiInsights).values({
-        userId: user.id,
-        title: `${data.type} Analysis Insight`,
-        content: result.text,
-        category: 'performance',
-        entityType: data.type,
-        entityId: data.entityId,
-        confidence: 85, // Could be calculated based on data quality
-        isActionable: true,
-        companyId: userProfile.companyId
+      // Save insight to database using RLS
+      await withRLSContext(user.id, async (db) => {
+        await db.insert(aiInsights).values({
+          userId: user.id,
+          title: `Análisis de ${data.type}`,
+          content: result.text,
+          category: 'performance',
+          entityType: data.type,
+          entityId: data.entityId,
+          confidence: 85, // Could be calculated based on data quality
+          isActionable: true,
+          companyId: userProfile.companyId
+        });
       });
 
       return {
@@ -391,8 +407,8 @@ export class AIGatewayService {
         confidence: 85,
       };
     } catch (error) {
-      console.error('AI Insights generation error:', error);
-      throw new Error('Failed to generate insights');
+      console.error('Error al generar insights de AI:', error);
+      throw new Error('Error al generar insights');
     }
   }
 
@@ -403,47 +419,49 @@ export class AIGatewayService {
     userProfile: any,
     context: Record<string, any> = {}
   ): Promise<string> {
-    const knowledge = await this.getRelevantKnowledge(userProfile.companyId);
+    const knowledge = await this.getRelevantKnowledge(userProfile.id, userProfile.companyId);
 
     return `
-You are StratixAI, an expert OKR management assistant for ${userProfile.company?.name || 'the organization'}.
+Eres StratixAI, un asistente experto en gestión de OKRs para ${userProfile.company?.name || 'la organización'}.
 
-User Context:
-- Name: ${userProfile.fullName}
-- Role: ${userProfile.roleType}
-- Department: ${userProfile.department}
+Contexto del Usuario:
+- Nombre: ${userProfile.fullName}
+- Rol: ${userProfile.role}
+- Departamento: ${userProfile.department}
 
-Your capabilities:
-- Provide OKR methodology guidance
-- Analyze performance data and trends
-- Suggest improvements and optimizations
-- Help with goal setting and tracking
-- Offer strategic recommendations
+Tus capacidades:
+- Proporcionar orientación sobre metodología OKR
+- Analizar datos de rendimiento y tendencias
+- Sugerir mejoras y optimizaciones
+- Ayudar con la definición y seguimiento de objetivos
+- Ofrecer recomendaciones estratégicas
 
-Knowledge Base:
+Base de Conocimiento:
 ${knowledge.map(k => `- ${k.title}: ${k.content}`).join('\n')}
 
-Always provide:
-- Actionable recommendations
-- Data-driven insights
-- Role-appropriate guidance
-- Spanish language responses (the organization operates in Spanish)
+Siempre proporciona:
+- Recomendaciones accionables
+- Insights basados en datos
+- Orientación apropiada al rol del usuario
+- Respuestas en español
 
-Current context: ${JSON.stringify(context, null, 2)}
+Contexto actual: ${JSON.stringify(context, null, 2)}
     `.trim();
   }
 
   /**
    * Get relevant knowledge for user context
    */
-  private static async getRelevantKnowledge(companyId: string, limit = 5) {
-    return await db.query.knowledgeBase.findMany({
-      where: and(
-        eq(knowledgeBase.isActive, true),
-        eq(knowledgeBase.companyId, companyId)
-      ),
-      orderBy: [desc(knowledgeBase.priority)],
-      limit,
+  private static async getRelevantKnowledge(userId: string, companyId: string, limit = 5) {
+    return await withRLSContext(userId, async (db) => {
+      return await db.query.knowledgeBase.findMany({
+        where: and(
+          eq(knowledgeBase.isActive, true),
+          eq(knowledgeBase.companyId, companyId)
+        ),
+        orderBy: [desc(knowledgeBase.priority)],
+        limit,
+      });
     });
   }
 
@@ -459,25 +477,29 @@ Current context: ${JSON.stringify(context, null, 2)}
     responseTimeMs: number;
     requestCost?: number;
   }) {
-    const userProfile = await db.query.profiles.findFirst({
-      where: eq(db.profiles?.userId, data.userId),
+    const userProfile = await withRLSContext(data.userId, async (db) => {
+      return await db.query.profiles.findFirst({
+        where: eq(profiles.id, data.userId),
+      });
     });
 
     if (!userProfile) return;
 
     try {
-      await db.insert(aiUsageTracking).values({
-        userId: data.userId,
-        operationType: data.operationType,
-        provider: data.provider,
-        model: data.model,
-        tokensUsed: data.tokensUsed,
-        requestCost: data.requestCost?.toString(),
-        responseTimeMs: data.responseTimeMs,
-        companyId: userProfile.companyId,
+      await withRLSContext(data.userId, async (db) => {
+        await db.insert(aiUsageTracking).values({
+          userId: data.userId,
+          operationType: data.operationType,
+          provider: data.provider,
+          model: data.model,
+          tokensUsed: data.tokensUsed,
+          requestCost: data.requestCost?.toString(),
+          responseTimeMs: data.responseTimeMs,
+          companyId: userProfile.companyId,
+        });
       });
     } catch (error) {
-      console.error('Failed to track AI usage:', error);
+      console.error('Error al rastrear uso de AI:', error);
       // Don't throw error to avoid breaking main functionality
     }
   }
@@ -489,12 +511,14 @@ Current context: ${JSON.stringify(context, null, 2)}
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const usage = await db.query.aiUsageTracking.findMany({
-      where: and(
-        eq(aiUsageTracking.userId, userId),
-        // Add date filter when available in schema
-      ),
-      orderBy: [desc(aiUsageTracking.createdAt)],
+    const usage = await withRLSContext(userId, async (db) => {
+      return await db.query.aiUsageTracking.findMany({
+        where: and(
+          eq(aiUsageTracking.userId, userId),
+          // Add date filter when available in schema
+        ),
+        orderBy: [desc(aiUsageTracking.createdAt)],
+      });
     });
 
     const totalTokens = usage.reduce((sum, record) => sum + record.tokensUsed, 0);

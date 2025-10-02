@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInvitation } from '@/lib/organization/organization-service';
+import { stackServerApp } from '@/stack/server';
 
 interface RouteParams {
   params: {
@@ -14,20 +15,25 @@ export async function GET(
   try {
     const { token } = params;
 
-    const invitation = await getInvitation(token);
+    // Get user if authenticated, otherwise use a system context
+    // This endpoint needs to work for non-authenticated users viewing invitation
+    const user = await stackServerApp.getUser();
+    const userId = user?.id || 'system'; // Use 'system' for unauthenticated access
+
+    const invitation = await getInvitation(userId, token);
 
     if (!invitation) {
       return NextResponse.json(
-        { error: 'Invitation not found' },
+        { error: 'Invitación no encontrada' },
         { status: 404 }
       );
     }
 
     return NextResponse.json(invitation);
   } catch (error) {
-    console.error('Error fetching invitation:', error);
+    console.error('Error al obtener invitación:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch invitation' },
+      { error: 'Error al obtener la invitación' },
       { status: 500 }
     );
   }
