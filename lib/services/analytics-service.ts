@@ -51,9 +51,7 @@ export interface OKRDashboardStats {
 export async function getOKRDashboardStats(
   userId: string
 ): Promise<OKRDashboardStats> {
-  try {
-    // Import the main database connection
-    const db = (await import('@/db')).default;
+  return withRLSContext(userId, async (db) => {
     // Aggregate objectives statistics
     const objectiveStats = await db
       .select({
@@ -146,26 +144,7 @@ export async function getOKRDashboardStats(
           2
       ),
     };
-  } catch (error) {
-    console.error('Error fetching OKR dashboard stats:', error);
-    return {
-      totalObjectives: 0,
-      activeObjectives: 0,
-      completedObjectives: 0,
-      objectivesProgress: 0,
-      totalInitiatives: 0,
-      activeInitiatives: 0,
-      blockedInitiatives: 0,
-      initiativesProgress: 0,
-      totalActivities: 0,
-      pendingActivities: 0,
-      completedActivities: 0,
-      overdueActivities: 0,
-      teamMembers: 0,
-      daysToDeadline: null,
-      overallProgress: 0,
-    };
-  }
+  });
 }
 
 /**
