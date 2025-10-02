@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, slug } = body;
+    const { name, slug, description, profile } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -50,13 +50,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create organization
+    // Create organization with profile data
     const result = await createOrganization({
       name,
       slug,
+      description,
       creatorUserId: user.id,
       creatorEmail: user.primaryEmail,
       creatorFullName: user.displayName || undefined,
+      profileData: profile,
     });
 
     // Complete onboarding session

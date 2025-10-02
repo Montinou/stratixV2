@@ -13,7 +13,8 @@ import {
   companies,
   profiles,
   companyInvitations,
-  onboardingSessions
+  onboardingSessions,
+  companyProfile
 } from '@/db/okr-schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
 import crypto from 'crypto';
@@ -26,6 +27,27 @@ export interface CreateOrganizationInput {
   creatorUserId: string;
   creatorEmail: string;
   creatorFullName?: string;
+  description?: string;
+  profileData?: {
+    industry?: string | null;
+    companySize?: string | null;
+    website?: string | null;
+    headquartersLocation?: string | null;
+    missionStatement?: string | null;
+    visionStatement?: string | null;
+    businessModel?: string | null;
+    targetMarket?: string[] | null;
+    keyProductsServices?: string[] | null;
+    coreValues?: string[] | null;
+    foundedYear?: number | null;
+    employeeCount?: number | null;
+    annualRevenue?: number | null;
+    fiscalYearStart?: string | null;
+    timezone?: string | null;
+    currency?: string | null;
+    linkedinUrl?: string | null;
+    twitterHandle?: string | null;
+  };
 }
 
 export interface CreateInvitationInput {
@@ -89,7 +111,7 @@ export async function generateOrganizationSlug(name: string, userId: string): Pr
  * Create a new organization with initial corporate user
  */
 export async function createOrganization(input: CreateOrganizationInput) {
-  const { name, slug, creatorUserId, creatorEmail, creatorFullName } = input;
+  const { name, slug, creatorUserId, creatorEmail, creatorFullName, description, profileData } = input;
 
   return await withRLSContext(creatorUserId, async (db) => {
     // Check if user already has a profile
@@ -114,9 +136,20 @@ export async function createOrganization(input: CreateOrganizationInput) {
     const [organization] = await db.insert(companies).values({
       name,
       slug,
+      description: description || null,
       logoUrl: null,
       settings: {},
     }).returning();
+
+    // Create company profile if profile data provided
+    if (profileData) {
+      await db.insert(companyProfile).values({
+        companyId: organization.id,
+        ...profileData,
+        onboardingCompleted: true,
+        onboardingCompletedAt: new Date(),
+      });
+    }
 
     // Create creator profile as corporativo
     const [profile] = await db.insert(profiles).values({
