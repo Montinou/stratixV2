@@ -87,7 +87,7 @@ export default function CreateOrganizationPage() {
   // AI enhancement for description
   const enhanceDescription = async () => {
     if (!form.organizationDescription.trim()) {
-      toast.error('Please write a brief description first');
+      toast.error('Por favor escribe una descripción breve primero');
       return;
     }
 
@@ -105,7 +105,7 @@ export default function CreateOrganizationPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to enhance description');
+        throw new Error('Error al mejorar la descripción');
       }
 
       const data = await response.json();
@@ -115,11 +115,11 @@ export default function CreateOrganizationPage() {
           ...prev,
           organizationDescription: data.enhancedText,
         }));
-        toast.success('Description enhanced successfully!');
+        toast.success('¡Descripción mejorada exitosamente!');
       }
     } catch (error) {
       console.error('Error enhancing description:', error);
-      toast.error('Failed to enhance description. Please try again.');
+      toast.error('Error al mejorar la descripción. Por favor intenta de nuevo.');
     } finally {
       setEnhancingDescription(false);
     }
@@ -129,17 +129,17 @@ export default function CreateOrganizationPage() {
     e.preventDefault();
 
     if (!form.organizationName.trim()) {
-      toast.error('Organization name is required');
+      toast.error('El nombre de la organización es requerido');
       return;
     }
 
     if (!form.organizationSlug.trim()) {
-      toast.error('Organization slug is required');
+      toast.error('El slug de la organización es requerido');
       return;
     }
 
     if (!form.organizationDescription.trim()) {
-      toast.error('Organization description is required');
+      toast.error('La descripción de la organización es requerida');
       return;
     }
 
@@ -159,23 +159,23 @@ export default function CreateOrganizationPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create organization');
+        throw new Error(data.error || 'Error al crear la organización');
       }
 
       // Check if user already has an organization
       if (data.alreadyExists) {
-        toast.info('You already have an organization. Redirecting...');
+        toast.info('Ya tienes una organización. Redirigiendo...');
         router.push('/tools');
         return;
       }
 
-      toast.success('Organization created successfully!');
+      toast.success('¡Organización creada exitosamente!');
 
       // Redirect to tools
       router.push('/tools');
     } catch (error) {
       console.error('Error creating organization:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create organization');
+      toast.error(error instanceof Error ? error.message : 'Error al crear la organización');
     } finally {
       setSubmitting(false);
     }
@@ -186,7 +186,7 @@ export default function CreateOrganizationPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">Cargando...</p>
         </div>
       </div>
     );
@@ -201,18 +201,18 @@ export default function CreateOrganizationPage() {
               <Building2 className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center">Create Your Organization</CardTitle>
+          <CardTitle className="text-2xl text-center">Crea Tu Organización</CardTitle>
           <CardDescription className="text-center">
-            Set up your workspace to start managing OKRs
+            Configura tu espacio de trabajo para comenzar a gestionar OKRs
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="organizationName">Organization Name</Label>
+              <Label htmlFor="organizationName">Nombre de la Organización</Label>
               <Input
                 id="organizationName"
-                placeholder="Acme Inc."
+                placeholder="Mi Empresa S.A."
                 value={form.organizationName}
                 onChange={(e) => handleNameChange(e.target.value)}
                 disabled={submitting}
@@ -221,23 +221,23 @@ export default function CreateOrganizationPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="organizationSlug">Organization Slug</Label>
+              <Label htmlFor="organizationSlug">Identificador (Slug)</Label>
               <Input
                 id="organizationSlug"
-                placeholder="acme-inc"
+                placeholder="mi-empresa"
                 value={form.organizationSlug}
                 onChange={(e) => setForm(prev => ({ ...prev, organizationSlug: e.target.value }))}
                 disabled={submitting}
                 required
               />
               <p className="text-xs text-muted-foreground">
-                This will be used in URLs and must be unique
+                Se usará en URLs y debe ser único
               </p>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="organizationDescription">Organization Description</Label>
+                <Label htmlFor="organizationDescription">Descripción de la Organización</Label>
                 <Button
                   type="button"
                   variant="ghost"
@@ -249,19 +249,19 @@ export default function CreateOrganizationPage() {
                   {enhancingDescription ? (
                     <>
                       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                      Enhancing...
+                      Mejorando...
                     </>
                   ) : (
                     <>
                       <Sparkles className="mr-1 h-3 w-3" />
-                      Enhance with AI
+                      Mejorar con IA
                     </>
                   )}
                 </Button>
               </div>
               <Textarea
                 id="organizationDescription"
-                placeholder="Describe your organization's mission, values, and what you do..."
+                placeholder="Describe la misión, valores y actividades de tu organización..."
                 value={form.organizationDescription}
                 onChange={(e) => setForm(prev => ({ ...prev, organizationDescription: e.target.value }))}
                 disabled={submitting || enhancingDescription}
@@ -269,7 +269,7 @@ export default function CreateOrganizationPage() {
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Write a brief description and use AI to enhance it
+                Escribe una descripción breve y usa la IA para mejorarla
               </p>
             </div>
 
@@ -277,7 +277,7 @@ export default function CreateOrganizationPage() {
               <div className="rounded-lg bg-green-50 dark:bg-green-900/10 p-3 flex items-center gap-2">
                 <Save className="h-4 w-4 text-green-600 dark:text-green-500" />
                 <p className="text-sm text-green-600 dark:text-green-500">
-                  Draft saved automatically
+                  Borrador guardado automáticamente
                 </p>
               </div>
             )}
@@ -290,18 +290,18 @@ export default function CreateOrganizationPage() {
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  Creando...
                 </>
               ) : (
                 <>
                   <Building2 className="mr-2 h-4 w-4" />
-                  Create Organization
+                  Crear Organización
                 </>
               )}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              You will become the Corporate administrator of this organization
+              Serás el administrador corporativo de esta organización
             </p>
           </form>
         </CardContent>

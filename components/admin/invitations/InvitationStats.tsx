@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 interface InvitationStatsProps {
-  organizationId: string;
+  companyId: string;
 }
 
 interface Stats {
@@ -35,14 +35,14 @@ interface Stats {
   };
 }
 
-export function InvitationStats({ organizationId }: InvitationStatsProps) {
+export function InvitationStats({ companyId }: InvitationStatsProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const response = await fetch(`/api/invitations/stats?organizationId=${organizationId}`);
+        const response = await fetch(`/api/invitations/stats?companyId=${companyId}`);
         const data = await response.json();
 
         if (response.ok) {
@@ -56,7 +56,7 @@ export function InvitationStats({ organizationId }: InvitationStatsProps) {
     }
 
     loadStats();
-  }, [organizationId]);
+  }, [companyId]);
 
   if (loading) {
     return (

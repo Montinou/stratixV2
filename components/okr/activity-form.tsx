@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { Slider } from '@/components/ui/slider';
+import { toast as sonnerToast } from 'sonner';
 
 const formSchema = z.object({
   title: z.string().min(1, {
@@ -67,6 +68,7 @@ export function ActivityForm({ initiativeId, initiatives, onSuccess, onCancel }:
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [enhancingDescription, setEnhancingDescription] = useState(false);
 
   const form = useForm<ActivityFormValues>({
     resolver: zodResolver(formSchema),
@@ -78,6 +80,43 @@ export function ActivityForm({ initiativeId, initiatives, onSuccess, onCancel }:
       progress: 0,
     },
   });
+
+  const enhanceDescription = async () => {
+    const currentDescription = form.getValues('description');
+    if (!currentDescription?.trim()) {
+      sonnerToast.error('Por favor escribe una descripción breve primero');
+      return;
+    }
+
+    setEnhancingDescription(true);
+
+    try {
+      const response = await fetch('/api/ai/enhance-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: currentDescription,
+          context: 'general',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al mejorar la descripción');
+      }
+
+      const data = await response.json();
+
+      if (data.enhancedText) {
+        form.setValue('description', data.enhancedText);
+        sonnerToast.success('¡Descripción mejorada exitosamente!');
+      }
+    } catch (error) {
+      console.error('Error enhancing description:', error);
+      sonnerToast.error('Error al mejorar la descripción. Por favor intenta de nuevo.');
+    } finally {
+      setEnhancingDescription(false);
+    }
+  };
 
   async function onSubmit(data: ActivityFormValues) {
     setIsSubmitting(true);
@@ -176,16 +215,39 @@ export function ActivityForm({ initiativeId, initiatives, onSuccess, onCancel }:
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Descripción</FormLabel>
+              <div className="flex items-center justify-between">
+                <FormLabel>Descripción</FormLabel>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={enhanceDescription}
+                  disabled={isSubmitting || enhancingDescription || !field.value?.trim()}
+                  className="h-7 px-2 text-xs"
+                >
+                  {enhancingDescription ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Mejorando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-1 h-3 w-3" />
+                      Mejorar con IA
+                    </>
+                  )}
+                </Button>
+              </div>
               <FormControl>
                 <Textarea
                   placeholder="Describe la actividad con más detalle..."
                   className="resize-none"
+                  disabled={enhancingDescription}
                   {...field}
                 />
               </FormControl>
               <FormDescription>
-                Proporciona contexto adicional sobre la actividad
+                Escribe una descripción breve y usa la IA para mejorarla
               </FormDescription>
               <FormMessage />
             </FormItem>

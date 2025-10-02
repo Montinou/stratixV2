@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack/server';
 import { sendInvitationEmail, sendReminderEmail } from '@/lib/services/brevo';
 import { withRLSContext } from '@/lib/database/rls-client';
-import { organizationInvitations } from '@/db/okr-schema';
+import { companyInvitations } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
 
 interface RouteParams {
@@ -28,10 +28,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Get invitation with relationships using RLS
     const invitation = await withRLSContext(user.id, async (db) => {
-      return await db.query.organizationInvitations.findFirst({
-        where: eq(organizationInvitations.id, id),
+      return await db.query.companyInvitations.findFirst({
+        where: eq(companyInvitations.id, id),
         with: {
-          organization: true,
+          company: true,
           inviter: true,
         },
       });
@@ -41,17 +41,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Invitación no encontrada' }, { status: 404 });
     }
 
-    // Verify user has access to the organization using RLS
+    // Verify user has access to the company using RLS
     const userProfile = await withRLSContext(user.id, async (db) => {
       return await db.query.profiles.findFirst({
         where: (profiles, { eq, and }) =>
-          and(eq(profiles.id, user.id), eq(profiles.companyId, invitation.organizationId)),
+          and(eq(profiles.id, user.id), eq(profiles.companyId, invitation.companyId)),
       });
     });
 
     if (!userProfile) {
       return NextResponse.json(
-        { error: 'No tienes acceso a esta organización' },
+        { error: 'No tienes acceso a esta compañía' },
         { status: 403 }
       );
     }
@@ -89,8 +89,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (isReminder && daysRemaining > 0) {
       await sendReminderEmail({
         to: invitation.email,
-        organizationName: invitation.organization.name,
-        organizationSlug: invitation.organization.slug,
+        organizationName: invitation.company.name,
+        organizationSlug: invitation.company.slug,
         role: invitation.role,
         inviterName: invitation.inviter.email || 'Team member',
         inviterEmail: invitation.inviter.email || '',
@@ -101,8 +101,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     } else {
       await sendInvitationEmail({
         to: invitation.email,
-        organizationName: invitation.organization.name,
-        organizationSlug: invitation.organization.slug,
+        organizationName: invitation.company.name,
+        organizationSlug: invitation.company.slug,
         role: invitation.role,
         inviterName: invitation.inviter.email || 'Team member',
         inviterEmail: invitation.inviter.email || '',
@@ -114,9 +114,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // Update invitation timestamp using RLS
     await withRLSContext(user.id, async (db) => {
       return await db
-        .update(organizationInvitations)
+        .update(companyInvitations)
         .set({ updatedAt: new Date() })
-        .where(eq(organizationInvitations.id, id));
+        .where(eq(companyInvitations.id, id));
     });
 
     return NextResponse.json({

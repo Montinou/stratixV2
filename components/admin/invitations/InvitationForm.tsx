@@ -22,11 +22,11 @@ import {
 import { Label } from '@/components/ui/label';
 
 interface InvitationFormProps {
-  organizationId: string;
-  organizationName: string;
+  companyId: string;
+  companyName: string;
 }
 
-export function InvitationForm({ organizationId, organizationName }: InvitationFormProps) {
+export function InvitationForm({ companyId, companyName }: InvitationFormProps) {
   const [emails, setEmails] = useState('');
   const [role, setRole] = useState<'corporativo' | 'gerente' | 'empleado'>('empleado');
   const [isPending, startTransition] = useTransition();
@@ -62,7 +62,7 @@ export function InvitationForm({ organizationId, organizationName }: InvitationF
           body: JSON.stringify({
             emails: emailList,
             role,
-            organizationId,
+            companyId,
           }),
         });
 
@@ -112,7 +112,7 @@ export function InvitationForm({ organizationId, organizationName }: InvitationF
           Send Invitations
         </CardTitle>
         <CardDescription>
-          Invite team members to join {organizationName}. They will receive an email with
+          Invite team members to join {companyName}. They will receive an email with
           instructions to accept the invitation.
         </CardDescription>
       </CardHeader>

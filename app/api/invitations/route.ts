@@ -4,7 +4,7 @@ import { stackServerApp } from '@/stack/server';
 import { createInvitation } from '@/lib/organization/organization-service';
 import { sendInvitationEmail } from '@/lib/services/brevo';
 import { withRLSContext } from '@/lib/database/rls-client';
-import { organizationInvitations, profiles } from '@/db/okr-schema';
+import { companyInvitations, profiles } from '@/db/okr-schema';
 import { and, eq, desc, sql, or, like } from 'drizzle-orm';
 
 // Validation schemas
@@ -14,11 +14,11 @@ const sendInvitationSchema = z.object({
     .min(1, 'At least one email is required')
     .max(50, 'Maximum 50 emails per batch'),
   role: z.enum(['corporativo', 'gerente', 'empleado']),
-  organizationId: z.string().uuid('Invalid organization ID'),
+  companyId: z.string().uuid('Invalid company ID'),
 });
 
 const listInvitationsSchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  companyId: z.string().uuid().optional(),
   status: z.enum(['pending', 'accepted', 'expired', 'revoked']).optional(),
   search: z.string().optional(),
   page: z.coerce.number().min(1).optional().default(1),
@@ -52,14 +52,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { emails, role, organizationId } = validation.data;
+    const { emails, role, companyId } = validation.data;
 
-    // Verify user has access to the organization (with RLS)
+    // Verify user has access to the company (with RLS)
     const userProfile = await withRLSContext(user.id, async (db) => {
       return await db.query.profiles.findFirst({
         where: and(
           eq(profiles.id, user.id),
-          eq(profiles.companyId, organizationId)
+          eq(profiles.companyId, companyId)
         ),
         with: {
           company: true,
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     if (!userProfile) {
       return NextResponse.json(
-        { error: 'No tienes acceso a esta organización' },
+        { error: 'No tienes acceso a esta compañía' },
         { status: 403 }
       );
     }
@@ -90,15 +90,15 @@ export async function POST(request: NextRequest) {
           const invitation = await createInvitation(user.id, {
             email,
             role,
-            organizationId,
+            companyId,
             invitedBy: user.id,
           });
 
           // Send invitation email via Brevo
           await sendInvitationEmail({
             to: email,
-            organizationName: userProfile.company?.name || 'Organization',
-            organizationSlug: userProfile.company?.slug || 'org',
+            organizationName: userProfile.company?.name || 'Company',
+            organizationSlug: userProfile.company?.slug || 'company',
             role,
             inviterName: user.displayName || user.primaryEmail || 'Team member',
             inviterEmail: user.primaryEmail || '',
@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const validation = listInvitationsSchema.safeParse({
-      organizationId: searchParams.get('organizationId') || undefined,
+      companyId: searchParams.get('companyId') || undefined,
       status: searchParams.get('status') || undefined,
       search: searchParams.get('search') || undefined,
       page: searchParams.get('page') || undefined,
@@ -190,13 +190,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { organizationId, status, search, page, limit } = validation.data;
+    const { companyId, status, search, page, limit } = validation.data;
 
-    // Get user's organization if not specified and all data (with RLS)
+    // Get user's company if not specified and all data (with RLS)
     const result = await withRLSContext(user.id, async (db) => {
-      // Get user's organization if not specified
-      let targetOrgId = organizationId;
-      if (!targetOrgId) {
+      // Get user's company if not specified
+      let targetCompanyId = companyId;
+      if (!targetCompanyId) {
         const userProfile = await db.query.profiles.findFirst({
           where: eq(profiles.id, user.id),
         });
@@ -205,47 +205,47 @@ export async function GET(request: NextRequest) {
           return { error: 'Perfil de usuario no encontrado' };
         }
 
-        targetOrgId = userProfile.companyId;
+        targetCompanyId = userProfile.companyId;
       }
 
-      // Verify user has access to the organization
+      // Verify user has access to the company
       const userProfile = await db.query.profiles.findFirst({
         where: and(
           eq(profiles.id, user.id),
-          eq(profiles.companyId, targetOrgId!)
+          eq(profiles.companyId, targetCompanyId!)
         ),
       });
 
       if (!userProfile) {
-        return { error: 'No tienes acceso a esta organización' };
+        return { error: 'No tienes acceso a esta compañía' };
       }
 
       // Build query conditions
-      const conditions = [eq(organizationInvitations.organizationId, targetOrgId)];
+      const conditions = [eq(companyInvitations.companyId, targetCompanyId)];
 
       if (status) {
-        conditions.push(eq(organizationInvitations.status, status));
+        conditions.push(eq(companyInvitations.status, status));
       }
 
       if (search) {
-        conditions.push(like(organizationInvitations.email, `%${search}%`));
+        conditions.push(like(companyInvitations.email, `%${search}%`));
       }
 
       // Count total invitations
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)::int` })
-        .from(organizationInvitations)
+        .from(companyInvitations)
         .where(and(...conditions));
 
       // Get paginated invitations
       const offset = (page - 1) * limit;
-      const invitations = await db.query.organizationInvitations.findMany({
+      const invitations = await db.query.companyInvitations.findMany({
         where: and(...conditions),
-        orderBy: desc(organizationInvitations.createdAt),
+        orderBy: desc(companyInvitations.createdAt),
         limit,
         offset,
         with: {
-          organization: {
+          company: {
             columns: {
               id: true,
               name: true,

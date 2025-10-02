@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack/server';
 import db from '@/db';
-import { organizationInvitations } from '@/db/okr-schema';
+import { companyInvitations } from '@/db/okr-schema';
 import { eq, and } from 'drizzle-orm';
 
 interface RouteParams {
@@ -22,10 +22,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const user = await stackServerApp.getUser({ or: 'redirect' });
 
     // Get invitation
-    const invitation = await db.query.organizationInvitations.findFirst({
-      where: eq(organizationInvitations.id, id),
+    const invitation = await db.query.companyInvitations.findFirst({
+      where: eq(companyInvitations.id, id),
       with: {
-        organization: true,
+        company: true,
       },
     });
 
@@ -33,15 +33,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Invitation not found' }, { status: 404 });
     }
 
-    // Verify user has access to the organization
+    // Verify user has access to the company
     const userProfile = await db.query.profiles.findFirst({
       where: (profiles, { eq, and }) =>
-        and(eq(profiles.id, user.id), eq(profiles.companyId, invitation.organizationId)),
+        and(eq(profiles.id, user.id), eq(profiles.companyId, invitation.companyId)),
     });
 
     if (!userProfile) {
       return NextResponse.json(
-        { error: 'You do not have access to this organization' },
+        { error: 'You do not have access to this company' },
         { status: 403 }
       );
     }
@@ -64,12 +64,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Update invitation status to revoked
     await db
-      .update(organizationInvitations)
+      .update(companyInvitations)
       .set({
         status: 'revoked',
         updatedAt: new Date(),
       })
-      .where(eq(organizationInvitations.id, id));
+      .where(eq(companyInvitations.id, id));
 
     return NextResponse.json({
       success: true,

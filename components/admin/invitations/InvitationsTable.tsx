@@ -52,7 +52,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 interface InvitationsTableProps {
-  organizationId: string;
+  companyId: string;
 }
 
 interface Invitation {
@@ -69,7 +69,7 @@ interface Invitation {
   };
 }
 
-export function InvitationsTable({ organizationId }: InvitationsTableProps) {
+export function InvitationsTable({ companyId }: InvitationsTableProps) {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -88,7 +88,7 @@ export function InvitationsTable({ organizationId }: InvitationsTableProps) {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        organizationId,
+        companyId,
         page: page.toString(),
         limit: '10',
       });
@@ -118,7 +118,7 @@ export function InvitationsTable({ organizationId }: InvitationsTableProps) {
 
   useEffect(() => {
     loadInvitations();
-  }, [organizationId, page, statusFilter]);
+  }, [companyId, page, statusFilter]);
 
   const handleSearch = () => {
     setPage(1);

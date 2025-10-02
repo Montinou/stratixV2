@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack/server';
 import db from '@/db';
-import { organizationInvitations } from '@/db/okr-schema';
+import { companyInvitations } from '@/db/okr-schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 /**
  * GET /api/invitations/stats
- * Get invitation statistics for an organization
+ * Get invitation statistics for a company
  */
 export async function GET(request: NextRequest) {
   try {
     // Get authenticated user
     const user = await stackServerApp.getUser({ or: 'redirect' });
 
-    // Get organization ID from query params
+    // Get company ID from query params
     const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get('organizationId');
+    const companyId = searchParams.get('companyId');
 
-    // Get user's organization if not specified
-    let targetOrgId = organizationId;
-    if (!targetOrgId) {
+    // Get user's company if not specified
+    let targetCompanyId = companyId;
+    if (!targetCompanyId) {
       const userProfile = await db.query.profiles.findFirst({
         where: (profiles, { eq }) => eq(profiles.id, user.id),
       });
@@ -28,18 +28,18 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
       }
 
-      targetOrgId = userProfile.companyId;
+      targetCompanyId = userProfile.companyId;
     }
 
-    // Verify user has access to the organization
+    // Verify user has access to the company
     const userProfile = await db.query.profiles.findFirst({
       where: (profiles, { eq, and }) =>
-        and(eq(profiles.id, user.id), eq(profiles.companyId, targetOrgId!)),
+        and(eq(profiles.id, user.id), eq(profiles.companyId, targetCompanyId!)),
     });
 
     if (!userProfile) {
       return NextResponse.json(
-        { error: 'You do not have access to this organization' },
+        { error: 'You do not have access to this company' },
         { status: 403 }
       );
     }
@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
         expired: sql<number>`count(*) filter (where status = 'expired')::int`,
         revoked: sql<number>`count(*) filter (where status = 'revoked')::int`,
       })
-      .from(organizationInvitations)
-      .where(eq(organizationInvitations.organizationId, targetOrgId));
+      .from(companyInvitations)
+      .where(eq(companyInvitations.companyId, targetCompanyId));
 
     // Get recent invitations (last 7 days)
     const sevenDaysAgo = new Date();
@@ -66,11 +66,11 @@ export async function GET(request: NextRequest) {
         pending: sql<number>`count(*) filter (where status = 'pending')::int`,
         accepted: sql<number>`count(*) filter (where status = 'accepted')::int`,
       })
-      .from(organizationInvitations)
+      .from(companyInvitations)
       .where(
         and(
-          eq(organizationInvitations.organizationId, targetOrgId),
-          sql`${organizationInvitations.createdAt} >= ${sevenDaysAgo}`
+          eq(companyInvitations.companyId, targetCompanyId),
+          sql`${companyInvitations.createdAt} >= ${sevenDaysAgo}`
         )
       );
 
@@ -82,13 +82,13 @@ export async function GET(request: NextRequest) {
       .select({
         expiringSoon: sql<number>`count(*)::int`,
       })
-      .from(organizationInvitations)
+      .from(companyInvitations)
       .where(
         and(
-          eq(organizationInvitations.organizationId, targetOrgId),
-          eq(organizationInvitations.status, 'pending'),
-          sql`${organizationInvitations.expiresAt} <= ${threeDaysFromNow}`,
-          sql`${organizationInvitations.expiresAt} > now()`
+          eq(companyInvitations.companyId, targetCompanyId),
+          eq(companyInvitations.status, 'pending'),
+          sql`${companyInvitations.expiresAt} <= ${threeDaysFromNow}`,
+          sql`${companyInvitations.expiresAt} > now()`
         )
       );
 
@@ -101,17 +101,17 @@ export async function GET(request: NextRequest) {
     // Get invitation breakdown by role
     const roleBreakdown = await db
       .select({
-        role: organizationInvitations.role,
+        role: companyInvitations.role,
         count: sql<number>`count(*)::int`,
       })
-      .from(organizationInvitations)
+      .from(companyInvitations)
       .where(
         and(
-          eq(organizationInvitations.organizationId, targetOrgId),
-          eq(organizationInvitations.status, 'pending')
+          eq(companyInvitations.companyId, targetCompanyId),
+          eq(companyInvitations.status, 'pending')
         )
       )
-      .groupBy(organizationInvitations.role);
+      .groupBy(companyInvitations.role);
 
     return NextResponse.json({
       overall: {

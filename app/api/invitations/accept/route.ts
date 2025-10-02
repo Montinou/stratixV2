@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      organization: result.organization,
+      company: result.company,
       profile: result.profile,
     });
   } catch (error) {

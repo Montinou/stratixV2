@@ -12,7 +12,7 @@ import { withRLSContext } from '@/lib/database/rls-client';
 import {
   companies,
   profiles,
-  organizationInvitations,
+  companyInvitations,
   onboardingSessions
 } from '@/db/okr-schema';
 import { eq, and, gte, sql } from 'drizzle-orm';
@@ -31,7 +31,7 @@ export interface CreateOrganizationInput {
 export interface CreateInvitationInput {
   email: string;
   role: UserRole;
-  organizationId: string;
+  companyId: string;
   invitedBy: string;
 }
 
@@ -136,40 +136,40 @@ export async function createOrganization(input: CreateOrganizationInput) {
 }
 
 /**
- * Create invitation for a user to join an organization
+ * Create invitation for a user to join a company
  */
 export async function createInvitation(userId: string, input: CreateInvitationInput) {
-  const { email, role, organizationId, invitedBy } = input;
+  const { email, role, companyId, invitedBy } = input;
 
   return await withRLSContext(userId, async (db) => {
-    // Verify organization exists
-    const organization = await db.query.companies.findFirst({
-      where: eq(companies.id, organizationId),
+    // Verify company exists
+    const company = await db.query.companies.findFirst({
+      where: eq(companies.id, companyId),
     });
 
-    if (!organization) {
-      throw new Error('Organización no encontrada');
+    if (!company) {
+      throw new Error('Compañía no encontrada');
     }
 
-    // Check if user already has profile in this organization
+    // Check if user already has profile in this company
     const existingProfile = await db.query.profiles.findFirst({
       where: and(
         eq(profiles.email, email),
-        eq(profiles.companyId, organizationId)
+        eq(profiles.companyId, companyId)
       ),
     });
 
     if (existingProfile) {
-      throw new Error('El usuario ya existe en esta organización');
+      throw new Error('El usuario ya existe en esta compañía');
     }
 
     // Check for existing pending invitation
-    const existingInvitation = await db.query.organizationInvitations.findFirst({
+    const existingInvitation = await db.query.companyInvitations.findFirst({
       where: and(
-        eq(organizationInvitations.email, email),
-        eq(organizationInvitations.organizationId, organizationId),
-        eq(organizationInvitations.status, 'pending'),
-        gte(organizationInvitations.expiresAt, new Date())
+        eq(companyInvitations.email, email),
+        eq(companyInvitations.companyId, companyId),
+        eq(companyInvitations.status, 'pending'),
+        gte(companyInvitations.expiresAt, new Date())
       ),
     });
 
@@ -182,11 +182,11 @@ export async function createInvitation(userId: string, input: CreateInvitationIn
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-    const [invitation] = await db.insert(organizationInvitations).values({
+    const [invitation] = await db.insert(companyInvitations).values({
       email,
       token,
       role,
-      organizationId,
+      companyId,
       invitedBy,
       status: 'pending',
       expiresAt,
@@ -202,10 +202,10 @@ export async function createInvitation(userId: string, input: CreateInvitationIn
  */
 export async function getInvitation(userId: string, token: string) {
   return await withRLSContext(userId, async (db) => {
-    const invitation = await db.query.organizationInvitations.findFirst({
-      where: eq(organizationInvitations.token, token),
+    const invitation = await db.query.companyInvitations.findFirst({
+      where: eq(companyInvitations.token, token),
       with: {
-        organization: true,
+        company: true,
         inviter: true,
       },
     });
@@ -215,17 +215,17 @@ export async function getInvitation(userId: string, token: string) {
 }
 
 /**
- * Accept an invitation and create user profile in organization
+ * Accept an invitation and create user profile in company
  */
 export async function acceptInvitation(input: AcceptInvitationInput) {
   const { token, userId, fullName } = input;
 
   return await withRLSContext(userId, async (db) => {
     // Get invitation
-    const invitation = await db.query.organizationInvitations.findFirst({
-      where: eq(organizationInvitations.token, token),
+    const invitation = await db.query.companyInvitations.findFirst({
+      where: eq(companyInvitations.token, token),
       with: {
-        organization: true,
+        company: true,
         inviter: true,
       },
     });
@@ -240,22 +240,22 @@ export async function acceptInvitation(input: AcceptInvitationInput) {
 
     if (invitation.expiresAt < new Date()) {
       // Mark as expired
-      await db.update(organizationInvitations)
+      await db.update(companyInvitations)
         .set({ status: 'expired' })
-        .where(eq(organizationInvitations.id, invitation.id));
+        .where(eq(companyInvitations.id, invitation.id));
       throw new Error('La invitación ha expirado');
     }
 
-    // Check if user already has profile in this organization
+    // Check if user already has profile in this company
     const existingProfile = await db.query.profiles.findFirst({
       where: and(
         eq(profiles.id, userId),
-        eq(profiles.companyId, invitation.organizationId)
+        eq(profiles.companyId, invitation.companyId)
       ),
     });
 
     if (existingProfile) {
-      throw new Error('El usuario ya existe en esta organización');
+      throw new Error('El usuario ya existe en esta compañía');
     }
 
     // Create profile with invited role
@@ -265,20 +265,20 @@ export async function acceptInvitation(input: AcceptInvitationInput) {
       fullName: fullName || invitation.email.split('@')[0],
       role: invitation.role,
       department: 'General',
-      companyId: invitation.organizationId,
+      companyId: invitation.companyId,
     }).returning();
 
     // Mark invitation as accepted
-    await db.update(organizationInvitations)
+    await db.update(companyInvitations)
       .set({
         status: 'accepted',
         acceptedAt: new Date(),
       })
-      .where(eq(organizationInvitations.id, invitation.id));
+      .where(eq(companyInvitations.id, invitation.id));
 
     return {
       profile,
-      organization: invitation.organization,
+      company: invitation.company,
     };
   });
 }
@@ -376,14 +376,14 @@ export async function completeOnboardingSession(userId: string) {
  */
 export async function getPendingInvitation(userId: string, email: string) {
   return await withRLSContext(userId, async (db) => {
-    const invitation = await db.query.organizationInvitations.findFirst({
+    const invitation = await db.query.companyInvitations.findFirst({
       where: and(
-        eq(organizationInvitations.email, email),
-        eq(organizationInvitations.status, 'pending'),
-        gte(organizationInvitations.expiresAt, new Date())
+        eq(companyInvitations.email, email),
+        eq(companyInvitations.status, 'pending'),
+        gte(companyInvitations.expiresAt, new Date())
       ),
       with: {
-        organization: true,
+        company: true,
       },
     });
 
@@ -408,14 +408,14 @@ export async function getUserProfile(userId: string) {
 }
 
 /**
- * Check if user has access to organization
+ * Check if user has access to company
  */
-export async function hasOrganizationAccess(userId: string, organizationId: string): Promise<boolean> {
+export async function hasCompanyAccess(userId: string, companyId: string): Promise<boolean> {
   return await withRLSContext(userId, async (db) => {
     const profile = await db.query.profiles.findFirst({
       where: and(
         eq(profiles.id, userId),
-        eq(profiles.companyId, organizationId)
+        eq(profiles.companyId, companyId)
       ),
     });
 
@@ -429,12 +429,12 @@ export async function hasOrganizationAccess(userId: string, organizationId: stri
  */
 export async function cleanupExpiredInvitations(adminUserId: string) {
   return await withRLSContext(adminUserId, async (db) => {
-    const result = await db.update(organizationInvitations)
+    const result = await db.update(companyInvitations)
       .set({ status: 'expired' })
       .where(
         and(
-          eq(organizationInvitations.status, 'pending'),
-          sql`${organizationInvitations.expiresAt} < now()`
+          eq(companyInvitations.status, 'pending'),
+          sql`${companyInvitations.expiresAt} < now()`
         )
       );
 
