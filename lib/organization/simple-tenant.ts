@@ -5,7 +5,7 @@
  * This allows us to implement RLS while keeping the onboarding simple.
  */
 
-import db from '@/db';
+import { withRLSContext, getDb } from '@/lib/database/rls-client';
 import { companies, profiles } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
 
@@ -15,8 +15,10 @@ export const DEFAULT_ORG_NAME = 'StratixV2 Organization';
 
 /**
  * Ensure default organization exists
+ * NOTE: This is a system operation that doesn't require RLS
  */
 export async function ensureDefaultOrganization() {
+  const db = getDb();
   const existing = await db.query.companies.findFirst({
     where: eq(companies.id, DEFAULT_ORG_ID),
   });
@@ -39,59 +41,68 @@ export async function ensureDefaultOrganization() {
  * All whitelisted users get 'corporativo' role by default
  *
  * Note: profiles.id = Stack Auth user ID
+ * Uses withRLSContext for the user being created/updated
  */
 export async function ensureUserProfile(userId: string, userEmail: string, fullName?: string) {
   await ensureDefaultOrganization();
 
-  const existing = await db.query.profiles.findFirst({
-    where: eq(profiles.id, userId),
-  });
+  return withRLSContext(userId, async (db) => {
+    const existing = await db.query.profiles.findFirst({
+      where: eq(profiles.id, userId),
+    });
 
-  if (existing) {
-    // Update company_id if not set
-    if (!existing.companyId) {
-      await db.update(profiles)
-        .set({ companyId: DEFAULT_ORG_ID })
-        .where(eq(profiles.id, userId));
+    if (existing) {
+      // Update company_id if not set
+      if (!existing.companyId) {
+        await db.update(profiles)
+          .set({ companyId: DEFAULT_ORG_ID })
+          .where(eq(profiles.id, userId));
+      }
+      return existing;
     }
-    return existing;
-  }
 
-  // Create new profile in default organization
-  const [profile] = await db.insert(profiles).values({
-    id: userId, // Stack Auth user ID
-    email: userEmail,
-    fullName: fullName || userEmail.split('@')[0], // Use email prefix as fallback
-    role: 'corporativo', // All users are corporativo for now
-    department: 'General',
-    companyId: DEFAULT_ORG_ID,
-  }).returning();
+    // Create new profile in default organization
+    const [profile] = await db.insert(profiles).values({
+      id: userId, // Stack Auth user ID
+      email: userEmail,
+      fullName: fullName || userEmail.split('@')[0], // Use email prefix as fallback
+      role: 'corporativo', // All users are corporativo for now
+      department: 'General',
+      companyId: DEFAULT_ORG_ID,
+    }).returning();
 
-  return profile;
+    return profile;
+  });
 }
 
 /**
  * Check if user has access to organization
+ * Uses RLS context for the user being checked
  */
 export async function hasOrganizationAccess(userId: string, organizationId: string): Promise<boolean> {
-  const profile = await db.query.profiles.findFirst({
-    where: eq(profiles.id, userId),
+  return withRLSContext(userId, async (db) => {
+    const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, userId),
+    });
+
+    if (!profile) {
+      return false;
+    }
+
+    return profile.companyId === organizationId;
   });
-
-  if (!profile) {
-    return false;
-  }
-
-  return profile.companyId === organizationId;
 }
 
 /**
  * Get user's profile with organization info
+ * Uses RLS context for the user being queried
  */
 export async function getUserProfile(userId: string) {
-  const profile = await db.query.profiles.findFirst({
-    where: eq(profiles.id, userId),
-  });
+  return withRLSContext(userId, async (db) => {
+    const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.id, userId),
+    });
 
-  return profile;
+    return profile;
+  });
 }

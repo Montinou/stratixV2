@@ -1,4 +1,4 @@
-import db from '@/db';
+import { withRLSContext } from '@/lib/database/rls-client';
 import { stackServerApp } from '@/stack/server';
 import {
   companies,
@@ -14,7 +14,7 @@ import { eq, and, desc, asc, count, sql } from 'drizzle-orm';
 
 /**
  * Database client adapted for internal tooling template
- * Uses the template's stack auth and database configuration
+ * Uses the template's stack auth and database configuration with RLS
  */
 export class OKRDatabaseClient {
 
@@ -25,30 +25,36 @@ export class OKRDatabaseClient {
     const user = await stackServerApp.getUser();
     if (!user) return null;
 
-    const profile = await db.query.profiles.findFirst({
-      where: eq(profiles.id, user.id),
-      with: {
-        company: true,
-      },
-    });
+    return withRLSContext(user.id, async (db) => {
+      const profile = await db.query.profiles.findFirst({
+        where: eq(profiles.id, user.id),
+        with: {
+          company: true,
+        },
+      });
 
-    return profile;
+      return profile;
+    });
   }
 
   /**
    * Get user profile by ID
    */
   static async getUserProfile(userId: string) {
-    return await db.query.profiles.findFirst({
-      where: eq(profiles.id, userId),
-      with: {
-        company: true,
-      },
+    return withRLSContext(userId, async (db) => {
+      return await db.query.profiles.findFirst({
+        where: eq(profiles.id, userId),
+        with: {
+          company: true,
+        },
+      });
     });
   }
 
   /**
    * Create or update user profile
+   * NOTE: This is an upsert operation that may create new profiles
+   * so it uses withRLSContext for the creating user
    */
   static async upsertUserProfile(data: {
     userId: string;
@@ -57,26 +63,28 @@ export class OKRDatabaseClient {
     department: string;
     companyId: string;
   }) {
-    return await db
-      .insert(profiles)
-      .values({
-        id: data.userId,
-        email: '', // Will be set by trigger or separately
-        fullName: data.fullName,
-        role: data.role,
-        department: data.department,
-        companyId: data.companyId,
-      })
-      .onConflictDoUpdate({
-        target: profiles.id,
-        set: {
+    return withRLSContext(data.userId, async (db) => {
+      return await db
+        .insert(profiles)
+        .values({
+          id: data.userId,
+          email: '', // Will be set by trigger or separately
           fullName: data.fullName,
           role: data.role,
           department: data.department,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+          companyId: data.companyId,
+        })
+        .onConflictDoUpdate({
+          target: profiles.id,
+          set: {
+            fullName: data.fullName,
+            role: data.role,
+            department: data.department,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+    });
   }
 
   /**

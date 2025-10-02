@@ -2,17 +2,16 @@ import { stackServerApp } from '@/stack/server';
 import { columns, UserForTable } from '@/components/admin/UserTable/UsersTableColumn';
 import { UsersTable } from '@/components/admin/UserTable/UsersTable';
 import { Toaster } from '@/components/ui/sonner';
-import db from '@/db';
 import { profiles } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
-import { withRLSContext } from '@/lib/db/rls-context';
+import { withRLSContext } from '@/lib/database/rls-client';
 
 export default async function UsersPage() {
   // Get current user's company
   const currentUser = await stackServerApp.getUser({ or: 'throw' });
 
   // Ejecutar queries con RLS context para seguridad adicional
-  const { currentProfile, companyProfiles } = await withRLSContext(async () => {
+  const { currentProfile, companyProfiles } = await withRLSContext(currentUser.id, async (db) => {
     const currentProfile = await db.query.profiles.findFirst({
       where: eq(profiles.id, currentUser.id),
     });

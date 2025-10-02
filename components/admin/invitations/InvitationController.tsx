@@ -1,5 +1,6 @@
 import { stackServerApp } from '@/stack/server';
-import db from '@/db';
+import { withRLSContext } from '@/lib/database/rls-client';
+import { profiles } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
 import { InvitationForm } from './InvitationForm';
 import { InvitationsTable } from './InvitationsTable';
@@ -9,12 +10,14 @@ export default async function InvitationController() {
   // Get current user
   const user = await stackServerApp.getUser({ or: 'redirect' });
 
-  // Get user's profile to know their organization
-  const profile = await db.query.profiles.findFirst({
-    where: (profiles, { eq }) => eq(profiles.id, user.id),
-    with: {
-      company: true,
-    },
+  // Get user's profile to know their organization - with RLS
+  const profile = await withRLSContext(user.id, async (db) => {
+    return await db.query.profiles.findFirst({
+      where: eq(profiles.id, user.id),
+      with: {
+        company: true,
+      },
+    });
   });
 
   if (!profile || !profile.companyId || !profile.company) {

@@ -1,8 +1,8 @@
 'use server';
 
 import { generateText, streamText, generateObject } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { stackServerApp } from '@/stack/server';
 import db from '@/db';
 import {
@@ -12,23 +12,51 @@ import {
   aiInsights,
   knowledgeBase
 } from '@/db/ai-schema';
+import { profiles } from '@/db/okr-schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 
 /**
- * AI Gateway integration adapted for internal tooling template
+ * AI Gateway integration using Vercel AI Gateway
+ * Implements economical model selection strategy
  * Uses Stack Auth for user context and follows template patterns
  */
 
-// AI Model configurations
-const AI_MODELS = {
-  'gpt-4o': openai('gpt-4o'),
-  'gpt-4o-mini': openai('gpt-4o-mini'),
-  'claude-3-5-sonnet': anthropic('claude-3-5-sonnet-20241022'),
-  'claude-3-5-haiku': anthropic('claude-3-5-haiku-20241022'),
+// Vercel AI Gateway configuration
+const AI_GATEWAY_API_KEY = process.env.AI_GATEWAY_API_KEY;
+
+if (!AI_GATEWAY_API_KEY) {
+  console.warn('AI_GATEWAY_API_KEY not found. AI features may be limited.');
+}
+
+// Create provider instances for Vercel AI Gateway
+const openaiGateway = createOpenAI({
+  apiKey: AI_GATEWAY_API_KEY,
+  baseURL: 'https://gateway.vercel.app/openai',
+});
+
+const anthropicGateway = createAnthropic({
+  apiKey: AI_GATEWAY_API_KEY,
+  baseURL: 'https://gateway.vercel.app/anthropic',
+});
+
+// Economical AI Model configurations with fallback hierarchy
+// Prioritizing cost-effective models while maintaining quality
+const ECONOMICAL_MODELS = {
+  // Primary economical models (lowest cost, good performance)
+  'gpt-4o-mini': openaiGateway('gpt-4o-mini'),
+  'claude-3-5-haiku': anthropicGateway('claude-3-5-haiku-20241022'),
+
+  // Secondary models (higher quality, higher cost - use only when needed)
+  'gpt-4o': openaiGateway('gpt-4o'),
+  'claude-3-5-sonnet': anthropicGateway('claude-3-5-sonnet-20241022'),
 } as const;
 
-type AIModel = keyof typeof AI_MODELS;
+// Default economical model selection
+const DEFAULT_ECONOMICAL_MODEL = 'gpt-4o-mini';
+const DEFAULT_HIGH_QUALITY_MODEL = 'claude-3-5-haiku';
+
+type AIModel = keyof typeof ECONOMICAL_MODELS;
 
 export class AIGatewayService {
 
@@ -57,7 +85,7 @@ export class AIGatewayService {
       messages.push({ role: 'user' as const, content: prompt });
 
       const result = await generateText({
-        model: AI_MODELS[model],
+        model: ECONOMICAL_MODELS[model],
         messages,
         maxTokens,
         temperature,
@@ -106,7 +134,7 @@ export class AIGatewayService {
     const startTime = Date.now();
 
     const result = streamText({
-      model: AI_MODELS[model],
+      model: ECONOMICAL_MODELS[model],
       messages,
       maxTokens,
       temperature,
@@ -152,7 +180,7 @@ export class AIGatewayService {
       messages.push({ role: 'user' as const, content: prompt });
 
       const result = await generateObject({
-        model: AI_MODELS[model],
+        model: ECONOMICAL_MODELS[model],
         messages,
         schema,
       });
@@ -189,7 +217,7 @@ export class AIGatewayService {
   ) {
     const user = await stackServerApp.getUser({ or: 'throw' });
     const userProfile = await db.query.profiles.findFirst({
-      where: eq(db.profiles?.userId, user.id),
+      where: eq(profiles.id, user.id),
       with: { company: true },
     });
 
@@ -216,7 +244,6 @@ export class AIGatewayService {
         title: message.slice(0, 100) + '...',
         context: context,
         companyId: userProfile.companyId,
-        tenantId: userProfile.tenantId,
       }).returning();
 
       conversation = { ...newConversation, messages: [] };
@@ -241,7 +268,7 @@ export class AIGatewayService {
 
     try {
       const result = await generateText({
-        model: AI_MODELS[model],
+        model: ECONOMICAL_MODELS[model],
         messages,
         maxTokens: 2000,
         temperature: 0.7,
@@ -254,8 +281,7 @@ export class AIGatewayService {
         conversationId: conversation.id,
         role: 'user',
         content: message,
-        companyId: userProfile.companyId,
-        tenantId: userProfile.tenantId,
+        companyId: userProfile.companyId
       });
 
       // Save assistant response
@@ -265,8 +291,7 @@ export class AIGatewayService {
         content: result.text,
         tokensUsed: result.usage.totalTokens,
         responseTimeMs: responseTime,
-        companyId: userProfile.companyId,
-        tenantId: userProfile.tenantId,
+        companyId: userProfile.companyId
       });
 
       // Update conversation
@@ -357,8 +382,7 @@ export class AIGatewayService {
         entityId: data.entityId,
         confidence: 85, // Could be calculated based on data quality
         isActionable: true,
-        companyId: userProfile.companyId,
-        tenantId: userProfile.tenantId,
+        companyId: userProfile.companyId
       });
 
       return {
@@ -451,7 +475,6 @@ Current context: ${JSON.stringify(context, null, 2)}
         requestCost: data.requestCost?.toString(),
         responseTimeMs: data.responseTimeMs,
         companyId: userProfile.companyId,
-        tenantId: userProfile.tenantId,
       });
     } catch (error) {
       console.error('Failed to track AI usage:', error);
