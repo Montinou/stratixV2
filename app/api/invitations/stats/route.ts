@@ -11,7 +11,14 @@ import { eq, and, sql } from 'drizzle-orm';
 export async function GET(request: NextRequest) {
   try {
     // Get authenticated user
-    const user = await stackServerApp.getUser({ or: 'redirect' });
+    const user = await stackServerApp.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      );
+    }
 
     // Get company ID from query params
     const { searchParams } = new URL(request.url);

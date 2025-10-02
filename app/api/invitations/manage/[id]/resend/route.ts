@@ -24,7 +24,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const isReminder = body.reminder === true;
 
     // Get authenticated user
-    const user = await stackServerApp.getUser({ or: 'redirect' });
+    const user = await stackServerApp.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      );
+    }
 
     // Get invitation with relationships using RLS
     const invitation = await withRLSContext(user.id, async (db) => {

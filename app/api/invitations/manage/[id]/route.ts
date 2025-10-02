@@ -19,7 +19,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
 
     // Get authenticated user
-    const user = await stackServerApp.getUser({ or: 'redirect' });
+    const user = await stackServerApp.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      );
+    }
 
     // Get invitation
     const invitation = await db.query.companyInvitations.findFirst({

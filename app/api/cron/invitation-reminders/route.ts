@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/db';
-import { organizationInvitations } from '@/db/okr-schema';
+import { companyInvitations } from '@/db/okr-schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { sendReminderEmail } from '@/lib/services/brevo';
 
@@ -48,27 +48,27 @@ export async function GET(request: NextRequest) {
     sevenDaysFromNowEnd.setHours(23, 59, 59, 999);
 
     // Get invitations expiring in 3 days
-    const threeDayInvitations = await db.query.organizationInvitations.findMany({
+    const threeDayInvitations = await db.query.companyInvitations.findMany({
       where: and(
-        eq(organizationInvitations.status, 'pending'),
-        sql`${organizationInvitations.expiresAt} >= ${threeDaysFromNow}`,
-        sql`${organizationInvitations.expiresAt} <= ${threeDaysFromNowEnd}`
+        eq(companyInvitations.status, 'pending'),
+        sql`${companyInvitations.expiresAt} >= ${threeDaysFromNow}`,
+        sql`${companyInvitations.expiresAt} <= ${threeDaysFromNowEnd}`
       ),
       with: {
-        organization: true,
+        company: true,
         inviter: true,
       },
     });
 
     // Get invitations expiring in 7 days (first reminder)
-    const sevenDayInvitations = await db.query.organizationInvitations.findMany({
+    const sevenDayInvitations = await db.query.companyInvitations.findMany({
       where: and(
-        eq(organizationInvitations.status, 'pending'),
-        sql`${organizationInvitations.expiresAt} >= ${sevenDaysFromNow}`,
-        sql`${organizationInvitations.expiresAt} <= ${sevenDaysFromNowEnd}`
+        eq(companyInvitations.status, 'pending'),
+        sql`${companyInvitations.expiresAt} >= ${sevenDaysFromNow}`,
+        sql`${companyInvitations.expiresAt} <= ${sevenDaysFromNowEnd}`
       ),
       with: {
-        organization: true,
+        company: true,
         inviter: true,
       },
     });
@@ -78,8 +78,8 @@ export async function GET(request: NextRequest) {
       try {
         await sendReminderEmail({
           to: invitation.email,
-          organizationName: invitation.organization.name,
-          organizationSlug: invitation.organization.slug,
+          organizationName: invitation.company.name,
+          organizationSlug: invitation.company.slug,
           role: invitation.role,
           inviterName: invitation.inviter.email || 'Team member',
           inviterEmail: invitation.inviter.email || '',
@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
       try {
         await sendReminderEmail({
           to: invitation.email,
-          organizationName: invitation.organization.name,
-          organizationSlug: invitation.organization.slug,
+          organizationName: invitation.company.name,
+          organizationSlug: invitation.company.slug,
           role: invitation.role,
           inviterName: invitation.inviter.email || 'Team member',
           inviterEmail: invitation.inviter.email || '',

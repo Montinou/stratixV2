@@ -27,7 +27,14 @@ const enhanceTextSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Get authenticated user
-    const user = await stackServerApp.getUser({ or: 'redirect' });
+    const user = await stackServerApp.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No autenticado' },
+        { status: 401 }
+      );
+    }
 
     // Parse and validate request body
     const body = await request.json();
