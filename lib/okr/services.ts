@@ -14,7 +14,7 @@ export class ObjectiveService {
    * Get objectives for current user's company
    */
   static async getObjectives(filters?: {
-    department?: string;
+    areaId?: string;
     status?: string;
     assignedTo?: string;
   }) {
@@ -37,7 +37,7 @@ export class ObjectiveService {
   static async createObjective(data: {
     title: string;
     description?: string;
-    department: string;
+    areaId: string;
     priority: 'low' | 'medium' | 'high';
     targetValue?: string;
     unit?: string;
@@ -310,7 +310,6 @@ export class ProfileService {
    */
   static async updateProfile(data: {
     fullName?: string;
-    department?: string;
   }) {
     const user = await stackServerApp.getUser({ or: 'throw' });
     const currentProfile = await OKRDatabaseClient.getUserProfile(user.id);
@@ -324,7 +323,6 @@ export class ProfileService {
       userId: user.id,
       fullName: data.fullName || currentProfile.fullName,
       role: currentProfile.role, // Keep existing role
-      department: data.department || currentProfile.department || '',
       companyId: currentProfile.companyId!,
     };
 
@@ -341,7 +339,6 @@ export class ProfileService {
   static async initializeProfile(data: {
     fullName: string;
     role: 'corporativo' | 'gerente' | 'empleado';
-    department: string;
     companyId: string;
   }) {
     const user = await stackServerApp.getUser({ or: 'throw' });

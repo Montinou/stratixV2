@@ -78,16 +78,15 @@ async function seedProfiles(client: any, tenantId: string, existingUserId: strin
 
   for (const user of usersResult.rows) {
     await client.query(`
-      INSERT INTO profiles (id, tenant_id, full_name, email, role, department, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      INSERT INTO profiles (id, tenant_id, full_name, email, role, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
       ON CONFLICT (id) DO NOTHING
     `, [
       user.id,
       tenantId,
       user.name || faker.person.fullName(),
       user.email || `user-${user.id}@test.com`,
-      roles[Math.floor(Math.random() * roles.length)],
-      DEPARTMENTS[Math.floor(Math.random() * DEPARTMENTS.length)]
+      roles[Math.floor(Math.random() * roles.length)]
     ]);
     profileIds.push(user.id);
   }
@@ -116,6 +115,14 @@ async function seedObjectives(client: any, tenantId: string, userIds: string[]):
     return existing.rows.map((r: any) => r.id);
   }
 
+  // Get available areas for this tenant
+  const areasResult = await client.query('SELECT id FROM areas WHERE tenant_id = $1', [tenantId]);
+  const areaIds = areasResult.rows.map((r: any) => r.id);
+
+  if (areaIds.length === 0) {
+    throw new Error('No areas found. Please create areas first.');
+  }
+
   console.log(`   Creating ${needed} objectives...`);
   const objectiveIds: string[] = [];
 
@@ -123,7 +130,7 @@ async function seedObjectives(client: any, tenantId: string, userIds: string[]):
     const status = STATUSES[Math.floor(Math.random() * STATUSES.length)];
     const priority = PRIORITIES[Math.floor(Math.random() * PRIORITIES.length)];
     const assignedTo = userIds[Math.floor(Math.random() * userIds.length)];
-    const department = DEPARTMENTS[Math.floor(Math.random() * DEPARTMENTS.length)];
+    const areaId = areaIds[Math.floor(Math.random() * areaIds.length)];
 
     const startDate = randomDate(
       new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 90 days ago
@@ -136,7 +143,7 @@ async function seedObjectives(client: any, tenantId: string, userIds: string[]):
 
     const result = await client.query(`
       INSERT INTO objectives (
-        tenant_id, title, description, department, status, priority,
+        tenant_id, title, description, area_id, status, priority,
         progress_percentage, target_value, current_value, unit,
         start_date, end_date, assigned_to, created_at, updated_at
       ) VALUES (
@@ -146,7 +153,7 @@ async function seedObjectives(client: any, tenantId: string, userIds: string[]):
       tenantId,
       faker.company.catchPhrase(),
       faker.lorem.paragraph(),
-      department,
+      areaId,
       status,
       priority,
       progressForStatus(status),
