@@ -69,17 +69,17 @@ const pool = new Pool({
 
 ### Type-Safe Interfaces
 ```typescript
-export interface CreateOrganizationInput {
+export interface CreateCompanyInput {
   name: string; slug: string; creatorUserId: string;
 }
-export async function createOrganization(input: CreateOrganizationInput) { }
+export async function createCompany(input: CreateCompanyInput) { }
 ```
 
 ### Slug Generation
 ```typescript
 let slug = baseSlug, counter = 1;
 while (await db.query.companies.findFirst({ where: eq(companies.slug, slug) })) {
-  slug = `${baseSlug}-${counter++}`;
+  slug = `${baseSlag}-${counter++}`;
 }
 ```
 
@@ -87,6 +87,12 @@ while (await db.query.companies.findFirst({ where: eq(companies.slug, slug) })) 
 
 ### REST Route Pattern
 Auth → Profile → Company check → Data query
+
+**Error Handling Standard:** Return 401 (not redirect) for auth failures
+```typescript
+const user = await stackServerApp.getUser();
+if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+```
 
 ### Server Actions
 ```typescript
@@ -96,6 +102,16 @@ export async function createObjective(formData: FormData) {
   // Direct DB with automatic RLS
   revalidatePath('/objectives');
 }
+```
+
+### RLS-Wrapped Queries
+```typescript
+// Dashboard stats with RLS context
+const stats = await withRLSContext(userId, async (db) => {
+  return db.query.objectives.findMany({
+    where: eq(objectives.companyId, companyId)
+  });
+});
 ```
 
 ## Components
@@ -157,14 +173,16 @@ Company-isolated storage with validation
 
 ## Design Decisions
 
-1. **Database-First Security:** RLS at PostgreSQL
-2. **Mixed ORM:** Drizzle + SQL
+1. **Database-First Security:** RLS at PostgreSQL with session context
+2. **Mixed ORM:** Drizzle + SQL for different use cases
 3. **Stateful Onboarding:** Multi-step with sessions
 4. **Invitation Whitelist:** DB = truth, email = notification
-5. **Server-Heavy:** RSC + Server Actions
-6. **Unpooled for RLS:** Direct connections
-7. **Company-Centric:** All data by tenant
-8. **Email Non-Blocking:** Failures don't block ops
+5. **Server-Heavy:** RSC + Server Actions for better performance
+6. **Unpooled for RLS:** Direct connections for session context
+7. **Company-Centric:** All data by tenant (schema refactor complete)
+8. **Email Non-Blocking:** Failures don't block operations
+9. **API Error Standard:** 401 responses (not redirects) for consistency
+10. **RLS Everywhere:** All queries wrapped in RLS context for security
 
 ## Performance
 

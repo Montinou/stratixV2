@@ -1,7 +1,7 @@
 ---
 created: 2025-10-02T03:39:52Z
-last_updated: 2025-10-02T03:39:52Z
-version: 1.0
+last_updated: 2025-10-03T07:43:58Z
+version: 1.1
 author: Claude Code PM System
 ---
 
@@ -158,10 +158,23 @@ const objective = await db.select().from(objectives).where(...);
 ```
 
 ### Row Level Security
-- **Company isolation**: All queries filtered by `company_id`
+- **Company isolation**: All queries filtered by `company_id` using RLS context
+- **RLS wrapper**: Use `withRLSContext()` for all data queries
+- **Session context**: PostgreSQL session context set per user
 - **RLS policies**: Enforced at PostgreSQL level
 - **No client access**: Direct database access prohibited
-- **API routes**: All data access through server-side API routes
+- **API routes**: All data access through server-side API routes with RLS
+
+```typescript
+// ✅ RLS-wrapped query pattern
+import { withRLSContext } from '@/lib/database/rls-client';
+
+const stats = await withRLSContext(userId, async (db) => {
+  return db.query.objectives.findMany({
+    where: eq(objectives.companyId, companyId)
+  });
+});
+```
 
 ## API Route Standards
 
@@ -170,17 +183,22 @@ const objective = await db.select().from(objectives).where(...);
 - **HTTP methods**: GET, POST, PUT, DELETE, PATCH
 - **Response format**: Consistent JSON structure
 - **Error handling**: Try-catch with proper error responses
+- **Auth errors**: Return 401 (NOT redirect) for unauthorized requests
 
 ```typescript
-// ✅ API Route Pattern
+// ✅ API Route Pattern with RLS
 export async function GET(request: Request) {
   try {
-    const user = await getUser();
+    const user = await stackServerApp.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const data = await fetchData(user.companyId);
+    // Use RLS context for data queries
+    const data = await withRLSContext(user.id, async (db) => {
+      return fetchData(db, user.companyId);
+    });
+
     return NextResponse.json({ data });
   } catch (error) {
     console.error('Error:', error);

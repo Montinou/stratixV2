@@ -17,27 +17,33 @@
 ## Key Features
 
 ### OKR Management
-Hierarchical objectives with measurable key results, linked initiatives, progress tracking
+Hierarchical objectives with measurable key results, linked initiatives, progress tracking with RLS-secured queries
 
 ### Initiatives & Activities
 Strategic projects aligned to objectives, activity logging, time tracking
 
 ### Team Collaboration
-Email invitations, company branding, RBAC, whitelist pre-approval
+Email invitations (ai-innovation.site), company branding, RBAC, whitelist pre-approval
 
 ### Analytics
-Real-time dashboards, progress visualization, team performance metrics
+Real-time dashboards with RLS context, progress visualization, team performance metrics
 
 ### Data Import/Export
 CSV/XLSX templates, bulk upload with validation, relationship mapping
 
-### Company Customization
-Custom logos, color schemes, branded emails, personalized UX
+### Company Profile Management
+Complete company settings with tabbed interface:
+- Company information editing
+- Logo and branding customization
+- Team member management
+- Invitation system administration
+- Custom domain support
 
 ## Technical Capabilities
-- **Email:** Transactional via Brevo with webhooks
-- **Security:** RLS at database level, JWT auth, company isolation
-- **Performance:** Edge deployment, connection pooling, SSR
+- **Email:** Transactional via Brevo with webhooks, custom domain support
+- **Security:** Row Level Security (RLS) at PostgreSQL level, session context isolation, JWT auth via Stack, complete company data isolation
+- **Performance:** Edge deployment, connection pooling, SSR, RLS-optimized queries
+- **API:** Standardized 401 error responses, consistent auth patterns
 
 ## Current State (Production)
 - **Database:** NeonDB PostgreSQL 17.5 with RLS

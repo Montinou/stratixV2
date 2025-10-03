@@ -1,7 +1,7 @@
 ---
 created: 2025-10-02T03:02:00Z
-last_updated: 2025-10-02T03:36:10Z
-version: 1.1
+last_updated: 2025-10-03T07:43:58Z
+version: 1.2
 author: Claude Code PM System
 ---
 
@@ -42,17 +42,20 @@ stratixV2/
 
 ### Special Routes
 - `/api/` - API routes and endpoints
-  - `/api/company/` - Company settings and logo management
+  - `/api/company/` - Company settings, profile, and logo management
   - `/api/cron/` - Scheduled jobs (cleanup, reminders)
   - `/api/invitations/` - Invitation management endpoints
   - `/api/webhooks/` - Webhook handlers (Brevo, etc.)
+  - `/api/ai/` - AI text enhancement and processing
 - `/handler/` - Stack Auth handlers
 - `/setup/` - Initial setup and onboarding
 - `/invite/` - Invitation system
-- `/onboarding/` - User onboarding flow
+- `/onboarding/` - Multi-step user onboarding flow
+  - `/onboarding/create/` - Company creation during onboarding
 - `/pending-approval/` - Approval workflows
 - `/tools/` - Utility tools
-  - `/tools/admin/` - Admin panel and settings
+  - `/tools/admin/` - Admin panel and company settings
+  - `/tools/admin/company-settings/` - Complete company profile editor
 
 ### Core Files
 - `layout.tsx` - Root layout with AuthProvider
@@ -98,16 +101,18 @@ lib/
 ├── ai/             # AI integration utilities
 ├── cache/          # Caching mechanisms
 ├── database/       # Database clients and RLS
-│   ├── rls-client.ts
-│   └── test-rls-client.ts
+│   ├── rls-client.ts        # Official RLS client with session context
+│   └── test-rls-client.ts   # RLS testing utilities
 ├── okr/            # OKR business logic
-├── organization/   # Organization management
+├── organization/   # Company/organization management
+│   └── organization-service.ts # Company CRUD operations
 ├── services/       # Business services layer
 │   ├── brevo/      # Email service integration
 │   │   ├── client.ts        # Brevo API client
 │   │   ├── email-sender.ts  # Email sending utilities
 │   │   ├── templates.ts     # Email templates
 │   │   └── index.ts         # Public API
+│   ├── analytics-service.ts # Analytics and reporting
 │   └── import-service-v2.ts # Data import service
 ├── access.ts       # Access control
 ├── admin.ts        # Admin utilities
@@ -128,9 +133,24 @@ lib/
 
 **Contains:**
 - Drizzle ORM schemas
-- Migration files
+- Migration files (drizzle/*.sql)
 - Database utilities
-- Schema definitions (okr-schema, etc.)
+- Schema definitions (okr-schema.ts, etc.)
+
+**Recent Schema Changes:**
+- **0007_company_refactor.sql** - Organization → Company migration
+  - Renamed `organization_invitations` → `company_invitations`
+  - Added `company_profile` table for detailed company info
+  - Updated all foreign key references
+  - Made `profiles.companyId` required with cascade delete
+
+**Key Tables:**
+- `companies` - Main company/tenant entity
+- `company_profile` - Extended company information from onboarding
+- `company_invitations` - User invitation system
+- `profiles` - User profiles linked to companies
+- `objectives`, `key_results`, `initiatives`, `activities` - OKR entities
+- `onboarding_sessions` - Multi-step onboarding tracking
 
 ## Documentation (`/docs`)
 

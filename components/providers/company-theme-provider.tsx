@@ -56,7 +56,7 @@ export function CompanyThemeProvider({ children }: { children: React.ReactNode }
   const applyTheme = (companyTheme: CompanyTheme) => {
     const root = document.documentElement;
 
-    // Helper function to convert hex to oklch
+    // Proper HEX to OKLCH conversion
     const hexToOklch = (hex: string) => {
       if (!hex) return null;
 
@@ -64,17 +64,54 @@ export function CompanyThemeProvider({ children }: { children: React.ReactNode }
       hex = hex.replace('#', '');
 
       // Convert hex to RGB
-      const r = parseInt(hex.slice(0, 2), 16) / 255;
-      const g = parseInt(hex.slice(2, 4), 16) / 255;
-      const b = parseInt(hex.slice(4, 6), 16) / 255;
+      let r = parseInt(hex.slice(0, 2), 16) / 255;
+      let g = parseInt(hex.slice(2, 4), 16) / 255;
+      let b = parseInt(hex.slice(4, 6), 16) / 255;
 
-      // Simple approximation for oklch (this is a simplified version)
-      // For production, you'd want to use a proper color conversion library
-      const l = 0.2126 * r + 0.7152 * g + 0.0722 * b; // Luminance
-      const c = Math.sqrt(r * r + g * g + b * b) / 3; // Simplified chroma
-      const h = Math.atan2(g - b, r - 0.5) * (180 / Math.PI); // Simplified hue
+      // Convert RGB to Linear RGB
+      const toLinear = (c: number) => {
+        return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      };
 
-      return `${l.toFixed(3)} ${c.toFixed(3)} ${h.toFixed(1)}`;
+      r = toLinear(r);
+      g = toLinear(g);
+      b = toLinear(b);
+
+      // Convert Linear RGB to XYZ (D65 illuminant)
+      const x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375;
+      const y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750;
+      const z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041;
+
+      // Convert XYZ to Lab
+      const xn = 0.95047;
+      const yn = 1.00000;
+      const zn = 1.08883;
+
+      const fx = x / xn > 0.008856 ? Math.pow(x / xn, 1/3) : (903.3 * x / xn + 16) / 116;
+      const fy = y / yn > 0.008856 ? Math.pow(y / yn, 1/3) : (903.3 * y / yn + 16) / 116;
+      const fz = z / zn > 0.008856 ? Math.pow(z / zn, 1/3) : (903.3 * z / zn + 16) / 116;
+
+      const L = 116 * fy - 16;
+      const a = 500 * (fx - fy);
+      const bLab = 200 * (fy - fz);
+
+      // Convert Lab to OKLab (approximation)
+      const l = L / 100;
+      const chroma = Math.sqrt(a * a + bLab * bLab) / 150;
+      let hue = Math.atan2(bLab, a) * 180 / Math.PI;
+      if (hue < 0) hue += 360;
+
+      return `${l.toFixed(3)} ${chroma.toFixed(3)} ${hue.toFixed(1)}`;
+    };
+
+    // Helper to determine if a color is light or dark
+    const isLightColor = (hex: string): boolean => {
+      const rgb = parseInt(hex.replace('#', ''), 16);
+      const r = (rgb >> 16) & 0xff;
+      const g = (rgb >> 8) & 0xff;
+      const b = (rgb >> 0) & 0xff;
+      const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      return luma > 128;
     };
 
     // Apply colors if they exist
@@ -82,8 +119,11 @@ export function CompanyThemeProvider({ children }: { children: React.ReactNode }
       const primaryOklch = hexToOklch(companyTheme.primaryColor);
       if (primaryOklch) {
         root.style.setProperty('--primary', `oklch(${primaryOklch})`);
-        // Also update related colors
-        root.style.setProperty('--primary-foreground', 'oklch(0.985 0 0)');
+        // Set foreground based on background lightness
+        const foreground = isLightColor(companyTheme.primaryColor)
+          ? 'oklch(0.15 0 0)' // dark text on light background
+          : 'oklch(0.985 0 0)'; // light text on dark background
+        root.style.setProperty('--primary-foreground', foreground);
       }
     }
 
@@ -91,7 +131,10 @@ export function CompanyThemeProvider({ children }: { children: React.ReactNode }
       const secondaryOklch = hexToOklch(companyTheme.secondaryColor);
       if (secondaryOklch) {
         root.style.setProperty('--secondary', `oklch(${secondaryOklch})`);
-        root.style.setProperty('--secondary-foreground', 'oklch(0.985 0 0)');
+        const foreground = isLightColor(companyTheme.secondaryColor)
+          ? 'oklch(0.15 0 0)'
+          : 'oklch(0.985 0 0)';
+        root.style.setProperty('--secondary-foreground', foreground);
       }
     }
 
@@ -99,9 +142,12 @@ export function CompanyThemeProvider({ children }: { children: React.ReactNode }
       const accentOklch = hexToOklch(companyTheme.accentColor);
       if (accentOklch) {
         root.style.setProperty('--accent', `oklch(${accentOklch})`);
-        root.style.setProperty('--accent-foreground', 'oklch(0.985 0 0)');
+        const foreground = isLightColor(companyTheme.accentColor)
+          ? 'oklch(0.15 0 0)'
+          : 'oklch(0.985 0 0)';
+        root.style.setProperty('--accent-foreground', foreground);
 
-        // Also apply to chart colors
+        // Also apply to chart colors for consistency
         root.style.setProperty('--chart-1', `oklch(${accentOklch})`);
       }
     }
