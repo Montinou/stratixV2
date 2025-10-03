@@ -14,7 +14,6 @@ export default async function AreasPage() {
     active: 0,
     inactive: 0,
     planning: 0,
-    totalBudget: 0,
     totalHeadcount: 0
   };
 

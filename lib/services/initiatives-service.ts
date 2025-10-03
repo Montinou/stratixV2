@@ -13,7 +13,6 @@ export interface InitiativeWithRelations {
   status: 'planning' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high';
   progressPercentage: string | null;
-  budget: string | null;
   startDate: Date;
   endDate: Date;
   objectiveTitle: string;
@@ -29,7 +28,6 @@ export interface InitiativeStats {
   planning: number;
   active: number;
   completed: number;
-  totalBudget: number;
   averageProgress: number;
 }
 
@@ -57,7 +55,6 @@ export async function getInitiativesForPage(
         status: initiatives.status,
         priority: initiatives.priority,
         progressPercentage: initiatives.progressPercentage,
-        budget: initiatives.budget,
         startDate: initiatives.startDate,
         endDate: initiatives.endDate,
         objectiveTitle: objectives.title,
@@ -86,7 +83,6 @@ export async function getInitiativesForPage(
       status: row.status,
       priority: row.priority,
       progressPercentage: row.progressPercentage,
-      budget: row.budget,
       startDate: row.startDate,
       endDate: row.endDate,
       objectiveTitle: row.objectiveTitle,
@@ -100,13 +96,13 @@ export async function getInitiativesForPage(
  * Calculates statistics for all initiatives in the user's organization
  *
  * @param userId - The authenticated user's ID (from Stack Auth)
- * @returns Initiative statistics including total, planning, active, completed, budget, and progress
+ * @returns Initiative statistics including total, planning, active, completed, and progress
  *
  * @example
  * ```ts
  * const user = await stackServerApp.getUser();
  * const stats = await getInitiativeStats(user.id);
- * console.log(`Total budget: ${stats.totalBudget}`);
+ * console.log(`Average progress: ${stats.averageProgress}`);
  * ```
  */
 export async function getInitiativeStats(
@@ -119,7 +115,6 @@ export async function getInitiativeStats(
         planning: sql<number>`count(*) FILTER (WHERE ${initiatives.status} = 'planning')::int`,
         active: sql<number>`count(*) FILTER (WHERE ${initiatives.status} = 'in_progress')::int`,
         completed: sql<number>`count(*) FILTER (WHERE ${initiatives.status} = 'completed')::int`,
-        totalBudget: sql<number>`COALESCE(SUM(${initiatives.budget}), 0)::numeric`,
         averageProgress: sql<number>`COALESCE(AVG(${initiatives.progressPercentage}), 0)::numeric`,
       })
       .from(initiatives);
@@ -131,7 +126,6 @@ export async function getInitiativeStats(
       planning: stats.planning,
       active: stats.active,
       completed: stats.completed,
-      totalBudget: Number(stats.totalBudget),
       averageProgress: Number(stats.averageProgress),
     };
   });

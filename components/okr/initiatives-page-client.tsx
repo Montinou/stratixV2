@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Rocket, Calendar, User, DollarSign, Target } from 'lucide-react';
+import { Plus, Rocket, Calendar, User, Target } from 'lucide-react';
 import { OKRCreationDialog } from './okr-creation-dialog';
 
 interface InitiativesPageClientProps {
@@ -11,7 +11,6 @@ interface InitiativesPageClientProps {
   stats: {
     total: number;
     active: number;
-    totalBudget: number;
     averageProgress: number;
   };
 }
@@ -73,13 +72,6 @@ export function InitiativesPageClient({ initiatives, stats }: InitiativesPageCli
     }
   };
 
-  const formatCurrency = (amount: string | null) => {
-    if (!amount) return 'N/A';
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(Number(amount));
-  };
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('es-ES');
@@ -103,7 +95,7 @@ export function InitiativesPageClient({ initiatives, stats }: InitiativesPageCli
       </div>
 
       {/* Resumen de estadísticas */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -126,24 +118,6 @@ export function InitiativesPageClient({ initiatives, stats }: InitiativesPageCli
             <div className="text-2xl font-bold">{stats.active}</div>
             <p className="text-xs text-muted-foreground">
               En ejecución
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Presupuesto Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Intl.NumberFormat('es-ES', {
-                style: 'currency',
-                currency: 'EUR'
-              }).format(stats.totalBudget)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Inversión total
             </p>
           </CardContent>
         </Card>
@@ -202,10 +176,6 @@ export function InitiativesPageClient({ initiatives, stats }: InitiativesPageCli
 
                   {/* Información adicional */}
                   <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <DollarSign className="h-4 w-4" />
-                      <span>Presupuesto: {formatCurrency(initiative.budget)}</span>
-                    </div>
                     <div className="flex items-center space-x-1">
                       <User className="h-4 w-4" />
                       <span>Responsable: {initiative.assignedToName || 'Sin asignar'}</span>

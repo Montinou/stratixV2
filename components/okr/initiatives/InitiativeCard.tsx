@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Calendar, DollarSign, User, Activity } from 'lucide-react';
+import { Calendar, User, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -16,7 +16,6 @@ interface InitiativeCardProps {
     status: 'planning' | 'in_progress' | 'completed' | 'cancelled';
     priority: 'low' | 'medium' | 'high';
     progressPercentage: number;
-    budget?: number;
     startDate: Date;
     endDate: Date;
     objectiveTitle: string;
@@ -59,15 +58,6 @@ const priorityColors = {
 export function InitiativeCard({ initiative, onEdit, onView }: InitiativeCardProps) {
   const isOverdue = initiative.endDate < new Date() && initiative.status !== 'completed';
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
   return (
     <Card className={`hover:shadow-md transition-shadow ${isOverdue ? 'border-red-200' : ''}`}>
       <CardHeader>
@@ -105,16 +95,6 @@ export function InitiativeCard({ initiative, onEdit, onView }: InitiativeCardPro
           </div>
           <Progress value={initiative.progressPercentage} className="h-2" />
         </div>
-
-        {/* Budget */}
-        {initiative.budget && (
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm">
-              Presupuesto: {formatCurrency(initiative.budget)}
-            </span>
-          </div>
-        )}
 
         {/* Dates */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -44,13 +44,14 @@ export const profiles = pgTable('profiles', {
   email: text('email').notNull(),
   fullName: text('full_name').notNull(),
   role: userRoleEnum('role').notNull().default('empleado'),
-  department: text('department'),
+  areaId: uuid('area_id').references(() => areas.id, { onDelete: 'set null' }),
   managerId: uuid('manager_id'),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }), // Now required - Companies is the main entity
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
   index('profiles_company_idx').on(table.companyId),
+  index('profiles_area_idx').on(table.areaId),
 ]);
 
 // Objectives table - high-level OKR objectives
@@ -59,7 +60,7 @@ export const objectives = pgTable('objectives', {
   title: text('title').notNull(),
   description: text('description'),
   ownerId: uuid('owner_id').notNull(),
-  department: text('department'),
+  areaId: uuid('area_id').references(() => areas.id, { onDelete: 'set null' }),
   status: text('status').default('no_iniciado'),
   progress: integer('progress').default(0),
   startDate: timestamp('start_date').notNull(),
@@ -70,6 +71,7 @@ export const objectives = pgTable('objectives', {
 }, (table) => [
   index('objectives_company_idx').on(table.companyId),
   index('objectives_owner_idx').on(table.ownerId),
+  index('objectives_area_idx').on(table.areaId),
 ]);
 
 // Initiatives table - strategic initiatives linked to objectives
@@ -119,7 +121,6 @@ export const areas = pgTable('areas', {
   code: varchar('code', { length: 50 }).unique(),
   parentAreaId: uuid('parent_area_id'),
   managerId: uuid('manager_id'),
-  budget: numeric('budget', { precision: 15, scale: 2 }),
   headcount: integer('headcount').default(0),
   status: areaStatusEnum('status').default('active'),
   color: varchar('color', { length: 7 }),
@@ -188,6 +189,24 @@ export const updateHistory = pgTable('update_history', {
 ]);
 
 // Relations
+export const areasRelations = relations(areas, ({ one, many }) => ({
+  company: one(companies, {
+    fields: [areas.companyId],
+    references: [companies.id],
+  }),
+  parentArea: one(areas, {
+    fields: [areas.parentAreaId],
+    references: [areas.id],
+  }),
+  manager: one(profiles, {
+    fields: [areas.managerId],
+    references: [profiles.id],
+  }),
+  childAreas: many(areas),
+  objectives: many(objectives),
+  profiles: many(profiles),
+}));
+
 export const companiesRelations = relations(companies, ({ one, many }) => ({
   profile: one(companyProfile, {
     fields: [companies.id],
@@ -201,6 +220,7 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
   keyResults: many(keyResults),
   updateHistory: many(updateHistory),
   invitations: many(companyInvitations),
+  areas: many(areas),
 }));
 
 // Simplified relations for profiles
@@ -208,6 +228,10 @@ export const profilesRelations = relations(profiles, ({ one }) => ({
   company: one(companies, {
     fields: [profiles.companyId],
     references: [companies.id],
+  }),
+  area: one(areas, {
+    fields: [profiles.areaId],
+    references: [areas.id],
   }),
 }));
 
@@ -219,6 +243,10 @@ export const objectivesRelations = relations(objectives, ({ one, many }) => ({
   owner: one(profiles, {
     fields: [objectives.ownerId],
     references: [profiles.id],
+  }),
+  area: one(areas, {
+    fields: [objectives.areaId],
+    references: [areas.id],
   }),
   initiatives: many(initiatives),
   keyResults: many(keyResults),

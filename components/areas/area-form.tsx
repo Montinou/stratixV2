@@ -23,7 +23,6 @@ export function AreaForm({ area, onSuccess, onCancel }: AreaFormProps) {
     description: area?.description || '',
     code: area?.code || '',
     parentAreaId: area?.parentAreaId || '',
-    budget: area?.budget || '',
     headcount: area?.headcount || 0,
     status: area?.status || 'active',
     color: area?.color || '#6B7280',
@@ -179,31 +178,16 @@ export function AreaForm({ area, onSuccess, onCancel }: AreaFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="budget">Presupuesto</Label>
-          <Input
-            id="budget"
-            type="number"
-            value={formData.budget}
-            onChange={(e) => handleChange('budget', e.target.value)}
-            placeholder="0.00"
-            step="0.01"
-            min="0"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="headcount">Personal</Label>
-          <Input
-            id="headcount"
-            type="number"
-            value={formData.headcount}
-            onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 0)}
-            placeholder="0"
-            min="0"
-          />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="headcount">Personal</Label>
+        <Input
+          id="headcount"
+          type="number"
+          value={formData.headcount}
+          onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 0)}
+          placeholder="0"
+          min="0"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">

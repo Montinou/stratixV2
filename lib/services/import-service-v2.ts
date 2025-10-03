@@ -27,7 +27,9 @@ const FIELD_MAPPINGS = {
     'titulo': 'title',
     'descripción': 'description',
     'descripcion': 'description',
-    'departamento': 'department',
+    'área': 'areaId',
+    'area': 'areaId',
+    'departamento': 'areaId',
     'fecha inicio': 'startDate',
     'fecha_inicio': 'startDate',
     'fecha fin': 'endDate',
@@ -48,7 +50,6 @@ const FIELD_MAPPINGS = {
     'objetivo_titulo': 'objectiveTitle',
     'id del objetivo': 'objectiveId',
     'objetivo_id': 'objectiveId',
-    'presupuesto': 'budget',
     'fecha inicio': 'startDate',
     'fecha_inicio': 'startDate',
     'fecha fin': 'endDate',
@@ -84,7 +85,9 @@ const FIELD_MAPPINGS = {
     'nombre completo': 'fullName',
     'nombre_completo': 'fullName',
     'email': 'email',
-    'departamento': 'department',
+    'área': 'areaId',
+    'area': 'areaId',
+    'departamento': 'areaId',
     'rol': 'role',
     'email del manager': 'managerEmail',
     'manager_email': 'managerEmail',
@@ -211,11 +214,6 @@ export class ImportServiceV2 {
           value = parseInt(String(value).replace('%', '').trim()) || 0;
         }
 
-        if (dbField === 'budget') {
-          // Remove currency symbols and convert to number
-          value = parseFloat(String(value).replace(/[^0-9.-]/g, '')) || 0;
-        }
-
         mapped[dbField] = value;
       }
     });
@@ -277,7 +275,7 @@ export class ImportServiceV2 {
   static async getUserPermissions(userId: string) {
     const [user] = await db.select({
       role: profiles.role,
-      department: profiles.department,
+      areaId: profiles.areaId,
       company_id: profiles.companyId,
     })
     .from(profiles)
@@ -286,7 +284,7 @@ export class ImportServiceV2 {
 
     return user ? {
       role: user.role,
-      department: user.department,
+      areaId: user.areaId,
       companyId: user.company_id,
     } : null;
   }
@@ -299,7 +297,7 @@ export class ImportServiceV2 {
     userId: string,
     companyId: string,
     userRole: string,
-    userDepartment?: string
+    userAreaId?: string | null
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: true,
@@ -323,8 +321,8 @@ export class ImportServiceV2 {
         }
 
         // Role-based restrictions
-        if (userRole === 'gerente' && mapped.department && mapped.department !== userDepartment) {
-          throw new Error(`No tiene permisos para importar objetivos del departamento: ${mapped.department}`);
+        if (userRole === 'gerente' && mapped.areaId && mapped.areaId !== userAreaId) {
+          throw new Error(`No tiene permisos para importar objetivos del área: ${mapped.areaId}`);
         }
 
         // Find owner by email if provided
@@ -356,7 +354,7 @@ export class ImportServiceV2 {
           title: mapped.title,
           description: mapped.description || null,
           ownerId,
-          department: mapped.department || userDepartment,
+          areaId: mapped.areaId || userAreaId,
           status: mapped.status || 'draft',
           progress: mapped.progress || 0,
           startDate,
@@ -386,7 +384,7 @@ export class ImportServiceV2 {
     userId: string,
     companyId: string,
     userRole: string,
-    userDepartment?: string
+    userAreaId?: string | null
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: true,
@@ -414,7 +412,7 @@ export class ImportServiceV2 {
         if (!objectiveId && mapped.objectiveTitle) {
           const [objective] = await db.select({
             id: objectives.id,
-            department: objectives.department
+            areaId: objectives.areaId
           })
           .from(objectives)
           .where(and(
@@ -428,9 +426,9 @@ export class ImportServiceV2 {
           }
           objectiveId = objective.id;
 
-          // Check department permission for managers
-          if (userRole === 'gerente' && objective.department !== userDepartment) {
-            throw new Error(`No tiene permisos para crear iniciativas en el departamento: ${objective.department}`);
+          // Check area permission for managers
+          if (userRole === 'gerente' && objective.areaId !== userAreaId) {
+            throw new Error(`No tiene permisos para crear iniciativas en el área: ${objective.areaId}`);
           }
         }
 
@@ -497,7 +495,7 @@ export class ImportServiceV2 {
     userId: string,
     companyId: string,
     userRole: string,
-    userDepartment?: string
+    userAreaId?: string | null
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: true,
@@ -525,7 +523,7 @@ export class ImportServiceV2 {
         if (!initiativeId && mapped.initiativeTitle) {
           const [initiative] = await db.select({
             initiativeId: initiatives.id,
-            department: objectives.department
+            areaId: objectives.areaId
           })
           .from(initiatives)
           .innerJoin(objectives, eq(initiatives.objectiveId, objectives.id))
@@ -540,9 +538,9 @@ export class ImportServiceV2 {
           }
           initiativeId = initiative.initiativeId;
 
-          // Check department permission for managers
-          if (userRole === 'gerente' && initiative.department !== userDepartment) {
-            throw new Error(`No tiene permisos para crear actividades en el departamento: ${initiative.department}`);
+          // Check area permission for managers
+          if (userRole === 'gerente' && initiative.areaId !== userAreaId) {
+            throw new Error(`No tiene permisos para crear actividades en el área: ${initiative.areaId}`);
           }
         }
 

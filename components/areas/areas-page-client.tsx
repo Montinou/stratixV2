@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Building, Users, DollarSign, MoreHorizontal, Edit, Trash, Building2 } from 'lucide-react';
+import { Building, Users, MoreHorizontal, Edit, Trash, Building2 } from 'lucide-react';
 import { AreaDialog } from './area-dialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -33,7 +33,6 @@ interface AreasPageClientProps {
     active: number;
     inactive: number;
     planning: number;
-    totalBudget: number;
     totalHeadcount: number;
   };
 }
@@ -69,14 +68,6 @@ export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientP
     }
   };
 
-  const formatCurrency = (amount: number | string | null) => {
-    if (!amount) return '€0';
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(numAmount);
-  };
 
   const handleDelete = async () => {
     if (!deleteAreaId) return;
@@ -205,13 +196,7 @@ export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientP
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 text-sm">
-          {area.budget && (
-            <div className="flex items-center space-x-1 text-muted-foreground">
-              <DollarSign className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Presupuesto: {formatCurrency(area.budget)}</span>
-            </div>
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
           <div className="flex items-center space-x-1 text-muted-foreground">
             <Users className="h-4 w-4 flex-shrink-0" />
             <span className="truncate">Personal: {area.headcount || 0}</span>
@@ -251,7 +236,7 @@ export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientP
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Áreas</CardTitle>
@@ -313,21 +298,6 @@ export function AreasPageClient({ areas: initialAreas, stats }: AreasPageClientP
             <div className="text-2xl font-bold">{stats.totalHeadcount}</div>
             <p className="text-xs text-muted-foreground">
               Empleados
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Presupuesto Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.totalBudget)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Asignado
             </p>
           </CardContent>
         </Card>

@@ -12,7 +12,6 @@ export default async function InitiativesPage() {
   let stats = {
     total: 0,
     active: 0,
-    totalBudget: 0,
     averageProgress: 0
   };
 
@@ -29,7 +28,6 @@ export default async function InitiativesPage() {
     stats = {
       total: 0,
       active: 0,
-      totalBudget: 0,
       averageProgress: 0
     };
   }

@@ -10,7 +10,6 @@ export interface Area {
   code: string | null;
   parentAreaId: string | null;
   managerId: string | null;
-  budget: string | null;
   headcount: number;
   status: 'active' | 'inactive' | 'planning';
   color: string | null;
@@ -29,7 +28,6 @@ export interface CreateAreaInput {
   code?: string;
   parentAreaId?: string;
   managerId?: string;
-  budget?: number;
   headcount?: number;
   status?: 'active' | 'inactive' | 'planning';
   color?: string;
@@ -44,7 +42,6 @@ export interface UpdateAreaInput {
   code?: string;
   parentAreaId?: string;
   managerId?: string;
-  budget?: number;
   headcount?: number;
   status?: 'active' | 'inactive' | 'planning';
   color?: string;
@@ -62,7 +59,6 @@ export async function getAreasForPage(userId: string): Promise<Area[]> {
         code: areas.code,
         parentAreaId: areas.parentAreaId,
         managerId: areas.managerId,
-        budget: areas.budget,
         headcount: areas.headcount,
         status: areas.status,
         color: areas.color,
@@ -98,7 +94,6 @@ export async function getAreaStats(userId: string) {
         active: sql<number>`count(case when status = 'active' then 1 end)`,
         inactive: sql<number>`count(case when status = 'inactive' then 1 end)`,
         planning: sql<number>`count(case when status = 'planning' then 1 end)`,
-        totalBudget: sql<number>`coalesce(sum(budget::numeric), 0)`,
         totalHeadcount: sql<number>`coalesce(sum(headcount), 0)`
       })
       .from(areas);
@@ -110,7 +105,6 @@ export async function getAreaStats(userId: string) {
       active: Number(stats?.active) || 0,
       inactive: Number(stats?.inactive) || 0,
       planning: Number(stats?.planning) || 0,
-      totalBudget: Number(stats?.totalBudget) || 0,
       totalHeadcount: Number(stats?.totalHeadcount) || 0
     };
   });
@@ -140,7 +134,6 @@ export async function createArea(input: CreateAreaInput): Promise<Area> {
         code: input.code || null,
         parentAreaId: input.parentAreaId || null,
         managerId: input.managerId || null,
-        budget: input.budget?.toString() || null,
         headcount: input.headcount || 0,
         status: input.status || 'active',
         color: input.color || null,
@@ -164,7 +157,6 @@ export async function updateArea(areaId: string, userId: string, input: UpdateAr
     if (input.code !== undefined) updateData.code = input.code;
     if (input.parentAreaId !== undefined) updateData.parentAreaId = input.parentAreaId;
     if (input.managerId !== undefined) updateData.managerId = input.managerId;
-    if (input.budget !== undefined) updateData.budget = input.budget?.toString();
     if (input.headcount !== undefined) updateData.headcount = input.headcount;
     if (input.status !== undefined) updateData.status = input.status;
     if (input.color !== undefined) updateData.color = input.color;
