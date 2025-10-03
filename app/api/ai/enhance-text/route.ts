@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { stackServerApp } from '@/stack/server';
 import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
 
 // AI Gateway configuration
+// Using unified Vercel AI Gateway API - no need for provider instances
+// Documentation: https://vercel.com/docs/ai-gateway
 const AI_GATEWAY_API_KEY = process.env.AI_GATEWAY_API_KEY;
+const VERCEL_OIDC_TOKEN = process.env.VERCEL_OIDC_TOKEN;
 
-const openaiGateway = createOpenAI({
-  apiKey: AI_GATEWAY_API_KEY,
-  baseURL: 'https://gateway.vercel.app/openai',
-});
+if (!AI_GATEWAY_API_KEY && !VERCEL_OIDC_TOKEN) {
+  console.warn('Neither AI_GATEWAY_API_KEY nor VERCEL_OIDC_TOKEN found for AI Gateway');
+}
 
 // Validation schema
 const enhanceTextSchema = z.object({
@@ -115,13 +116,14 @@ Reglas:
     userPrompt += '\n\nPor favor, mejora este texto siguiendo las reglas establecidas.';
 
     // Generate enhanced text using AI Gateway
+    // Using unified Vercel AI Gateway format: provider/model
     const messages = [
       { role: 'system' as const, content: systemPrompt },
       { role: 'user' as const, content: userPrompt },
     ];
 
     const result = await generateText({
-      model: openaiGateway('gpt-4o-mini'),
+      model: 'openai/gpt-4o-mini',
       messages,
       maxTokens: 500,
       temperature: 0.7,

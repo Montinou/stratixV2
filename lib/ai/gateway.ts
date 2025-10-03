@@ -1,8 +1,6 @@
 'use server';
 
 import { generateText, streamText, generateObject } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { stackServerApp } from '@/stack/server';
 import { withRLSContext } from '@/lib/database/rls-client';
 import {
@@ -20,36 +18,29 @@ import { z } from 'zod';
  * AI Gateway integration using Vercel AI Gateway
  * Implements economical model selection strategy
  * Uses Stack Auth for user context and follows template patterns
+ *
+ * Documentation: https://vercel.com/docs/ai-gateway
  */
 
-// Vercel AI Gateway configuration
+// Vercel AI Gateway configuration with OIDC fallback
 const AI_GATEWAY_API_KEY = process.env.AI_GATEWAY_API_KEY;
+const VERCEL_OIDC_TOKEN = process.env.VERCEL_OIDC_TOKEN;
 
-if (!AI_GATEWAY_API_KEY) {
-  console.warn('AI_GATEWAY_API_KEY not found. AI features may be limited.');
+if (!AI_GATEWAY_API_KEY && !VERCEL_OIDC_TOKEN) {
+  console.warn('Neither AI_GATEWAY_API_KEY nor VERCEL_OIDC_TOKEN found. AI features may be limited.');
 }
 
-// Create provider instances for Vercel AI Gateway
-const openaiGateway = createOpenAI({
-  apiKey: AI_GATEWAY_API_KEY,
-  baseURL: 'https://gateway.vercel.app/openai',
-});
-
-const anthropicGateway = createAnthropic({
-  apiKey: AI_GATEWAY_API_KEY,
-  baseURL: 'https://gateway.vercel.app/anthropic',
-});
-
 // Economical AI Model configurations with fallback hierarchy
+// Using unified Vercel AI Gateway format: provider/model
 // Prioritizing cost-effective models while maintaining quality
 const ECONOMICAL_MODELS = {
   // Primary economical models (lowest cost, good performance)
-  'gpt-4o-mini': openaiGateway('gpt-4o-mini'),
-  'claude-3-5-haiku': anthropicGateway('claude-3-5-haiku-20241022'),
+  'gpt-4o-mini': 'openai/gpt-4o-mini',
+  'claude-3-5-haiku': 'anthropic/claude-3-5-haiku-20241022',
 
   // Secondary models (higher quality, higher cost - use only when needed)
-  'gpt-4o': openaiGateway('gpt-4o'),
-  'claude-3-5-sonnet': anthropicGateway('claude-3-5-sonnet-20241022'),
+  'gpt-4o': 'openai/gpt-4o',
+  'claude-3-5-sonnet': 'anthropic/claude-3-5-sonnet-20241022',
 } as const;
 
 // Default economical model selection
