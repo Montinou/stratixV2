@@ -1,4 +1,4 @@
-import { stackServerApp } from '@/stack/server';
+import { getUserOrRedirect } from '@/lib/stack-auth';
 import { columns, UserForTable } from '@/components/admin/UserTable/UsersTableColumn';
 import { UsersTable } from '@/components/admin/UserTable/UsersTable';
 import { Toaster } from '@/components/ui/sonner';
@@ -8,7 +8,7 @@ import { withRLSContext } from '@/lib/database/rls-client';
 
 export default async function UsersPage() {
   // Get current user's company
-  const currentUser = await stackServerApp.getUser({ or: 'throw' });
+  const currentUser = await getUserOrRedirect();
 
   // Ejecutar queries con RLS context para seguridad adicional
   const { currentProfile, companyProfiles } = await withRLSContext(currentUser.id, async (db) => {

@@ -1,4 +1,4 @@
-import { stackServerApp } from '@/stack/server';
+import { getUserOrRedirect } from '@/lib/stack-auth';
 import { withRLSContext } from '@/lib/database/rls-client';
 import { profiles } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
@@ -8,7 +8,7 @@ import { InvitationStats } from './InvitationStats';
 
 export default async function InvitationController() {
   // Get current user
-  const user = await stackServerApp.getUser({ or: 'redirect' });
+  const user = await getUserOrRedirect();
 
   // Get user's profile to know their organization - with RLS
   const profile = await withRLSContext(user.id, async (db) => {
