@@ -67,7 +67,6 @@ export async function ensureUserProfile(userId: string, userEmail: string, fullN
       email: userEmail,
       fullName: fullName || userEmail.split('@')[0], // Use email prefix as fallback
       role: 'corporativo', // All users are corporativo for now
-      department: 'General',
       companyId: DEFAULT_ORG_ID,
     }).returning();
 

@@ -270,7 +270,7 @@ export class ImportServiceV2 {
   }
 
   /**
-   * Get user's role and department
+   * Get user's role and area
    */
   static async getUserPermissions(userId: string) {
     const [user] = await db.select({

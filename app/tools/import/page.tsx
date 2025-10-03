@@ -25,9 +25,8 @@ export default async function ImportPage() {
     );
   }
 
-  const { role: userRole, department: userDepartment, company_id: companyId } = userPermissions as {
+  const { role: userRole, company_id: companyId } = userPermissions as {
     role: string;
-    department?: string;
     company_id: string;
   };
 
