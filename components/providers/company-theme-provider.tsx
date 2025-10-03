@@ -56,154 +56,76 @@ export function CompanyThemeProvider({ children }: { children: React.ReactNode }
   const applyTheme = (companyTheme: CompanyTheme) => {
     const root = document.documentElement;
 
-    // Proper HEX to OKLCH conversion
-    const hexToOklch = (hex: string) => {
-      if (!hex) return null;
+    // Simplified approach: just use the HEX color directly with CSS color-mix
+    const applyColorDirectly = (hex: string, varName: string, foregroundVar: string) => {
+      if (!hex) return;
 
-      // Remove # if present
-      hex = hex.replace('#', '');
+      // Apply the hex color directly
+      root.style.setProperty(varName, hex);
 
-      // Convert hex to RGB
-      let r = parseInt(hex.slice(0, 2), 16) / 255;
-      let g = parseInt(hex.slice(2, 4), 16) / 255;
-      let b = parseInt(hex.slice(4, 6), 16) / 255;
-
-      // Convert RGB to Linear RGB
-      const toLinear = (c: number) => {
-        return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-      };
-
-      r = toLinear(r);
-      g = toLinear(g);
-      b = toLinear(b);
-
-      // Convert Linear RGB to XYZ (D65 illuminant)
-      const x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375;
-      const y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750;
-      const z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041;
-
-      // Convert XYZ to Lab
-      const xn = 0.95047;
-      const yn = 1.00000;
-      const zn = 1.08883;
-
-      const fx = x / xn > 0.008856 ? Math.pow(x / xn, 1/3) : (903.3 * x / xn + 16) / 116;
-      const fy = y / yn > 0.008856 ? Math.pow(y / yn, 1/3) : (903.3 * y / yn + 16) / 116;
-      const fz = z / zn > 0.008856 ? Math.pow(z / zn, 1/3) : (903.3 * z / zn + 16) / 116;
-
-      const L = 116 * fy - 16;
-      const a = 500 * (fx - fy);
-      const bLab = 200 * (fy - fz);
-
-      // Convert Lab to OKLab (approximation)
-      const l = L / 100;
-      const chroma = Math.sqrt(a * a + bLab * bLab) / 150;
-      let hue = Math.atan2(bLab, a) * 180 / Math.PI;
-      if (hue < 0) hue += 360;
-
-      return `${l.toFixed(3)} ${chroma.toFixed(3)} ${hue.toFixed(1)}`;
-    };
-
-    // Helper to determine if a color is light or dark
-    const isLightColor = (hex: string): boolean => {
+      // Determine if we need light or dark foreground
       const rgb = parseInt(hex.replace('#', ''), 16);
       const r = (rgb >> 16) & 0xff;
       const g = (rgb >> 8) & 0xff;
       const b = (rgb >> 0) & 0xff;
       const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      return luma > 128;
+
+      // Set appropriate foreground color
+      root.style.setProperty(foregroundVar, luma > 128 ? '#0a0a0a' : '#fafafa');
     };
 
-    // Helper to create lighter/darker variants
-    const adjustLightness = (oklch: string, adjustment: number): string => {
-      const match = oklch.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
-      if (!match) return oklch;
+    // Helper to create lighter/darker color variants using CSS color-mix
+    const lighten = (hex: string, amount: number) => {
+      return `color-mix(in srgb, ${hex} ${100 - amount}%, white)`;
+    };
 
-      const [, l, c, h] = match;
-      const newL = Math.max(0, Math.min(1, parseFloat(l) + adjustment));
-      return `oklch(${newL.toFixed(3)} ${c} ${h})`;
+    const darken = (hex: string, amount: number) => {
+      return `color-mix(in srgb, ${hex} ${100 - amount}%, black)`;
     };
 
     // Apply colors if they exist
     if (companyTheme.primaryColor) {
-      const primaryOklch = hexToOklch(companyTheme.primaryColor);
-      if (primaryOklch) {
-        const primaryFull = `oklch(${primaryOklch})`;
-        root.style.setProperty('--primary', primaryFull);
-
-        // Set foreground based on background lightness
-        const foreground = isLightColor(companyTheme.primaryColor)
-          ? 'oklch(0.15 0 0)' // dark text on light background
-          : 'oklch(0.985 0 0)'; // light text on dark background
-        root.style.setProperty('--primary-foreground', foreground);
-
-        // Apply to sidebar primary
-        root.style.setProperty('--sidebar-primary', primaryFull);
-        root.style.setProperty('--sidebar-primary-foreground', foreground);
-
-        // Apply to chart-1 (primary chart color)
-        root.style.setProperty('--chart-1', primaryFull);
-      }
+      applyColorDirectly(companyTheme.primaryColor, '--primary', '--primary-foreground');
+      root.style.setProperty('--sidebar-primary', companyTheme.primaryColor);
+      root.style.setProperty('--chart-1', companyTheme.primaryColor);
     }
 
     if (companyTheme.secondaryColor) {
-      const secondaryOklch = hexToOklch(companyTheme.secondaryColor);
-      if (secondaryOklch) {
-        const secondaryFull = `oklch(${secondaryOklch})`;
-        root.style.setProperty('--secondary', secondaryFull);
+      applyColorDirectly(companyTheme.secondaryColor, '--secondary', '--secondary-foreground');
 
-        const foreground = isLightColor(companyTheme.secondaryColor)
-          ? 'oklch(0.15 0 0)'
-          : 'oklch(0.985 0 0)';
-        root.style.setProperty('--secondary-foreground', foreground);
+      // Apply lighter version for muted and card
+      const lighterSecondary = lighten(companyTheme.secondaryColor, 15);
+      root.style.setProperty('--muted', lighterSecondary);
+      root.style.setProperty('--card', lighterSecondary);
 
-        // Apply to muted (often uses secondary)
-        root.style.setProperty('--muted', secondaryFull);
-        root.style.setProperty('--muted-foreground', adjustLightness(secondaryFull, -0.3));
+      // Muted and card foregrounds
+      const darkerSecondary = darken(companyTheme.secondaryColor, 40);
+      root.style.setProperty('--muted-foreground', darkerSecondary);
+      root.style.setProperty('--card-foreground', '#0a0a0a');
 
-        // Apply to card backgrounds
-        const lighterSecondary = adjustLightness(secondaryFull, 0.1);
-        root.style.setProperty('--card', lighterSecondary);
-        root.style.setProperty('--card-foreground', foreground);
-
-        // Apply to chart-2
-        root.style.setProperty('--chart-2', secondaryFull);
-      }
+      root.style.setProperty('--chart-2', companyTheme.secondaryColor);
     }
 
     if (companyTheme.accentColor) {
-      const accentOklch = hexToOklch(companyTheme.accentColor);
-      if (accentOklch) {
-        const accentFull = `oklch(${accentOklch})`;
-        root.style.setProperty('--accent', accentFull);
+      applyColorDirectly(companyTheme.accentColor, '--accent', '--accent-foreground');
 
-        const foreground = isLightColor(companyTheme.accentColor)
-          ? 'oklch(0.15 0 0)'
-          : 'oklch(0.985 0 0)';
-        root.style.setProperty('--accent-foreground', foreground);
+      root.style.setProperty('--sidebar-accent', companyTheme.accentColor);
 
-        // Apply to sidebar accent
-        root.style.setProperty('--sidebar-accent', accentFull);
-        root.style.setProperty('--sidebar-accent-foreground', foreground);
+      // Apply lighter versions for popover, input, border
+      const lighterAccent = lighten(companyTheme.accentColor, 25);
+      root.style.setProperty('--popover', lighterAccent);
+      root.style.setProperty('--popover-foreground', '#0a0a0a');
 
-        // Apply to popover
-        const lighterAccent = adjustLightness(accentFull, 0.15);
-        root.style.setProperty('--popover', lighterAccent);
-        root.style.setProperty('--popover-foreground', foreground);
+      const subtleAccent = lighten(companyTheme.accentColor, 35);
+      root.style.setProperty('--input', subtleAccent);
+      root.style.setProperty('--border', subtleAccent);
 
-        // Apply to input and border (subtle accent)
-        const subtleAccent = adjustLightness(accentFull, 0.2);
-        root.style.setProperty('--input', subtleAccent);
-        root.style.setProperty('--border', subtleAccent);
+      root.style.setProperty('--ring', companyTheme.accentColor);
 
-        // Apply to ring (focus states)
-        root.style.setProperty('--ring', accentFull);
-
-        // Apply to chart-3, chart-4, chart-5
-        root.style.setProperty('--chart-3', accentFull);
-        root.style.setProperty('--chart-4', adjustLightness(accentFull, 0.1));
-        root.style.setProperty('--chart-5', adjustLightness(accentFull, -0.1));
-      }
+      // Chart colors
+      root.style.setProperty('--chart-3', companyTheme.accentColor);
+      root.style.setProperty('--chart-4', lighten(companyTheme.accentColor, 10));
+      root.style.setProperty('--chart-5', darken(companyTheme.accentColor, 10));
     }
   };
 
