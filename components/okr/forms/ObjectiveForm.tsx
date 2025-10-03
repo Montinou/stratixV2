@@ -19,7 +19,7 @@ import { es } from 'date-fns/locale';
 const objectiveSchema = z.object({
   title: z.string().min(5, 'El título debe tener al menos 5 caracteres'),
   description: z.string().optional(),
-  department: z.string().min(1, 'Selecciona un departamento'),
+  areaId: z.string().min(1, 'Selecciona un área'),
   status: z.enum(['draft', 'in_progress', 'completed', 'cancelled']),
   priority: z.enum(['low', 'medium', 'high']),
   targetValue: z.number().optional(),
@@ -34,23 +34,18 @@ const objectiveSchema = z.object({
 
 type ObjectiveFormData = z.infer<typeof objectiveSchema>;
 
+interface Area {
+  id: string;
+  name: string;
+}
+
 interface ObjectiveFormProps {
   initialData?: Partial<ObjectiveFormData>;
   onSubmit: (data: ObjectiveFormData) => Promise<void>;
   onCancel?: () => void;
   isLoading?: boolean;
+  areas?: Area[];
 }
-
-const departments = [
-  'Ventas',
-  'Marketing',
-  'Operaciones',
-  'Recursos Humanos',
-  'Finanzas',
-  'Tecnología',
-  'Producto',
-  'Atención al Cliente'
-];
 
 const statusOptions = [
   { value: 'draft', label: 'Borrador' },
@@ -69,7 +64,8 @@ export function ObjectiveForm({
   initialData,
   onSubmit,
   onCancel,
-  isLoading = false
+  isLoading = false,
+  areas = []
 }: ObjectiveFormProps) {
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
@@ -79,7 +75,7 @@ export function ObjectiveForm({
     defaultValues: {
       title: initialData?.title || '',
       description: initialData?.description || '',
-      department: initialData?.department || '',
+      areaId: initialData?.areaId || '',
       status: initialData?.status || 'draft',
       priority: initialData?.priority || 'medium',
       targetValue: initialData?.targetValue || undefined,
@@ -148,24 +144,24 @@ export function ObjectiveForm({
               )}
             />
 
-            {/* Department and Status */}
+            {/* Area and Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="department"
+                name="areaId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Departamento *</FormLabel>
+                    <FormLabel>Área *</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona departamento" />
+                          <SelectValue placeholder="Selecciona área" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {dept}
+                        {areas.map((area) => (
+                          <SelectItem key={area.id} value={area.id}>
+                            {area.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
