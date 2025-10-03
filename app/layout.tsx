@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { ClientStackProvider } from '@/components/providers/stack-provider';
+import { CompanyThemeProvider } from '@/components/providers/company-theme-provider';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { appConfig } from '@/config/app';
@@ -29,7 +30,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ClientStackProvider>
-          <SidebarProvider defaultOpen={false}>{children}</SidebarProvider>
+          <CompanyThemeProvider>
+            <SidebarProvider defaultOpen={false}>{children}</SidebarProvider>
+          </CompanyThemeProvider>
         </ClientStackProvider>
       </body>
     </html>
