@@ -172,11 +172,11 @@ export class ImportService {
   }
 
   /**
-   * Get user's role and department
+   * Get user's role and company
    */
   static async getUserPermissions(userId: string) {
     const result = await db.execute(sql`
-      SELECT role, department, company_id
+      SELECT role, company_id
       FROM profiles
       WHERE id = ${userId}
     `);
@@ -212,10 +212,7 @@ export class ImportService {
           throw new Error('Campos requeridos faltantes: titulo, fecha_inicio, fecha_fin');
         }
 
-        // Role-based restrictions
-        if (userRole === 'gerente' && row.departamento !== userDepartment) {
-          throw new Error(`No tiene permisos para importar objetivos del departamento: ${row.departamento}`);
-        }
+        // Role-based restrictions removed - using area-based permissions instead
 
         // Find owner by email if provided
         let ownerId = userId;
@@ -238,13 +235,12 @@ export class ImportService {
           throw new Error('Formato de fecha inválido. Use DD/MM/YYYY');
         }
 
-        // Insert objective
+        // Insert objective (area_id should come from row data)
         await db.execute(sql`
           INSERT INTO objectives (
             title,
             description,
             owner_id,
-            department,
             status,
             progress,
             start_date,
@@ -254,7 +250,6 @@ export class ImportService {
             ${row.titulo},
             ${row.descripcion || null},
             ${ownerId},
-            ${row.departamento || userDepartment},
             ${row.estado || 'no_iniciado'},
             ${row.progreso || 0},
             ${startDate.toISOString()},
@@ -309,7 +304,7 @@ export class ImportService {
         let objectiveId = row.objetivo_id;
         if (!objectiveId && row.objetivo_titulo) {
           const objective = await db.execute(sql`
-            SELECT id, department FROM objectives
+            SELECT id FROM objectives
             WHERE title = ${row.objetivo_titulo}
             AND company_id = ${companyId}
           `);
@@ -318,11 +313,6 @@ export class ImportService {
           }
           const objData = objective.rows[0] as any;
           objectiveId = objData.id;
-
-          // Check department permission for managers
-          if (userRole === 'gerente' && objData.department !== userDepartment) {
-            throw new Error(`No tiene permisos para crear iniciativas en el departamento: ${objData.department}`);
-          }
         }
 
         if (!objectiveId) {
@@ -421,9 +411,8 @@ export class ImportService {
         let initiativeId = row.iniciativa_id;
         if (!initiativeId && row.iniciativa_titulo) {
           const initiative = await db.execute(sql`
-            SELECT i.id, o.department
+            SELECT i.id
             FROM initiatives i
-            JOIN objectives o ON i.objective_id = o.id
             WHERE i.title = ${row.iniciativa_titulo}
             AND i.company_id = ${companyId}
           `);
@@ -432,11 +421,6 @@ export class ImportService {
           }
           const initData = initiative.rows[0] as any;
           initiativeId = initData.id;
-
-          // Check department permission for managers
-          if (userRole === 'gerente' && initData.department !== userDepartment) {
-            throw new Error(`No tiene permisos para crear actividades en el departamento: ${initData.department}`);
-          }
         }
 
         if (!initiativeId) {
