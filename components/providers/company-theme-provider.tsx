@@ -114,41 +114,95 @@ export function CompanyThemeProvider({ children }: { children: React.ReactNode }
       return luma > 128;
     };
 
+    // Helper to create lighter/darker variants
+    const adjustLightness = (oklch: string, adjustment: number): string => {
+      const match = oklch.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
+      if (!match) return oklch;
+
+      const [, l, c, h] = match;
+      const newL = Math.max(0, Math.min(1, parseFloat(l) + adjustment));
+      return `oklch(${newL.toFixed(3)} ${c} ${h})`;
+    };
+
     // Apply colors if they exist
     if (companyTheme.primaryColor) {
       const primaryOklch = hexToOklch(companyTheme.primaryColor);
       if (primaryOklch) {
-        root.style.setProperty('--primary', `oklch(${primaryOklch})`);
+        const primaryFull = `oklch(${primaryOklch})`;
+        root.style.setProperty('--primary', primaryFull);
+
         // Set foreground based on background lightness
         const foreground = isLightColor(companyTheme.primaryColor)
           ? 'oklch(0.15 0 0)' // dark text on light background
           : 'oklch(0.985 0 0)'; // light text on dark background
         root.style.setProperty('--primary-foreground', foreground);
+
+        // Apply to sidebar primary
+        root.style.setProperty('--sidebar-primary', primaryFull);
+        root.style.setProperty('--sidebar-primary-foreground', foreground);
+
+        // Apply to chart-1 (primary chart color)
+        root.style.setProperty('--chart-1', primaryFull);
       }
     }
 
     if (companyTheme.secondaryColor) {
       const secondaryOklch = hexToOklch(companyTheme.secondaryColor);
       if (secondaryOklch) {
-        root.style.setProperty('--secondary', `oklch(${secondaryOklch})`);
+        const secondaryFull = `oklch(${secondaryOklch})`;
+        root.style.setProperty('--secondary', secondaryFull);
+
         const foreground = isLightColor(companyTheme.secondaryColor)
           ? 'oklch(0.15 0 0)'
           : 'oklch(0.985 0 0)';
         root.style.setProperty('--secondary-foreground', foreground);
+
+        // Apply to muted (often uses secondary)
+        root.style.setProperty('--muted', secondaryFull);
+        root.style.setProperty('--muted-foreground', adjustLightness(secondaryFull, -0.3));
+
+        // Apply to card backgrounds
+        const lighterSecondary = adjustLightness(secondaryFull, 0.1);
+        root.style.setProperty('--card', lighterSecondary);
+        root.style.setProperty('--card-foreground', foreground);
+
+        // Apply to chart-2
+        root.style.setProperty('--chart-2', secondaryFull);
       }
     }
 
     if (companyTheme.accentColor) {
       const accentOklch = hexToOklch(companyTheme.accentColor);
       if (accentOklch) {
-        root.style.setProperty('--accent', `oklch(${accentOklch})`);
+        const accentFull = `oklch(${accentOklch})`;
+        root.style.setProperty('--accent', accentFull);
+
         const foreground = isLightColor(companyTheme.accentColor)
           ? 'oklch(0.15 0 0)'
           : 'oklch(0.985 0 0)';
         root.style.setProperty('--accent-foreground', foreground);
 
-        // Also apply to chart colors for consistency
-        root.style.setProperty('--chart-1', `oklch(${accentOklch})`);
+        // Apply to sidebar accent
+        root.style.setProperty('--sidebar-accent', accentFull);
+        root.style.setProperty('--sidebar-accent-foreground', foreground);
+
+        // Apply to popover
+        const lighterAccent = adjustLightness(accentFull, 0.15);
+        root.style.setProperty('--popover', lighterAccent);
+        root.style.setProperty('--popover-foreground', foreground);
+
+        // Apply to input and border (subtle accent)
+        const subtleAccent = adjustLightness(accentFull, 0.2);
+        root.style.setProperty('--input', subtleAccent);
+        root.style.setProperty('--border', subtleAccent);
+
+        // Apply to ring (focus states)
+        root.style.setProperty('--ring', accentFull);
+
+        // Apply to chart-3, chart-4, chart-5
+        root.style.setProperty('--chart-3', accentFull);
+        root.style.setProperty('--chart-4', adjustLightness(accentFull, 0.1));
+        root.style.setProperty('--chart-5', adjustLightness(accentFull, -0.1));
       }
     }
   };
