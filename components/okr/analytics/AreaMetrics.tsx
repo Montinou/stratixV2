@@ -5,8 +5,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Target, Users, Clock } from 'lucide-react';
 
-interface DepartmentMetric {
-  department: string;
+interface AreaMetric {
+  area: string;
   totalObjectives: number;
   completedObjectives: number;
   averageProgress: number;
@@ -16,11 +16,11 @@ interface DepartmentMetric {
   trendPercentage: number;
 }
 
-interface DepartmentMetricsProps {
-  metrics: DepartmentMetric[];
+interface AreaMetricsProps {
+  metrics: AreaMetric[];
 }
 
-export function DepartmentMetrics({ metrics }: DepartmentMetricsProps) {
+export function AreaMetrics({ metrics }: AreaMetricsProps) {
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
     switch (trend) {
       case 'up':
@@ -58,11 +58,11 @@ export function DepartmentMetrics({ metrics }: DepartmentMetricsProps) {
     <div className="space-y-6">
       <div className="grid gap-4">
         {metrics.map((metric) => (
-          <Card key={metric.department} className="hover:shadow-md transition-shadow">
+          <Card key={metric.area} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-lg">{metric.department}</CardTitle>
+                  <CardTitle className="text-lg">{metric.area}</CardTitle>
                   <CardDescription>
                     {metric.teamMembers} miembros del equipo
                   </CardDescription>
@@ -157,7 +157,7 @@ export function DepartmentMetrics({ metrics }: DepartmentMetricsProps) {
         <CardHeader>
           <CardTitle className="text-lg">Resumen General</CardTitle>
           <CardDescription>
-            Métricas consolidadas de todos los departamentos
+            Métricas consolidadas de todas las áreas
           </CardDescription>
         </CardHeader>
         <CardContent>

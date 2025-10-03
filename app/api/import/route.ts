@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
     }
 
-    const { role: userRole, department: userDepartment, companyId } = userPermissions;
+    const { role: userRole, areaId: userAreaId, companyId } = userPermissions;
 
     // Check if user has a company assigned
     if (!companyId) {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
             user.id,
             companyId,
             userRole,
-            userDepartment
+            userAreaId
           );
           break;
 
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
             user.id,
             companyId,
             userRole,
-            userDepartment
+            userAreaId
           );
           break;
 
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
             user.id,
             companyId,
             userRole,
-            userDepartment
+            userAreaId
           );
           break;
 

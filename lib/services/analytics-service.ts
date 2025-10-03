@@ -1,6 +1,6 @@
 import { sql, count, eq, and, gte, lte } from 'drizzle-orm';
 import { withRLSContext } from '@/lib/database/rls-client';
-import { objectives, initiatives, activities, profiles } from '@/db/okr-schema';
+import { objectives, initiatives, activities, profiles, areas } from '@/db/okr-schema';
 import { usersSyncInNeonAuth } from '@/db/neon_auth_schema';
 
 /**
@@ -148,54 +148,61 @@ export async function getOKRDashboardStats(
 }
 
 /**
- * Department Progress Analytics
+ * Area Progress Analytics
  */
-export interface DepartmentProgress {
-  departmentName: string;
+export interface AreaProgress {
+  areaId: string;
+  areaName: string;
+  areaColor: string | null;
   totalObjectives: number;
   completedObjectives: number;
   completionRate: number;
 }
 
 /**
- * Fetches department-level progress statistics
+ * Fetches area-level progress statistics
  *
- * Aggregates objectives by department and calculates completion rates.
- * Returns departments ordered by completion rate (highest first).
+ * Aggregates objectives by area and calculates completion rates.
+ * Returns areas ordered by completion rate (highest first).
  *
  * @param userId - The authenticated user's ID (from Stack Auth)
- * @returns Array of department progress metrics
+ * @returns Array of area progress metrics
  *
  * @example
  * ```ts
  * const user = await stackServerApp.getUser();
- * const deptProgress = await getDepartmentProgress(user.id);
- * console.log(`${deptProgress[0].departmentName}: ${deptProgress[0].completionRate}%`);
+ * const areaProgress = await getAreaProgress(user.id);
+ * console.log(`${areaProgress[0].areaName}: ${areaProgress[0].completionRate}%`);
  * ```
  */
-export async function getDepartmentProgress(
+export async function getAreaProgress(
   userId: string
-): Promise<DepartmentProgress[]> {
+): Promise<AreaProgress[]> {
   return withRLSContext(userId, async (db) => {
     const results = await db
       .select({
-        departmentName: objectives.department,
+        areaId: areas.id,
+        areaName: areas.name,
+        areaColor: areas.color,
         totalObjectives: count(),
-        completedObjectives: sql<number>`COUNT(*) FILTER (WHERE ${objectives.status} = 'completed')::int`,
+        completedObjectives: sql<number>`COUNT(*) FILTER (WHERE ${objectives.status} = 'completado')::int`,
         completionRate: sql<number>`
           CASE
             WHEN COUNT(*) > 0 THEN
-              ROUND((COUNT(*) FILTER (WHERE ${objectives.status} = 'completed')::NUMERIC / COUNT(*)) * 100)
+              ROUND((COUNT(*) FILTER (WHERE ${objectives.status} = 'completado')::NUMERIC / COUNT(*)) * 100)
             ELSE 0
           END::int
         `,
       })
-      .from(objectives)
-      .groupBy(objectives.department)
+      .from(areas)
+      .leftJoin(objectives, eq(objectives.areaId, areas.id))
+      .groupBy(areas.id, areas.name, areas.color)
       .orderBy(sql`completion_rate DESC`);
 
     return results.map((row) => ({
-      departmentName: row.departmentName,
+      areaId: row.areaId,
+      areaName: row.areaName,
+      areaColor: row.areaColor,
       totalObjectives: row.totalObjectives,
       completedObjectives: row.completedObjectives,
       completionRate: row.completionRate,

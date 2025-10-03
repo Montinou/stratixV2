@@ -21,12 +21,12 @@ export { ObjectiveForm } from './forms/ObjectiveForm';
 export { InsightCard } from './insights/InsightCard';
 
 // Analytics Components
-export { DepartmentMetrics } from './analytics/DepartmentMetrics';
+export { AreaMetrics } from './analytics/AreaMetrics';
 
 // Import Components
 export { FileUpload } from './import/FileUpload';
 
 // Filter Components
 export { StatusFilter } from './filters/StatusFilter';
-export { DepartmentFilter } from './filters/DepartmentFilter';
+export { AreaFilter } from './filters/AreaFilter';
 export { SearchInput } from './filters/SearchInput';

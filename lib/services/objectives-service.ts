@@ -10,7 +10,7 @@ export interface ObjectiveWithRelations {
   id: string;
   title: string;
   description: string | null;
-  department: string;
+  areaId: string | null;
   status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high';
   progressPercentage: string | null;
@@ -55,7 +55,7 @@ export async function getObjectivesForPage(
         id: objectives.id,
         title: objectives.title,
         description: objectives.description,
-        department: objectives.department,
+        areaId: objectives.areaId,
         status: objectives.status,
         priority: objectives.priority,
         progressPercentage: objectives.progressPercentage,
@@ -78,7 +78,7 @@ export async function getObjectivesForPage(
       id: row.id,
       title: row.title,
       description: row.description,
-      department: row.department,
+      areaId: row.areaId,
       status: row.status,
       priority: row.priority,
       progressPercentage: row.progressPercentage,

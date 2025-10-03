@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -41,7 +41,7 @@ const formSchema = z.object({
     message: 'El título es requerido',
   }),
   description: z.string().optional(),
-  department: z.string().optional(),
+  area_id: z.string().optional(),
   start_date: z.date({
     required_error: 'La fecha de inicio es requerida',
   }),
@@ -53,6 +53,12 @@ const formSchema = z.object({
 
 type ObjectiveFormValues = z.infer<typeof formSchema>;
 
+interface Area {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
 interface ObjectiveFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -63,16 +69,36 @@ export function ObjectiveForm({ onSuccess, onCancel }: ObjectiveFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [enhancingDescription, setEnhancingDescription] = useState(false);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [loadingAreas, setLoadingAreas] = useState(true);
 
   const form = useForm<ObjectiveFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
       description: '',
-      department: '',
+      area_id: '',
       status: 'no_iniciado',
     },
   });
+
+  useEffect(() => {
+    const fetchAreas = async () => {
+      try {
+        const response = await fetch('/api/areas');
+        if (!response.ok) throw new Error('Error loading areas');
+        const data = await response.json();
+        setAreas(data.areas || []);
+      } catch (error) {
+        console.error('Error fetching areas:', error);
+        sonnerToast.error('Error al cargar las áreas');
+      } finally {
+        setLoadingAreas(false);
+      }
+    };
+
+    fetchAreas();
+  }, []);
 
   const enhanceDescription = async () => {
     const currentDescription = form.getValues('description');
@@ -219,27 +245,26 @@ export function ObjectiveForm({ onSuccess, onCancel }: ObjectiveFormProps) {
 
         <FormField
           control={form.control}
-          name="department"
+          name="area_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Departamento</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormLabel>Área</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loadingAreas}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un departamento" />
+                    <SelectValue placeholder={loadingAreas ? "Cargando áreas..." : "Selecciona un área"} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="ventas">Ventas</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="desarrollo">Desarrollo</SelectItem>
-                  <SelectItem value="operaciones">Operaciones</SelectItem>
-                  <SelectItem value="rrhh">Recursos Humanos</SelectItem>
-                  <SelectItem value="finanzas">Finanzas</SelectItem>
+                  {areas.map((area) => (
+                    <SelectItem key={area.id} value={area.id}>
+                      {area.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormDescription>
-                El departamento responsable de este objetivo
+                El área responsable de este objetivo
               </FormDescription>
               <FormMessage />
             </FormItem>

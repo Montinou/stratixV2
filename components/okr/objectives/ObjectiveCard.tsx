@@ -13,7 +13,8 @@ interface ObjectiveCardProps {
     id: string;
     title: string;
     description?: string;
-    department: string;
+    areaId: string | null;
+    areaName?: string;
     status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
     priority: 'low' | 'medium' | 'high';
     progressPercentage: number;
@@ -107,11 +108,11 @@ export function ObjectiveCard({ objective, onEdit, onView }: ObjectiveCardProps)
           </div>
         )}
 
-        {/* Department & Dates */}
+        {/* Area & Dates */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            <span>{objective.department}</span>
+            <span>{objective.areaName || 'Sin área'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />

@@ -60,7 +60,7 @@ export class OKRDatabaseClient {
     userId: string;
     fullName: string;
     role: 'corporativo' | 'gerente' | 'empleado';
-    department: string;
+    areaId: string | null;
     companyId: string;
   }) {
     return withRLSContext(data.userId, async (db) => {
@@ -71,7 +71,7 @@ export class OKRDatabaseClient {
           email: '', // Will be set by trigger or separately
           fullName: data.fullName,
           role: data.role,
-          department: data.department,
+          areaId: data.areaId,
           companyId: data.companyId,
         })
         .onConflictDoUpdate({
@@ -79,7 +79,7 @@ export class OKRDatabaseClient {
           set: {
             fullName: data.fullName,
             role: data.role,
-            department: data.department,
+            areaId: data.areaId,
             updatedAt: new Date(),
           },
         })
@@ -92,7 +92,7 @@ export class OKRDatabaseClient {
    */
   static async getObjectives(filters: {
     companyId?: string;
-    department?: string;
+    areaId?: string;
     status?: string;
     assignedTo?: string;
     limit?: number;
@@ -106,8 +106,8 @@ export class OKRDatabaseClient {
     if (filters.tenantId) {
       whereConditions.push(eq(objectives.tenantId, filters.tenantId));
     }
-    if (filters.department) {
-      whereConditions.push(eq(objectives.department, filters.department));
+    if (filters.areaId) {
+      whereConditions.push(eq(objectives.areaId, filters.areaId));
     }
     if (filters.status) {
       whereConditions.push(eq(objectives.status, filters.status as any));
@@ -232,7 +232,7 @@ export class OKRDatabaseClient {
   static async createObjective(data: {
     title: string;
     description?: string;
-    department: string;
+    areaId: string | null;
     priority: 'low' | 'medium' | 'high';
     targetValue?: string;
     unit?: string;
@@ -321,22 +321,22 @@ export class OKRDatabaseClient {
       .where(eq(activities.companyId, filters.companyId))
       .groupBy(activities.status);
 
-    // Get progress by department
-    const departmentProgress = await db
+    // Get progress by area
+    const areaProgress = await db
       .select({
-        department: objectives.department,
+        areaId: objectives.areaId,
         avgProgress: sql<number>`AVG(CAST(${objectives.progressPercentage} AS DECIMAL))`,
         count: count(),
       })
       .from(objectives)
       .where(and(...whereConditions))
-      .groupBy(objectives.department);
+      .groupBy(objectives.areaId);
 
     return {
       objectives: objectiveStats,
       initiatives: initiativeStats,
       activities: activityStats,
-      departmentProgress,
+      areaProgress,
     };
   }
 

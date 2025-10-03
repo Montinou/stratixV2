@@ -157,7 +157,7 @@ export async function createOrganization(input: CreateOrganizationInput) {
       email: creatorEmail,
       fullName: creatorFullName || creatorEmail.split('@')[0],
       role: 'corporativo',
-      department: 'General',
+      areaId: null,
       companyId: organization.id,
     }).returning();
 
@@ -297,7 +297,7 @@ export async function acceptInvitation(input: AcceptInvitationInput) {
       email: invitation.email,
       fullName: fullName || invitation.email.split('@')[0],
       role: invitation.role,
-      department: 'General',
+      areaId: null,
       companyId: invitation.companyId,
     }).returning();
 

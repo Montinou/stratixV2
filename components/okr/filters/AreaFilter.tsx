@@ -3,10 +3,10 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
-interface DepartmentFilterProps {
+interface AreaFilterProps {
   value: string;
   onChange: (value: string) => void;
-  departments: {
+  areas: {
     value: string;
     label: string;
     count?: number;
@@ -14,26 +14,26 @@ interface DepartmentFilterProps {
   placeholder?: string;
 }
 
-export function DepartmentFilter({
+export function AreaFilter({
   value,
   onChange,
-  departments,
-  placeholder = "Filtrar por departamento"
-}: DepartmentFilterProps) {
+  areas,
+  placeholder = "Filtrar por área"
+}: AreaFilterProps) {
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-full sm:w-[200px]">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">Todos los departamentos</SelectItem>
-        {departments.map((department) => (
-          <SelectItem key={department.value} value={department.value}>
+        <SelectItem value="all">Todas las áreas</SelectItem>
+        {areas.map((area) => (
+          <SelectItem key={area.value} value={area.value}>
             <div className="flex items-center justify-between w-full">
-              <span>{department.label}</span>
-              {department.count !== undefined && (
+              <span>{area.label}</span>
+              {area.count !== undefined && (
                 <Badge variant="secondary" className="ml-2">
-                  {department.count}
+                  {area.count}
                 </Badge>
               )}
             </div>

@@ -265,9 +265,9 @@ export class AnalyticsService {
   }
 
   /**
-   * Get department progress
+   * Get area progress
    */
-  static async getDepartmentProgress(department?: string) {
+  static async getAreaProgress(areaId?: string) {
     const user = await stackServerApp.getUser({ or: 'throw' });
     const userProfile = await OKRDatabaseClient.getUserProfile(user.id);
 
@@ -277,12 +277,12 @@ export class AnalyticsService {
 
     const objectives = await OKRDatabaseClient.getObjectives({
       companyId: userProfile.companyId,
-      department,
+      areaId,
     });
 
     // Calculate progress statistics
     const totalObjectives = objectives.length;
-    const completedObjectives = objectives.filter(obj => obj.status === 'completed').length;
+    const completedObjectives = objectives.filter(obj => obj.status === 'completado').length;
     const averageProgress = objectives.reduce((acc, obj) => {
       return acc + (parseFloat(obj.progressPercentage || '0'));
     }, 0) / totalObjectives;
