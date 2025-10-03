@@ -210,7 +210,10 @@ export class AIGatewayService {
     const userProfile = await withRLSContext(user.id, async (db) => {
       return await db.query.profiles.findFirst({
         where: eq(profiles.id, user.id),
-        with: { company: true },
+        with: {
+          company: true,
+          area: true
+        },
       });
     });
 
@@ -339,7 +342,10 @@ export class AIGatewayService {
     const userProfile = await withRLSContext(user.id, async (db) => {
       return await db.query.profiles.findFirst({
         where: eq(profiles.id, user.id),
-        with: { company: true },
+        with: {
+          company: true,
+          area: true
+        },
       });
     });
 
