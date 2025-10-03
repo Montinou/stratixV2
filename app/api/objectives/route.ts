@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, department, start_date, end_date, status } = body;
+    const { title, description, area_id, start_date, end_date, status } = body;
 
     // Get user's company_id from profile
     const profile = await sql`
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         title,
         description,
         owner_id,
-        department,
+        area_id,
         status,
         start_date,
         end_date,
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         ${title},
         ${description || null},
         ${user.id},
-        ${department || null},
+        ${area_id || null},
         ${status || 'no_iniciado'},
         ${start_date},
         ${end_date},

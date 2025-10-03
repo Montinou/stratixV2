@@ -205,7 +205,7 @@ export function ObjectivesPageClient({ objectives, stats }: ObjectivesPageClient
                           <span>{new Date(objective.endDate).toLocaleDateString('es-ES')}</span>
                         </div>
                       </div>
-                      <Badge variant="outline">{objective.department}</Badge>
+                      {objective.areaName && <Badge variant="outline">{objective.areaName}</Badge>}
                     </div>
                   </div>
                 </CardContent>

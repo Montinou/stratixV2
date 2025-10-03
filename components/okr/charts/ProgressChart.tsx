@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 
 interface ProgressData {
-  department: string;
+  area: string;
   progress: number;
   objectives: number;
   color: string;
@@ -15,7 +15,7 @@ interface ProgressChartProps {
   title?: string;
 }
 
-export function ProgressChart({ data, title = "Progreso por Departamento" }: ProgressChartProps) {
+export function ProgressChart({ data, title = "Progreso por Área" }: ProgressChartProps) {
   const maxProgress = Math.max(...data.map(d => d.progress));
 
   return (
@@ -23,19 +23,19 @@ export function ProgressChart({ data, title = "Progreso por Departamento" }: Pro
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>
-          Progreso actual de objetivos por departamento
+          Progreso actual de objetivos por área
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {data.map((item) => (
-          <div key={item.department} className="space-y-2">
+          <div key={item.area} className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-sm font-medium">{item.department}</span>
+                <span className="text-sm font-medium">{item.area}</span>
                 <span className="text-xs text-muted-foreground">
                   ({item.objectives} objetivos)
                 </span>
