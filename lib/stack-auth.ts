@@ -51,13 +51,13 @@ export async function getUserOrRedirect(): Promise<SafeUser> {
     const user = await getSafeUser();
 
     if (!user) {
-      redirect('/handler/signup');
+      redirect('/handler/sign-in');
     }
 
     return user;
   } catch (error) {
     console.error('Error in getUserOrRedirect:', error);
-    redirect('/handler/signup');
+    redirect('/handler/sign-in');
   }
 }
 
