@@ -57,7 +57,7 @@ export function AreaDialog({
           <DialogDescription>
             {area
               ? 'Modifica la información del área organizacional.'
-              : 'Crea una nueva área o departamento en tu organización.'}
+              : 'Crea una nueva área en tu organización.'}
           </DialogDescription>
         </DialogHeader>
         <AreaForm

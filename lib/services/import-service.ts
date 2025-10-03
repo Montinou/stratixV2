@@ -172,11 +172,11 @@ export class ImportService {
   }
 
   /**
-   * Get user's role and company
+   * Get user's role and area
    */
   static async getUserPermissions(userId: string) {
     const result = await db.execute(sql`
-      SELECT role, company_id
+      SELECT role, area_id, company_id
       FROM profiles
       WHERE id = ${userId}
     `);
@@ -211,7 +211,8 @@ export class ImportService {
           throw new Error('Campos requeridos faltantes: titulo, fecha_inicio, fecha_fin');
         }
 
-        // Role-based restrictions removed - using area-based permissions instead
+        // Area-based permissions for managers
+        // Corporate users can import to any area
 
         // Find owner by email if provided
         let ownerId = userId;
@@ -234,12 +235,26 @@ export class ImportService {
           throw new Error('Formato de fecha inválido. Use DD/MM/YYYY');
         }
 
-        // Insert objective (area_id should come from row data)
+        // Find area_id from area name if provided
+        let areaId = null;
+        if (row.area_nombre) {
+          const area = await db.execute(sql`
+            SELECT id FROM areas
+            WHERE name = ${row.area_nombre}
+            AND company_id = ${companyId}
+          `);
+          if (area.rows[0]) {
+            areaId = (area.rows[0] as any).id;
+          }
+        }
+
+        // Insert objective with area_id
         await db.execute(sql`
           INSERT INTO objectives (
             title,
             description,
             owner_id,
+            area_id,
             status,
             progress,
             start_date,
@@ -249,6 +264,7 @@ export class ImportService {
             ${row.titulo},
             ${row.descripcion || null},
             ${ownerId},
+            ${areaId},
             ${row.estado || 'no_iniciado'},
             ${row.progreso || 0},
             ${startDate.toISOString()},

@@ -146,9 +146,9 @@ export function OKRDashboardClient({ stats, user }: OKRDashboardClientProps) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Progreso por Departamento</CardTitle>
+            <CardTitle>Progreso por Área</CardTitle>
             <CardDescription>
-              Comparativo de avance entre departamentos
+              Comparativo de avance entre áreas
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -76,7 +76,7 @@ class TestDataSetup {
   async createTestObjectives(
     org: Organization,
     count: number,
-    departments: string[]
+    areaNames: string[]
   ): Promise<void> {
     console.log(`Creating ${count} test objectives for ${org.name}...`);
 
@@ -85,8 +85,30 @@ class TestDataSetup {
     try {
       await client.query('BEGIN');
 
+      // Get or create areas for this organization
+      const areaIds: string[] = [];
+      for (const areaName of areaNames) {
+        // Check if area exists
+        let areaResult = await client.query(
+          `SELECT id FROM areas WHERE company_id = $1 AND name = $2`,
+          [org.id, areaName]
+        );
+
+        if (areaResult.rows.length === 0) {
+          // Create new area
+          areaResult = await client.query(
+            `INSERT INTO areas (name, company_id, created_by, status)
+             VALUES ($1, $2, $3, 'active')
+             RETURNING id`,
+            [areaName, org.id, org.userId]
+          );
+        }
+
+        areaIds.push(areaResult.rows[0].id);
+      }
+
       for (let i = 1; i <= count; i++) {
-        const department = departments[i % departments.length];
+        const areaId = areaIds[i % areaIds.length];
         const status = ['no_iniciado', 'en_progreso', 'completado'][i % 3] as any;
 
         await client.query(
@@ -94,7 +116,7 @@ class TestDataSetup {
           INSERT INTO objectives (
             title,
             description,
-            department,
+            area_id,
             status,
             progress,
             start_date,
@@ -107,7 +129,7 @@ class TestDataSetup {
           [
             `Test Objective ${i} - ${org.name}`,
             `Description for test objective ${i}`,
-            department,
+            areaId,
             status,
             i * 10, // progress (0-50)
             '2025-01-01',

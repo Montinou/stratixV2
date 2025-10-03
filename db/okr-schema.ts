@@ -113,7 +113,7 @@ export const activities = pgTable('activities', {
   index('activities_initiative_idx').on(table.initiativeId),
 ]);
 
-// Areas table - organizational areas/departments
+// Areas table - organizational areas
 export const areas = pgTable('areas', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),

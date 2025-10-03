@@ -326,7 +326,7 @@ class SecurityAuditTester {
           (SELECT COUNT(*) FROM objectives) as objectives_total,
           (SELECT COUNT(*) FROM initiatives) as initiatives_total,
           (SELECT COUNT(*) FROM activities) as activities_total,
-          (SELECT COUNT(DISTINCT department) FROM objectives) as departments_count
+          (SELECT COUNT(DISTINCT area_id) FROM objectives WHERE area_id IS NOT NULL) as areas_count
       `;
 
       const userAStats = await client.query(userAStatsQuery);

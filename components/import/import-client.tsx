@@ -116,7 +116,7 @@ export function ImportClient({ userRole }: ImportProps) {
       formats: ['.xlsx', '.csv'],
       icon: <Database className="h-6 w-6" />,
       requiredFields: ['nombre_completo', 'email', 'rol'],
-      optionalFields: ['departamento', 'manager_email'],
+      optionalFields: ['área', 'manager_email'],
       restricted: userRole !== 'corporativo',
     },
   ];
