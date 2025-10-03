@@ -66,10 +66,9 @@ interface ImportError {
 
 interface ImportProps {
   userRole: string;
-  userDepartment?: string;
 }
 
-export function ImportClient({ userRole, userDepartment }: ImportProps) {
+export function ImportClient({ userRole }: ImportProps) {
   const [selectedType, setSelectedType] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -87,7 +86,7 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
       formats: ['.xlsx', '.csv'],
       icon: <FileSpreadsheet className="h-6 w-6" />,
       requiredFields: ['título', 'fecha_inicio', 'fecha_fin'],
-      optionalFields: ['descripción', 'departamento', 'responsable_email', 'estado', 'progreso'],
+      optionalFields: ['descripción', 'area_nombre', 'responsable_email', 'estado', 'progreso'],
       restricted: false,
     },
     {
@@ -398,7 +397,7 @@ export function ImportClient({ userRole, userDepartment }: ImportProps) {
             <Alert className="mt-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Como gerente, solo puedes importar datos para tu departamento: {userDepartment}
+                Como gerente, solo puedes importar datos para tu área
               </AlertDescription>
             </Alert>
           )}

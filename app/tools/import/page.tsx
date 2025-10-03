@@ -127,7 +127,6 @@ export default async function ImportPage() {
       {/* Import Client Component */}
       <ImportClient
         userRole={userRole}
-        userDepartment={userDepartment}
       />
 
       {/* Instructions */}
@@ -185,7 +184,7 @@ export default async function ImportPage() {
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
                     <span className="text-amber-600">
-                      Como gerente, solo puedes importar datos de tu departamento ({userDepartment})
+                      Como gerente, solo puedes importar datos de tu área
                     </span>
                   </li>
                 )}

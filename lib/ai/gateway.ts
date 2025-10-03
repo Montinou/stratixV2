@@ -418,7 +418,7 @@ Eres StratixAI, un asistente experto en gestión de OKRs para ${userProfile.comp
 Contexto del Usuario:
 - Nombre: ${userProfile.fullName}
 - Rol: ${userProfile.role}
-- Departamento: ${userProfile.department}
+- Área: ${userProfile.area?.name || 'No asignada'}
 
 Tus capacidades:
 - Proporcionar orientación sobre metodología OKR

@@ -39,7 +39,7 @@ interface BaseImportData {
 interface ObjectiveImportData extends BaseImportData {
   titulo: string;
   descripcion?: string;
-  departamento?: string;
+  area_nombre?: string;
   fecha_inicio: string;
   fecha_fin: string;
   responsable_email?: string;
@@ -75,7 +75,7 @@ interface ActivityImportData extends BaseImportData {
 interface UserImportData extends BaseImportData {
   nombre_completo: string;
   email: string;
-  departamento?: string;
+  area_nombre?: string;
   rol: 'corporativo' | 'gerente' | 'empleado';
   manager_email?: string;
 }
@@ -191,8 +191,7 @@ export class ImportService {
     data: ObjectiveImportData[],
     userId: string,
     companyId: string,
-    userRole: string,
-    userDepartment?: string
+    userRole: string
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: true,
@@ -279,8 +278,7 @@ export class ImportService {
     data: InitiativeImportData[],
     userId: string,
     companyId: string,
-    userRole: string,
-    userDepartment?: string
+    userRole: string
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: true,
@@ -386,8 +384,7 @@ export class ImportService {
     data: ActivityImportData[],
     userId: string,
     companyId: string,
-    userRole: string,
-    userDepartment?: string
+    userRole: string
   ): Promise<ImportResult> {
     const result: ImportResult = {
       success: true,
