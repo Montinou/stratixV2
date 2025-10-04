@@ -1,4 +1,4 @@
-import { getUserOrRedirect } from '@/lib/stack-auth';
+import { getUserOrRedirect, stackServerApp } from '@/lib/stack-auth';
 import { columns, UserForTable } from '@/components/admin/UserTable/UsersTableColumn';
 import { UsersTable } from '@/components/admin/UserTable/UsersTable';
 import { Toaster } from '@/components/ui/sonner';
