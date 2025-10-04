@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { stackServerApp } from '@/stack/server';
+import { LandingPage } from '@/components/landing-page';
 
 // Force dynamic rendering since we need to access cookies for authentication
 export const dynamic = 'force-dynamic';
@@ -14,10 +15,13 @@ export default async function Home() {
       console.log('Home page: Redirecting to /tools');
       redirect('/tools');
     }
-    console.log('Home page: No user, redirecting to signup');
-    redirect('/handler/signup');
+
+    // Show landing page for non-authenticated users
+    console.log('Home page: No user, showing landing page');
+    return <LandingPage />;
   } catch (error) {
     console.error('Home page: Error getting user:', error);
-    redirect('/handler/signup');
+    // Show landing page on error as well
+    return <LandingPage />;
   }
 }
