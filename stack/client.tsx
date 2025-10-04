@@ -38,8 +38,8 @@ const getBaseUrl = () => {
 export const stackClientApp = new StackClientApp({
   tokenStore: 'nextjs-cookie',
   urls: {
-    afterSignIn: '/tools',
-    afterSignUp: '/tools',
+    afterSignIn: '/tools/okr',
+    afterSignUp: '/tools/okr',
     baseUrl: getBaseUrl(),
   },
   projectId: projectId || '',
