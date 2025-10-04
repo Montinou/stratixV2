@@ -30,6 +30,7 @@ export class OKRDatabaseClient {
         where: eq(profiles.id, user.id),
         with: {
           company: true,
+          area: true,
         },
       });
 
@@ -46,6 +47,7 @@ export class OKRDatabaseClient {
         where: eq(profiles.id, userId),
         with: {
           company: true,
+          area: true,
         },
       });
     });
