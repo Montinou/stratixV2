@@ -6,6 +6,9 @@
 import { stackServerApp } from '@/stack/server';
 import { redirect } from 'next/navigation';
 
+// Re-export stackServerApp for components that need direct access
+export { stackServerApp };
+
 export interface SafeUser {
   id: string;
   primaryEmail?: string | null;
