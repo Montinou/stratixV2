@@ -46,13 +46,13 @@
 :root {
   --radius: 0.625rem;
 
-  /* Neutral colors - Background and surfaces */
-  --background: #f5f5f4;
-  --foreground: #171717;
-  --card: #ffffff;
-  --card-foreground: #171717;
-  --popover: #ffffff;
-  --popover-foreground: #171717;
+  /* Warm Gray colors - Background and surfaces */
+  --background: #f7f5f2;
+  --foreground: #2a2826;
+  --card: #fdfcfa;
+  --card-foreground: #2a2826;
+  --popover: #fdfcfa;
+  --popover-foreground: #2a2826;
 
   /* Organization colors - from company theme */
   --primary: oklch(0.21 0.006 285.885);
@@ -62,13 +62,13 @@
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
 
-  /* Neutral colors - UI elements with subtle brand touch */
-  --muted: #fafaf9;
-  --muted-foreground: #737373;
+  /* Warm Gray - UI elements with subtle brand touch */
+  --muted: #f0ede8;
+  --muted-foreground: #78746f;
   --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --border: #e7e5e4;
-  --input: #f5f5f4;
+  --destructive-foreground: #fdfcfa;
+  --border: #e8e6e3;
+  --input: #f0ede8;
   --ring: oklch(0.21 0.006 285.885 / 0.3);
 
   /* Chart colors */
@@ -78,25 +78,25 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
 
-  /* Sidebar - subtle brand presence */
-  --sidebar: #ffffff;
-  --sidebar-foreground: #171717;
+  /* Sidebar - subtle brand presence with warm grays */
+  --sidebar: #fdfcfa;
+  --sidebar-foreground: #2a2826;
   --sidebar-primary: oklch(0.21 0.006 285.885);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.21 0.006 285.885 / 0.05);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: #e7e5e4;
+  --sidebar-border: #e8e6e3;
   --sidebar-ring: oklch(0.21 0.006 285.885 / 0.3);
 }
 
 .dark {
-  /* Neutral colors - Background and surfaces */
-  --background: #171717;
-  --foreground: #fafafa;
-  --card: #262626;
-  --card-foreground: #fafafa;
-  --popover: #262626;
-  --popover-foreground: #fafafa;
+  /* Warm Gray colors - Background and surfaces (dark) */
+  --background: #1c1a18;
+  --foreground: #f5f3f0;
+  --card: #2a2826;
+  --card-foreground: #f5f3f0;
+  --popover: #2a2826;
+  --popover-foreground: #f5f3f0;
 
   /* Organization colors - from company theme (inverted for dark mode) */
   --primary: oklch(0.92 0.004 286.32);
@@ -106,13 +106,13 @@
   --accent: oklch(0.274 0.006 286.033);
   --accent-foreground: oklch(0.985 0 0);
 
-  /* Neutral colors - UI elements with subtle brand touch */
-  --muted: #1c1c1c;
-  --muted-foreground: #a3a3a3;
+  /* Warm Gray - UI elements with subtle brand touch (dark) */
+  --muted: #26241f;
+  --muted-foreground: #a8a29e;
   --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #2e2e2e;
-  --input: #262626;
+  --destructive-foreground: #f5f3f0;
+  --border: #3a3833;
+  --input: #2a2826;
   --ring: oklch(0.92 0.004 286.32 / 0.4);
 
   /* Chart colors */
@@ -122,14 +122,14 @@
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
 
-  /* Sidebar - subtle brand presence */
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #fafafa;
+  /* Sidebar - subtle brand presence with warm grays (dark) */
+  --sidebar: #18160f;
+  --sidebar-foreground: #f5f3f0;
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.92 0.004 286.32 / 0.1);
   --sidebar-accent-foreground: oklch(0.92 0.004 286.32);
-  --sidebar-border: #2e2e2e;
+  --sidebar-border: #3a3833;
   --sidebar-ring: oklch(0.92 0.004 286.32 / 0.4);
 }
 
