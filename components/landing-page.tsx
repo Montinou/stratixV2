@@ -23,12 +23,12 @@ export function LandingPage() {
           <div className="flex items-center gap-3">
             <Link href="/handler/sign-in">
               <Button variant="ghost" size="sm">
-                Sign In
+                Iniciar Sesión
               </Button>
             </Link>
             <Link href="/handler/sign-up">
               <Button size="sm" className="gap-2">
-                Get Started <ArrowRight className="w-4 h-4" />
+                Comenzar <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
           </div>
@@ -41,31 +41,31 @@ export function LandingPage() {
           <div className="text-center space-y-8">
             <Badge variant="secondary" className="gap-2">
               <Zap className="w-3 h-3" />
-              AI-Powered Strategy Management
+              Gestión Estratégica Impulsada por IA
             </Badge>
 
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-              Transform Your{" "}
+              Transforma Tu{" "}
               <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-                Strategic Vision
+                Visión Estratégica
               </span>
-              {" "}Into Reality
+              {" "}En Realidad
             </h1>
 
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Empower your organization with intelligent OKR management, real-time analytics,
-              and AI-driven insights. Make data-driven decisions faster than ever.
+              Potencia tu organización con gestión inteligente de OKRs, análisis en tiempo real
+              e insights impulsados por IA. Toma decisiones basadas en datos más rápido que nunca.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
               <Link href="/handler/sign-up">
                 <Button size="lg" className="gap-2 text-lg px-8 py-6">
-                  Start Free Trial <ArrowRight className="w-5 h-5" />
+                  Comenzar Prueba Gratuita <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
               <Link href="/handler/sign-in">
                 <Button size="lg" variant="outline" className="text-lg px-8 py-6">
-                  Sign In
+                  Iniciar Sesión
                 </Button>
               </Link>
             </div>
@@ -77,10 +77,10 @@ export function LandingPage() {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">Features</Badge>
-            <h2 className="text-4xl font-bold mb-4">Everything You Need to Succeed</h2>
+            <Badge variant="outline" className="mb-4">Características</Badge>
+            <h2 className="text-4xl font-bold mb-4">Todo lo que Necesitas para Tener Éxito</h2>
             <p className="text-muted-foreground text-lg">
-              Powerful tools designed for modern strategic management
+              Herramientas poderosas diseñadas para la gestión estratégica moderna
             </p>
           </div>
 
@@ -88,38 +88,38 @@ export function LandingPage() {
             {[
               {
                 icon: Target,
-                title: "Goal Alignment",
-                description: "Cascade objectives across your organization with precision and clarity.",
+                title: "Alineación de Objetivos",
+                description: "Cascadea objetivos a través de tu organización con precisión y claridad.",
                 color: "text-blue-500"
               },
               {
                 icon: TrendingUp,
-                title: "Real-Time Analytics",
-                description: "Track progress with live dashboards and actionable insights.",
+                title: "Análisis en Tiempo Real",
+                description: "Rastrea el progreso con dashboards en vivo e insights accionables.",
                 color: "text-green-500"
               },
               {
                 icon: Users,
-                title: "Team Collaboration",
-                description: "Seamless collaboration tools to keep everyone aligned and productive.",
+                title: "Colaboración en Equipo",
+                description: "Herramientas de colaboración fluidas para mantener a todos alineados y productivos.",
                 color: "text-purple-500"
               },
               {
                 icon: Shield,
-                title: "Enterprise Security",
-                description: "Bank-grade encryption and compliance with industry standards.",
+                title: "Seguridad Empresarial",
+                description: "Encriptación de grado bancario y cumplimiento con estándares de la industria.",
                 color: "text-orange-500"
               },
               {
                 icon: Zap,
-                title: "AI-Powered Insights",
-                description: "Leverage machine learning to optimize your strategic planning.",
+                title: "Insights Impulsados por IA",
+                description: "Aprovecha el aprendizaje automático para optimizar tu planificación estratégica.",
                 color: "text-yellow-500"
               },
               {
                 icon: Sparkles,
-                title: "Smart Automation",
-                description: "Automate routine tasks and focus on what matters most.",
+                title: "Automatización Inteligente",
+                description: "Automatiza tareas rutinarias y enfócate en lo que más importa.",
                 color: "text-pink-500"
               }
             ].map((feature, index) => (
@@ -138,9 +138,9 @@ export function LandingPage() {
         <div className="container mx-auto max-w-6xl">
           <div className="grid md:grid-cols-3 gap-12 text-center">
             {[
-              { value: "10K+", label: "Active Users" },
-              { value: "500K+", label: "Objectives Tracked" },
-              { value: "99.9%", label: "Uptime SLA" }
+              { value: "10K+", label: "Usuarios Activos" },
+              { value: "500K+", label: "Objetivos Rastreados" },
+              { value: "99.9%", label: "SLA de Disponibilidad" }
             ].map((stat, index) => (
               <div key={index}>
                 <div className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-2">
@@ -157,18 +157,18 @@ export function LandingPage() {
       <section className="py-32 px-4">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Ready to Transform Your Strategy?
+            ¿Listo para Transformar tu Estrategia?
           </h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of teams already using StratixV2 to achieve their most ambitious goals.
+            Únete a miles de equipos que ya usan StratixV2 para alcanzar sus objetivos más ambiciosos.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/handler/sign-up">
               <Button size="lg" className="gap-2 text-lg px-8 py-6">
-                Get Started Now <ArrowRight className="w-5 h-5" />
+                Comenzar Ahora <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <p className="text-sm text-muted-foreground">No credit card required</p>
+            <p className="text-sm text-muted-foreground">No se requiere tarjeta de crédito</p>
           </div>
         </div>
       </section>
@@ -184,7 +184,7 @@ export function LandingPage() {
               <span className="font-semibold">StratixV2</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 StratixV2. All rights reserved.
+              © 2025 StratixV2. Todos los derechos reservados.
             </p>
           </div>
         </div>
