@@ -38,13 +38,13 @@ export function LandingPage() {
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center space-y-8">
-            <Badge variant="secondary" className="gap-2">
+          <div className="flex flex-col items-center text-center space-y-8">
+            <Badge variant="secondary" className="gap-2 inline-flex">
               <Zap className="w-3 h-3" />
               Gestión Estratégica Impulsada por IA
             </Badge>
 
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight max-w-5xl">
               Transforma Tu{" "}
               <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
                 Visión Estratégica
@@ -52,12 +52,12 @@ export function LandingPage() {
               {" "}En Realidad
             </h1>
 
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl text-muted-foreground max-w-3xl leading-relaxed">
               Potencia tu organización con gestión inteligente de OKRs, análisis en tiempo real
               e insights impulsados por IA. Toma decisiones basadas en datos más rápido que nunca.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Link href="/handler/sign-up">
                 <Button size="lg" className="gap-2 text-lg px-8 py-6">
                   Comenzar Prueba Gratuita <ArrowRight className="w-5 h-5" />
@@ -76,10 +76,10 @@ export function LandingPage() {
       {/* Features Grid */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">Características</Badge>
+          <div className="flex flex-col items-center text-center mb-16">
+            <Badge variant="outline" className="mb-4 inline-flex">Características</Badge>
             <h2 className="text-4xl font-bold mb-4">Todo lo que Necesitas para Tener Éxito</h2>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground text-lg max-w-2xl">
               Herramientas poderosas diseñadas para la gestión estratégica moderna
             </p>
           </div>
@@ -155,20 +155,22 @@ export function LandingPage() {
 
       {/* CTA Section */}
       <section className="py-32 px-4">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            ¿Listo para Transformar tu Estrategia?
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Únete a miles de equipos que ya usan StratixV2 para alcanzar sus objetivos más ambiciosos.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/handler/sign-up">
-              <Button size="lg" className="gap-2 text-lg px-8 py-6">
-                Comenzar Ahora <ArrowRight className="w-5 h-5" />
-              </Button>
-            </Link>
-            <p className="text-sm text-muted-foreground">No se requiere tarjeta de crédito</p>
+        <div className="container mx-auto max-w-4xl">
+          <div className="flex flex-col items-center text-center">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              ¿Listo para Transformar tu Estrategia?
+            </h2>
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl">
+              Únete a miles de equipos que ya usan StratixV2 para alcanzar sus objetivos más ambiciosos.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <Link href="/handler/sign-up">
+                <Button size="lg" className="gap-2 text-lg px-8 py-6">
+                  Comenzar Ahora <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+              <p className="text-sm text-muted-foreground">No se requiere tarjeta de crédito</p>
+            </div>
           </div>
         </div>
       </section>
