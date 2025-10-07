@@ -8,10 +8,10 @@ import Link from "next/link";
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background/95 to-background/90">
+    <div className="min-h-screen w-screen overflow-x-hidden bg-gradient-to-b from-background via-background/95 to-background/90">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 border-b bg-background/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="w-full max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
@@ -36,9 +36,9 @@ export function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col items-center text-center space-y-8">
+      <section className="pt-32 pb-20 px-4 w-full">
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="flex flex-col items-center justify-center text-center space-y-8 w-full">
             <Badge variant="secondary" className="gap-2 inline-flex">
               <Zap className="w-3 h-3" />
               Gestión Estratégica Impulsada por IA
@@ -74,9 +74,9 @@ export function LandingPage() {
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col items-center text-center mb-16">
+      <section className="py-20 px-4 w-full">
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="flex flex-col items-center justify-center text-center mb-16 w-full">
             <Badge variant="outline" className="mb-4 inline-flex">Características</Badge>
             <h2 className="text-4xl font-bold mb-4">Todo lo que Necesitas para Tener Éxito</h2>
             <p className="text-muted-foreground text-lg max-w-2xl">
@@ -134,9 +134,9 @@ export function LandingPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 px-4 bg-muted/50">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-3 gap-12 text-center">
+      <section className="py-20 px-4 w-full bg-muted/50">
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-12 text-center w-full">
             {[
               { value: "10K+", label: "Usuarios Activos" },
               { value: "500K+", label: "Objetivos Rastreados" },
@@ -154,9 +154,9 @@ export function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 px-4">
-        <div className="container mx-auto max-w-4xl">
-          <div className="flex flex-col items-center text-center">
+      <section className="py-32 px-4 w-full">
+        <div className="w-full max-w-4xl mx-auto">
+          <div className="flex flex-col items-center justify-center text-center w-full">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
               ¿Listo para Transformar tu Estrategia?
             </h2>
@@ -176,9 +176,9 @@ export function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-12 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <footer className="border-t py-12 px-4 w-full">
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-primary-foreground" />

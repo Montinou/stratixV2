@@ -33,14 +33,12 @@ export const aiUsageTracking = pgTable('ai_usage_tracking', {
   requestCost: numeric('request_cost', { precision: 10, scale: 6 }),
   responseTimeMs: integer('response_time_ms'),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('ai_usage_user_idx').on(table.userId),
   index('ai_usage_operation_idx').on(table.operationType),
   index('ai_usage_provider_idx').on(table.provider),
   index('ai_usage_company_idx').on(table.companyId),
-  index('ai_usage_tenant_idx').on(table.tenantId),
   index('ai_usage_created_at_idx').on(table.createdAt),
 ]);
 
@@ -55,14 +53,12 @@ export const aiPerformanceBenchmarks = pgTable('ai_performance_benchmarks', {
   avgCostPerRequest: numeric('avg_cost_per_request', { precision: 10, scale: 6 }).notNull(),
   successRate: numeric('success_rate', { precision: 5, scale: 2 }).notNull(),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   measurementDate: timestamp('measurement_date').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('ai_benchmarks_category_idx').on(table.category),
   index('ai_benchmarks_provider_idx').on(table.provider),
   index('ai_benchmarks_company_idx').on(table.companyId),
-  index('ai_benchmarks_tenant_idx').on(table.tenantId),
   index('ai_benchmarks_date_idx').on(table.measurementDate),
 ]);
 
@@ -77,13 +73,11 @@ export const conversations = pgTable('conversations', {
   messageCount: integer('message_count').default(0),
   lastMessageAt: timestamp('last_message_at'),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('conversations_user_idx').on(table.userId),
   index('conversations_company_idx').on(table.companyId),
-  index('conversations_tenant_idx').on(table.tenantId),
   index('conversations_last_message_idx').on(table.lastMessageAt),
 ]);
 
@@ -97,13 +91,11 @@ export const conversationMessages = pgTable('conversation_messages', {
   tokensUsed: integer('tokens_used'),
   responseTimeMs: integer('response_time_ms'),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('conversation_messages_conversation_idx').on(table.conversationId),
   index('conversation_messages_role_idx').on(table.role),
   index('conversation_messages_company_idx').on(table.companyId),
-  index('conversation_messages_tenant_idx').on(table.tenantId),
   index('conversation_messages_created_at_idx').on(table.createdAt),
 ]);
 
@@ -121,7 +113,6 @@ export const aiInsights = pgTable('ai_insights', {
   isActionable: boolean('is_actionable').default(false),
   metadata: jsonb('metadata'), // Additional insight data
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   generatedAt: timestamp('generated_at').defaultNow().notNull(),
   expiresAt: timestamp('expires_at'), // Optional expiration for time-sensitive insights
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -130,7 +121,6 @@ export const aiInsights = pgTable('ai_insights', {
   index('ai_insights_category_idx').on(table.category),
   index('ai_insights_entity_idx').on(table.entityType, table.entityId),
   index('ai_insights_company_idx').on(table.companyId),
-  index('ai_insights_tenant_idx').on(table.tenantId),
   index('ai_insights_generated_at_idx').on(table.generatedAt),
   index('ai_insights_is_read_idx').on(table.isRead),
 ]);
@@ -146,14 +136,12 @@ export const knowledgeBase = pgTable('knowledge_base', {
   isActive: boolean('is_active').default(true),
   priority: integer('priority').default(0), // Higher numbers = higher priority
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }), // null = global knowledge
-  tenantId: uuid('tenant_id'),
   createdBy: text('created_by').references(() => usersSyncInNeonAuth.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('knowledge_base_category_idx').on(table.category),
   index('knowledge_base_company_idx').on(table.companyId),
-  index('knowledge_base_tenant_idx').on(table.tenantId),
   index('knowledge_base_is_active_idx').on(table.isActive),
   index('knowledge_base_priority_idx').on(table.priority),
 ]);
@@ -167,14 +155,12 @@ export const aiConfiguration = pgTable('ai_configuration', {
   description: text('description'),
   isActive: boolean('is_active').default(true),
   companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('ai_config_user_idx').on(table.userId),
   index('ai_config_key_idx').on(table.configKey),
   index('ai_config_company_idx').on(table.companyId),
-  index('ai_config_tenant_idx').on(table.tenantId),
   index('ai_config_is_active_idx').on(table.isActive),
 ]);
 
