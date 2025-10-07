@@ -3,12 +3,17 @@ import db from '@/db';
 import { companyInvitations } from '@/db/okr-schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { sendReminderEmail } from '@/lib/services/brevo';
+import { cleanupExpiredInvitations } from '@/lib/organization/organization-service';
 
 /**
  * GET /api/cron/invitation-reminders
  *
- * Cron job to send reminder emails for pending invitations
+ * Cron job to clean up expired invitations and send reminder emails for pending invitations
  * Should be configured to run daily via Vercel Cron Jobs
+ *
+ * Actions performed:
+ * 1. Mark expired invitations as 'expired'
+ * 2. Send reminder emails to pending invitations expiring in 3 and 7 days
  *
  * Configuration in vercel.json:
  * {
@@ -29,8 +34,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Step 1: Clean up expired invitations
+    console.log('[Cron: Invitation Reminders] Starting cleanup of expired invitations...');
+    const cleanupResult = await cleanupExpiredInvitations();
+    console.log(`[Cron: Invitation Reminders] Cleaned up ${cleanupResult.rowCount || 0} expired invitations`);
+
+    // Step 2: Send reminder emails
     const now = new Date();
     const results = {
+      cleanedUp: cleanupResult.rowCount || 0,
       threeDayReminders: 0,
       sevenDayReminders: 0,
       errors: 0,

@@ -23,20 +23,20 @@ Sistema completo de automatización de OKRs con inteligencia artificial para an�
 - Identifica iniciativas bloqueadas (sin actividades en 7+ días)
 - Reconoce high performers (progreso > 80%)
 - Genera insights automáticos con IA
-- **Cron**: Diario a las 8am
+- **Cron**: Incluido en `/api/cron/ai-automation` (diario a las 8am)
 
 ### 2. Recordatorios Inteligentes
 - Objetivos sin updates en 7+ días
 - Deadlines próximos (3 días antes)
 - Celebraciones de completitud
-- **Cron**: Diario a las 9am
+- **Cron**: Incluido en `/api/cron/ai-automation` (diario a las 8am)
 
 ### 3. Reportes Semanales Automáticos
 - Resumen ejecutivo generado por IA
 - Métricas de objetivos, iniciativas y actividades
 - Top performers de la semana
 - Performance por área
-- **Cron**: Lunes a las 8am
+- **Cron**: Incluido en `/api/cron/ai-automation` (lunes a las 8am)
 
 ### 4. UI de Insights en Tiempo Real
 - Visualización de insights generados
@@ -211,39 +211,44 @@ Genera insights manualmente para la empresa del usuario.
 
 ## ⏰ Cron Jobs
 
+**Nota**: Los cron jobs han sido consolidados para cumplir con los límites del plan de Vercel (máximo 2 crons).
+
 Configurados en `vercel.json`:
 
 ```json
 {
   "crons": [
     {
-      "path": "/api/cron/analyze-okrs",
-      "schedule": "0 8 * * *"  // Diario 8am
-    },
-    {
-      "path": "/api/cron/smart-reminders",
-      "schedule": "0 9 * * *"  // Diario 9am
-    },
-    {
-      "path": "/api/cron/weekly-reports",
-      "schedule": "0 8 * * 1"  // Lunes 8am
+      "path": "/api/cron/ai-automation",
+      "schedule": "0 8 * * *"  // Diario 8am - todas las automatizaciones de IA
     }
   ]
 }
 ```
 
+### Endpoint Unificado: `/api/cron/ai-automation`
+
+Este endpoint ejecuta todas las automatizaciones de IA en un solo cron job:
+
+- **Diariamente (8:00 AM)**:
+  - Análisis de OKRs (si `FEATURE_AI_DAILY_OKR_ANALYSIS=true`)
+  - Recordatorios inteligentes (si `FEATURE_AI_SMART_REMINDERS=true`)
+
+- **Lunes únicamente (8:00 AM)**:
+  - Reportes semanales (si `FEATURE_AI_WEEKLY_REPORTS=true`)
+
+Cada feature se ejecuta solo si su feature flag está habilitado, permitiendo control granular sin necesidad de múltiples cron jobs.
+
 ### Ejecutar Manualmente
 
 #### Desarrollo (sin autenticación):
 ```bash
-curl http://localhost:3000/api/cron/analyze-okrs
-curl http://localhost:3000/api/cron/smart-reminders
-curl http://localhost:3000/api/cron/weekly-reports
+curl http://localhost:3000/api/cron/ai-automation
 ```
 
 #### Producción (con CRON_SECRET):
 ```bash
-curl https://your-app.vercel.app/api/cron/analyze-okrs \
+curl https://your-app.vercel.app/api/cron/ai-automation \
   -H "Authorization: Bearer ${CRON_SECRET}"
 ```
 
