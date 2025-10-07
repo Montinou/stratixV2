@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { OKRAnalyzer } from '@/lib/ai/okr-analyzer';
+import { analyzeAllCompanies } from '@/lib/ai/okr-analyzer';
 import { isFeatureEnabled, logEnabledFeatures } from '@/lib/config/feature-flags';
 
 /**
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     // Analizar todas las empresas
-    const results = await OKRAnalyzer.analyzeAllCompanies();
+    const results = await analyzeAllCompanies();
 
     const executionTime = Date.now() - startTime;
 

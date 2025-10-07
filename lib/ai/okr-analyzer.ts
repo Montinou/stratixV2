@@ -4,7 +4,7 @@ import { withRLSContext } from '@/lib/database/rls-client';
 import { objectives, initiatives, activities, profiles, areas, companies } from '@/db/okr-schema';
 import { aiInsights } from '@/db/ai-schema';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
-import { AIGatewayService } from './gateway';
+import { generateCompletion } from './gateway';
 import { isFeatureEnabled } from '@/lib/config/feature-flags';
 
 /**
@@ -31,11 +31,10 @@ export interface OKRAnalysisResult {
   }>;
 }
 
-export class OKRAnalyzer {
-  /**
-   * Analiza todos los OKRs de una empresa y genera insights
-   */
-  static async analyzeCompany(companyId: string): Promise<OKRAnalysisResult> {
+/**
+ * Analiza todos los OKRs de una empresa y genera insights
+ */
+export async function analyzeCompany(companyId: string): Promise<OKRAnalysisResult> {
     // Verificar feature flag
     if (!isFeatureEnabled('AI_DAILY_OKR_ANALYSIS')) {
       throw new Error('AI Daily OKR Analysis is disabled. Enable with FEATURE_AI_DAILY_OKR_ANALYSIS=true');
@@ -68,9 +67,9 @@ export class OKRAnalyzer {
 
     // Ejecutar análisis en paralelo
     const [objectivesAtRisk, blockedInitiatives, highPerformers] = await Promise.all([
-      this.analyzeObjectivesAtRisk(companyId),
-      this.analyzeBlockedInitiatives(companyId),
-      this.analyzeHighPerformers(companyId),
+      analyzeObjectivesAtRisk(companyId),
+      analyzeBlockedInitiatives(companyId),
+      analyzeHighPerformers(companyId),
     ]);
 
     result.analysis.objectivesAtRisk = objectivesAtRisk.length;
@@ -79,7 +78,7 @@ export class OKRAnalyzer {
 
     // Generar insights para objetivos en riesgo
     for (const objective of objectivesAtRisk) {
-      const insight = await this.generateRiskInsight(objective);
+      const insight = await generateRiskInsight(objective);
       if (insight) {
         result.insights.push(insight);
         result.analysis.insightsGenerated++;
@@ -88,7 +87,7 @@ export class OKRAnalyzer {
 
     // Generar insights para iniciativas bloqueadas
     for (const initiative of blockedInitiatives) {
-      const insight = await this.generateBlockedInsight(initiative);
+      const insight = await generateBlockedInsight(initiative);
       if (insight) {
         result.insights.push(insight);
         result.analysis.insightsGenerated++;
@@ -97,7 +96,7 @@ export class OKRAnalyzer {
 
     // Generar insights positivos para high performers
     for (const performer of highPerformers) {
-      const insight = await this.generatePerformanceInsight(performer);
+      const insight = await generatePerformanceInsight(performer);
       if (insight) {
         result.insights.push(insight);
         result.analysis.insightsGenerated++;
@@ -107,13 +106,13 @@ export class OKRAnalyzer {
     console.log(`[OKR Analyzer] Analysis complete for ${company.name}:`, result.analysis);
 
     return result;
-  }
+}
 
-  /**
-   * Detecta objetivos en riesgo
-   * Criterio: Progreso < 30% y tiempo transcurrido > 50%
-   */
-  private static async analyzeObjectivesAtRisk(companyId: string) {
+/**
+ * Detecta objetivos en riesgo
+ * Criterio: Progreso < 30% y tiempo transcurrido > 50%
+ */
+async function analyzeObjectivesAtRisk(companyId: string) {
     return await withRLSContext('system', async (db) => {
       const now = new Date();
 
@@ -129,13 +128,13 @@ export class OKRAnalyzer {
         },
       });
     });
-  }
+}
 
-  /**
-   * Detecta iniciativas bloqueadas
-   * Criterio: Sin actividades completadas en los últimos 7 días
-   */
-  private static async analyzeBlockedInitiatives(companyId: string) {
+/**
+ * Detecta iniciativas bloqueadas
+ * Criterio: Sin actividades completadas en los últimos 7 días
+ */
+async function analyzeBlockedInitiatives(companyId: string) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -161,13 +160,13 @@ export class OKRAnalyzer {
       // Filtrar las que no tienen actividades completadas recientemente
       return activeInitiatives.filter((init) => init.activities.length === 0);
     });
-  }
+}
 
-  /**
-   * Identifica high performers
-   * Criterio: Progreso > 80% con buena velocidad
-   */
-  private static async analyzeHighPerformers(companyId: string) {
+/**
+ * Identifica high performers
+ * Criterio: Progreso > 80% con buena velocidad
+ */
+async function analyzeHighPerformers(companyId: string) {
     return await withRLSContext('system', async (db) => {
       return await db.query.objectives.findMany({
         where: and(
@@ -181,12 +180,12 @@ export class OKRAnalyzer {
         limit: 5,
       });
     });
-  }
+}
 
-  /**
-   * Genera insight de riesgo usando IA
-   */
-  private static async generateRiskInsight(objective: any) {
+/**
+ * Genera insight de riesgo usando IA
+ */
+async function generateRiskInsight(objective: any) {
     if (!isFeatureEnabled('AI_RISK_DETECTION')) {
       return null;
     }
@@ -209,7 +208,7 @@ Genera un insight conciso (máximo 150 palabras) que:
 3. Sea directo y accionable
 `;
 
-      const result = await AIGatewayService.generateCompletion(prompt, {
+      const result = await generateCompletion(prompt, {
         model: 'gpt-4o-mini',
         systemPrompt: 'Eres un experto en gestión de OKRs. Proporciona insights directos y accionables.',
         maxTokens: 300,
@@ -243,12 +242,12 @@ Genera un insight conciso (máximo 150 palabras) que:
       console.error('[OKR Analyzer] Error generating risk insight:', error);
       return null;
     }
-  }
+}
 
-  /**
-   * Genera insight para iniciativa bloqueada
-   */
-  private static async generateBlockedInsight(initiative: any) {
+/**
+ * Genera insight para iniciativa bloqueada
+ */
+async function generateBlockedInsight(initiative: any) {
     if (!isFeatureEnabled('AI_AUTO_INSIGHTS')) {
       return null;
     }
@@ -266,7 +265,7 @@ Tiempo sin progreso: 7+ días
 Genera un insight conciso (máximo 100 palabras) con 2-3 sugerencias para desbloquear.
 `;
 
-      const result = await AIGatewayService.generateCompletion(prompt, {
+      const result = await generateCompletion(prompt, {
         model: 'gpt-4o-mini',
         systemPrompt: 'Eres un experto en desbloquear proyectos. Sé directo y práctico.',
         maxTokens: 200,
@@ -299,12 +298,12 @@ Genera un insight conciso (máximo 100 palabras) con 2-3 sugerencias para desblo
       console.error('[OKR Analyzer] Error generating blocked insight:', error);
       return null;
     }
-  }
+}
 
-  /**
-   * Genera insight positivo para high performer
-   */
-  private static async generatePerformanceInsight(objective: any) {
+/**
+ * Genera insight positivo para high performer
+ */
+async function generatePerformanceInsight(objective: any) {
     if (!isFeatureEnabled('AI_AUTO_INSIGHTS')) {
       return null;
     }
@@ -324,7 +323,7 @@ Genera un mensaje motivacional breve (máximo 80 palabras) que:
 3. Motive a mantener el ritmo
 `;
 
-      const result = await AIGatewayService.generateCompletion(prompt, {
+      const result = await generateCompletion(prompt, {
         model: 'gpt-4o-mini',
         systemPrompt: 'Eres un coach motivacional para equipos de alto rendimiento. Sé auténtico y específico.',
         maxTokens: 150,
@@ -357,27 +356,26 @@ Genera un mensaje motivacional breve (máximo 80 palabras) que:
       console.error('[OKR Analyzer] Error generating performance insight:', error);
       return null;
     }
-  }
+}
 
-  /**
-   * Analiza todas las empresas del sistema
-   */
-  static async analyzeAllCompanies(): Promise<OKRAnalysisResult[]> {
-    const allCompanies = await withRLSContext('system', async (db) => {
-      return await db.query.companies.findMany();
-    });
+/**
+ * Analiza todas las empresas del sistema
+ */
+export async function analyzeAllCompanies(): Promise<OKRAnalysisResult[]> {
+  const allCompanies = await withRLSContext('system', async (db) => {
+    return await db.query.companies.findMany();
+  });
 
-    const results: OKRAnalysisResult[] = [];
+  const results: OKRAnalysisResult[] = [];
 
-    for (const company of allCompanies) {
-      try {
-        const result = await this.analyzeCompany(company.id);
-        results.push(result);
-      } catch (error) {
-        console.error(`[OKR Analyzer] Error analyzing company ${company.name}:`, error);
-      }
+  for (const company of allCompanies) {
+    try {
+      const result = await analyzeCompany(company.id);
+      results.push(result);
+    } catch (error) {
+      console.error(`[OKR Analyzer] Error analyzing company ${company.name}:`, error);
     }
-
-    return results;
   }
+
+  return results;
 }

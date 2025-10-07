@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WeeklyReportGenerator } from '@/lib/ai/report-generator';
+import { generateAllCompanyReports } from '@/lib/ai/report-generator';
 import { isFeatureEnabled, logEnabledFeatures } from '@/lib/config/feature-flags';
 
 /**
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     // Generar reportes para todas las empresas
-    const results = await WeeklyReportGenerator.generateAllCompanyReports();
+    const results = await generateAllCompanyReports();
 
     const executionTime = Date.now() - startTime;
 

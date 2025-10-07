@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/stack/server';
-import { OKRAnalyzer } from '@/lib/ai/okr-analyzer';
+import { analyzeCompany } from '@/lib/ai/okr-analyzer';
 import { withRLSContext } from '@/lib/database/rls-client';
 import { profiles } from '@/db/okr-schema';
 import { eq } from 'drizzle-orm';
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     // Ejecutar análisis para la empresa
-    const result = await OKRAnalyzer.analyzeCompany(userProfile.companyId);
+    const result = await analyzeCompany(userProfile.companyId);
 
     const executionTime = Date.now() - startTime;
 

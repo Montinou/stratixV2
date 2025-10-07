@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SmartReminders } from '@/lib/ai/smart-reminders';
+import { processAllCompanies } from '@/lib/ai/smart-reminders';
 import { isFeatureEnabled, logEnabledFeatures } from '@/lib/config/feature-flags';
 
 /**
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     // Procesar recordatorios para todas las empresas
-    const results = await SmartReminders.processAllCompanies();
+    const results = await processAllCompanies();
 
     const executionTime = Date.now() - startTime;
 

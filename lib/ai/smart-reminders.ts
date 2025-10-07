@@ -21,11 +21,10 @@ export interface ReminderResult {
   };
 }
 
-export class SmartReminders {
-  /**
-   * Procesa recordatorios para una empresa
-   */
-  static async processCompanyReminders(companyId: string): Promise<ReminderResult> {
+/**
+ * Procesa recordatorios para una empresa
+ */
+export async function processCompanyReminders(companyId: string): Promise<ReminderResult> {
     if (!isFeatureEnabled('AI_SMART_REMINDERS')) {
       throw new Error('AI Smart Reminders is disabled. Enable with FEATURE_AI_SMART_REMINDERS=true');
     }
@@ -43,9 +42,9 @@ export class SmartReminders {
 
     // Procesar en paralelo
     const [staleResults, deadlineResults, celebrationResults] = await Promise.all([
-      this.processStaleObjectiveReminders(companyId),
-      this.processUpcomingDeadlineReminders(companyId),
-      this.processCompletionCelebrations(companyId),
+      processStaleObjectiveReminders(companyId),
+      processUpcomingDeadlineReminders(companyId),
+      processCompletionCelebrations(companyId),
     ]);
 
     result.reminders.staleObjectives = staleResults;
@@ -55,12 +54,12 @@ export class SmartReminders {
     console.log(`[Smart Reminders] Results for ${companyId}:`, result.reminders);
 
     return result;
-  }
+}
 
-  /**
-   * Recordatorio: Objetivos sin updates en 7 días
-   */
-  private static async processStaleObjectiveReminders(companyId: string): Promise<number> {
+/**
+ * Recordatorio: Objetivos sin updates en 7 días
+ */
+async function processStaleObjectiveReminders(companyId: string): Promise<number> {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -102,12 +101,12 @@ export class SmartReminders {
     }
 
     return sent;
-  }
+}
 
-  /**
-   * Recordatorio: Deadlines próximos (3 días antes)
-   */
-  private static async processUpcomingDeadlineReminders(companyId: string): Promise<number> {
+/**
+ * Recordatorio: Deadlines próximos (3 días antes)
+ */
+async function processUpcomingDeadlineReminders(companyId: string): Promise<number> {
     const today = new Date();
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(today.getDate() + 3);
@@ -156,12 +155,12 @@ export class SmartReminders {
     }
 
     return sent;
-  }
+}
 
-  /**
-   * Celebración: Objetivos completados recientemente
-   */
-  private static async processCompletionCelebrations(companyId: string): Promise<number> {
+/**
+ * Celebración: Objetivos completados recientemente
+ */
+async function processCompletionCelebrations(companyId: string): Promise<number> {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     yesterday.setHours(0, 0, 0, 0);
@@ -207,27 +206,26 @@ export class SmartReminders {
     }
 
     return sent;
-  }
+}
 
-  /**
-   * Procesa recordatorios para todas las empresas
-   */
-  static async processAllCompanies(): Promise<ReminderResult[]> {
-    const allCompanies = await withRLSContext('system', async (db) => {
-      return await db.query.companies.findMany();
-    });
+/**
+ * Procesa recordatorios para todas las empresas
+ */
+export async function processAllCompanies(): Promise<ReminderResult[]> {
+  const allCompanies = await withRLSContext('system', async (db) => {
+    return await db.query.companies.findMany();
+  });
 
-    const results: ReminderResult[] = [];
+  const results: ReminderResult[] = [];
 
-    for (const company of allCompanies) {
-      try {
-        const result = await this.processCompanyReminders(company.id);
-        results.push(result);
-      } catch (error) {
-        console.error(`[Smart Reminders] Error processing company ${company.name}:`, error);
-      }
+  for (const company of allCompanies) {
+    try {
+      const result = await processCompanyReminders(company.id);
+      results.push(result);
+    } catch (error) {
+      console.error(`[Smart Reminders] Error processing company ${company.name}:`, error);
     }
-
-    return results;
   }
+
+  return results;
 }

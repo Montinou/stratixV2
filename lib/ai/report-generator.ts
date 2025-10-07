@@ -3,7 +3,7 @@
 import { withRLSContext } from '@/lib/database/rls-client';
 import { objectives, initiatives, activities, profiles, areas, companies } from '@/db/okr-schema';
 import { eq, and, gte, desc, sql } from 'drizzle-orm';
-import { AIGatewayService } from './gateway';
+import { generateCompletion } from './gateway';
 import { isFeatureEnabled } from '@/lib/config/feature-flags';
 import { sendWeeklyReportEmail } from '@/lib/services/brevo/okr-templates';
 
@@ -55,239 +55,238 @@ export interface WeeklyReportResult {
   reportSent: number;
 }
 
-export class WeeklyReportGenerator {
-  /**
-   * Genera reporte semanal para una empresa
-   */
-  static async generateCompanyReport(companyId: string): Promise<WeeklyReportResult> {
-    if (!isFeatureEnabled('AI_WEEKLY_REPORTS')) {
-      throw new Error('AI Weekly Reports is disabled. Enable with FEATURE_AI_WEEKLY_REPORTS=true');
+/**
+ * Genera reporte semanal para una empresa
+ */
+export async function generateCompanyReport(companyId: string): Promise<WeeklyReportResult> {
+  if (!isFeatureEnabled('AI_WEEKLY_REPORTS')) {
+    throw new Error('AI Weekly Reports is disabled. Enable with FEATURE_AI_WEEKLY_REPORTS=true');
+  }
+
+  // Obtener información de la empresa
+  const company = await withRLSContext('system', async (db) => {
+    return await db.query.companies.findFirst({
+      where: eq(companies.id, companyId),
+    });
+  });
+
+  if (!company) {
+    throw new Error(`Company ${companyId} not found`);
+  }
+
+  console.log(`[Weekly Report] Generating report for company: ${company.name}`);
+
+  // Calcular periodo (última semana)
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 7);
+
+  // Recopilar datos en paralelo
+  const [
+    objectivesData,
+    initiativesData,
+    activitiesData,
+    topPerformers,
+    areaPerformance,
+  ] = await Promise.all([
+    getObjectivesData(companyId),
+    getInitiativesData(companyId),
+    getActivitiesData(companyId, startDate),
+    getTopPerformers(companyId, startDate),
+    getAreaPerformance(companyId),
+  ]);
+
+  const reportData: WeeklyReportData = {
+    period: { start: startDate, end: endDate },
+    objectives: objectivesData,
+    initiatives: initiativesData,
+    activities: activitiesData,
+    topPerformers,
+    areaPerformance,
+  };
+
+  // Generar resumen con IA
+  const aiSummary = await generateAISummary(company.name, reportData);
+
+  // Enviar reportes a stakeholders (corporativos y gerentes)
+  const recipients = await getReportRecipients(companyId);
+  let reportsSent = 0;
+
+  for (const recipient of recipients) {
+    try {
+      await sendWeeklyReportEmail({
+        to: recipient.email,
+        recipientName: recipient.fullName || 'Usuario',
+        companyName: company.name,
+        reportData,
+        aiSummary,
+      });
+      reportsSent++;
+    } catch (error) {
+      console.error(`[Weekly Report] Error sending report to ${recipient.email}:`, error);
     }
-
-    // Obtener información de la empresa
-    const company = await withRLSContext('system', async (db) => {
-      return await db.query.companies.findFirst({
-        where: eq(companies.id, companyId),
-      });
-    });
-
-    if (!company) {
-      throw new Error(`Company ${companyId} not found`);
-    }
-
-    console.log(`[Weekly Report] Generating report for company: ${company.name}`);
-
-    // Calcular periodo (última semana)
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 7);
-
-    // Recopilar datos en paralelo
-    const [
-      objectivesData,
-      initiativesData,
-      activitiesData,
-      topPerformers,
-      areaPerformance,
-    ] = await Promise.all([
-      this.getObjectivesData(companyId),
-      this.getInitiativesData(companyId),
-      this.getActivitiesData(companyId, startDate),
-      this.getTopPerformers(companyId, startDate),
-      this.getAreaPerformance(companyId),
-    ]);
-
-    const reportData: WeeklyReportData = {
-      period: { start: startDate, end: endDate },
-      objectives: objectivesData,
-      initiatives: initiativesData,
-      activities: activitiesData,
-      topPerformers,
-      areaPerformance,
-    };
-
-    // Generar resumen con IA
-    const aiSummary = await this.generateAISummary(company.name, reportData);
-
-    // Enviar reportes a stakeholders (corporativos y gerentes)
-    const recipients = await this.getReportRecipients(companyId);
-    let reportsSent = 0;
-
-    for (const recipient of recipients) {
-      try {
-        await sendWeeklyReportEmail({
-          to: recipient.email,
-          recipientName: recipient.fullName || 'Usuario',
-          companyName: company.name,
-          reportData,
-          aiSummary,
-        });
-        reportsSent++;
-      } catch (error) {
-        console.error(`[Weekly Report] Error sending report to ${recipient.email}:`, error);
-      }
-    }
-
-    return {
-      companyId,
-      companyName: company.name,
-      reportData,
-      aiSummary,
-      reportSent: reportsSent,
-    };
   }
 
-  /**
-   * Obtiene estadísticas de objetivos
-   */
-  private static async getObjectivesData(companyId: string) {
-    const allObjectives = await withRLSContext('system', async (db) => {
-      return await db.query.objectives.findMany({
-        where: eq(objectives.companyId, companyId),
-      });
+  return {
+    companyId,
+    companyName: company.name,
+    reportData,
+    aiSummary,
+    reportSent: reportsSent,
+  };
+}
+
+/**
+ * Obtiene estadísticas de objetivos
+ */
+async function getObjectivesData(companyId: string) {
+  const allObjectives = await withRLSContext('system', async (db) => {
+    return await db.query.objectives.findMany({
+      where: eq(objectives.companyId, companyId),
     });
+  });
 
-    return {
-      total: allObjectives.length,
-      completed: allObjectives.filter((o) => o.status === 'completed').length,
-      inProgress: allObjectives.filter((o) => o.status === 'in_progress').length,
-      atRisk: allObjectives.filter((o) => o.progress < 30 && o.status === 'in_progress').length,
-    };
-  }
+  return {
+    total: allObjectives.length,
+    completed: allObjectives.filter((o) => o.status === 'completed').length,
+    inProgress: allObjectives.filter((o) => o.status === 'in_progress').length,
+    atRisk: allObjectives.filter((o) => o.progress < 30 && o.status === 'in_progress').length,
+  };
+}
 
-  /**
-   * Obtiene estadísticas de iniciativas
-   */
-  private static async getInitiativesData(companyId: string) {
-    const allInitiatives = await withRLSContext('system', async (db) => {
-      return await db.query.initiatives.findMany({
-        where: eq(initiatives.companyId, companyId),
-      });
+/**
+ * Obtiene estadísticas de iniciativas
+ */
+async function getInitiativesData(companyId: string) {
+  const allInitiatives = await withRLSContext('system', async (db) => {
+    return await db.query.initiatives.findMany({
+      where: eq(initiatives.companyId, companyId),
     });
+  });
 
-    return {
-      total: allInitiatives.length,
-      completed: allInitiatives.filter((i) => i.status === 'completed').length,
-      inProgress: allInitiatives.filter((i) => i.status === 'in_progress').length,
-    };
-  }
+  return {
+    total: allInitiatives.length,
+    completed: allInitiatives.filter((i) => i.status === 'completed').length,
+    inProgress: allInitiatives.filter((i) => i.status === 'in_progress').length,
+  };
+}
 
-  /**
-   * Obtiene estadísticas de actividades
-   */
-  private static async getActivitiesData(companyId: string, startDate: Date) {
-    const allActivities = await withRLSContext('system', async (db) => {
-      return await db.query.activities.findMany({
-        where: eq(activities.companyId, companyId),
-      });
+/**
+ * Obtiene estadísticas de actividades
+ */
+async function getActivitiesData(companyId: string, startDate: Date) {
+  const allActivities = await withRLSContext('system', async (db) => {
+    return await db.query.activities.findMany({
+      where: eq(activities.companyId, companyId),
     });
+  });
 
-    const completedThisWeek = allActivities.filter(
-      (a) => a.status === 'completed' && a.completedAt && a.completedAt >= startDate
-    );
+  const completedThisWeek = allActivities.filter(
+    (a) => a.status === 'completed' && a.completedAt && a.completedAt >= startDate
+  );
 
-    return {
-      total: allActivities.length,
-      completed: allActivities.filter((a) => a.status === 'completed').length,
-      completedThisWeek: completedThisWeek.length,
-    };
-  }
+  return {
+    total: allActivities.length,
+    completed: allActivities.filter((a) => a.status === 'completed').length,
+    completedThisWeek: completedThisWeek.length,
+  };
+}
 
-  /**
-   * Identifica top performers de la semana
-   */
-  private static async getTopPerformers(companyId: string, startDate: Date) {
-    const completedActivities = await withRLSContext('system', async (db) => {
-      return await db.query.activities.findMany({
-        where: and(
-          eq(activities.companyId, companyId),
-          eq(activities.status, 'completed'),
-          gte(activities.completedAt, startDate)
-        ),
-        with: {
-          owner: {
-            with: {
-              area: true,
-            },
+/**
+ * Identifica top performers de la semana
+ */
+async function getTopPerformers(companyId: string, startDate: Date) {
+  const completedActivities = await withRLSContext('system', async (db) => {
+    return await db.query.activities.findMany({
+      where: and(
+        eq(activities.companyId, companyId),
+        eq(activities.status, 'completed'),
+        gte(activities.completedAt, startDate)
+      ),
+      with: {
+        owner: {
+          with: {
+            area: true,
           },
         },
-      });
+      },
     });
+  });
 
-    // Agrupar por usuario
-    const userStats = new Map<
-      string,
-      { name: string; role: string; area: string; count: number }
-    >();
+  // Agrupar por usuario
+  const userStats = new Map<
+    string,
+    { name: string; role: string; area: string; count: number }
+  >();
 
-    for (const activity of completedActivities) {
-      if (!activity.owner) continue;
+  for (const activity of completedActivities) {
+    if (!activity.owner) continue;
 
-      const userId = activity.ownerId;
-      const existing = userStats.get(userId);
+    const userId = activity.ownerId;
+    const existing = userStats.get(userId);
 
-      if (existing) {
-        existing.count++;
-      } else {
-        userStats.set(userId, {
-          name: activity.owner.fullName || 'Unknown',
-          role: activity.owner.role || 'empleado',
-          area: activity.owner.area?.name || 'Sin área',
-          count: 1,
-        });
-      }
+    if (existing) {
+      existing.count++;
+    } else {
+      userStats.set(userId, {
+        name: activity.owner.fullName || 'Unknown',
+        role: activity.owner.role || 'empleado',
+        area: activity.owner.area?.name || 'Sin área',
+        count: 1,
+      });
     }
-
-    // Ordenar y tomar top 5
-    return Array.from(userStats.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
-      .map((user) => ({
-        name: user.name,
-        role: user.role,
-        area: user.area,
-        completedActivities: user.count,
-      }));
   }
 
-  /**
-   * Calcula performance por área
-   */
-  private static async getAreaPerformance(companyId: string) {
-    const allAreas = await withRLSContext('system', async (db) => {
-      return await db.query.areas.findMany({
-        where: eq(areas.companyId, companyId),
-        with: {
-          objectives: true,
-        },
-      });
+  // Ordenar y tomar top 5
+  return Array.from(userStats.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map((user) => ({
+      name: user.name,
+      role: user.role,
+      area: user.area,
+      completedActivities: user.count,
+    }));
+}
+
+/**
+ * Calcula performance por área
+ */
+async function getAreaPerformance(companyId: string) {
+  const allAreas = await withRLSContext('system', async (db) => {
+    return await db.query.areas.findMany({
+      where: eq(areas.companyId, companyId),
+      with: {
+        objectives: true,
+      },
     });
+  });
 
-    return allAreas
-      .map((area) => {
-        const avgProgress =
-          area.objectives.length > 0
-            ? area.objectives.reduce((sum, obj) => sum + (obj.progress || 0), 0) /
-              area.objectives.length
-            : 0;
+  return allAreas
+    .map((area) => {
+      const avgProgress =
+        area.objectives.length > 0
+          ? area.objectives.reduce((sum, obj) => sum + (obj.progress || 0), 0) /
+            area.objectives.length
+          : 0;
 
-        return {
-          areaName: area.name,
-          objectivesCount: area.objectives.length,
-          avgProgress: Math.round(avgProgress),
-        };
-      })
-      .sort((a, b) => b.avgProgress - a.avgProgress);
-  }
+      return {
+        areaName: area.name,
+        objectivesCount: area.objectives.length,
+        avgProgress: Math.round(avgProgress),
+      };
+    })
+    .sort((a, b) => b.avgProgress - a.avgProgress);
+}
 
-  /**
-   * Genera resumen con IA
-   */
-  private static async generateAISummary(
-    companyName: string,
-    data: WeeklyReportData
-  ): Promise<string> {
-    const prompt = `
+/**
+ * Genera resumen con IA
+ */
+async function generateAISummary(
+  companyName: string,
+  data: WeeklyReportData
+): Promise<string> {
+  const prompt = `
 Genera un resumen ejecutivo semanal para ${companyName} basado en estos datos:
 
 OBJETIVOS:
@@ -319,51 +318,50 @@ Genera un resumen ejecutivo de 3 párrafos:
 Sé conciso, específico y enfócate en insights accionables.
 `;
 
+  try {
+    const result = await generateCompletion(prompt, {
+      model: 'gpt-4o-mini',
+      systemPrompt:
+        'Eres un analista de OKRs senior. Genera resúmenes ejecutivos claros y accionables.',
+      maxTokens: 500,
+    });
+
+    return result.text;
+  } catch (error) {
+    console.error('[Weekly Report] Error generating AI summary:', error);
+    return `Resumen no disponible. Los datos están disponibles en el reporte detallado.`;
+  }
+}
+
+/**
+ * Obtiene recipientes del reporte (corporativos y gerentes)
+ */
+async function getReportRecipients(companyId: string) {
+  return await withRLSContext('system', async (db) => {
+    return await db.query.profiles.findMany({
+      where: and(eq(profiles.companyId, companyId)),
+    });
+  });
+}
+
+/**
+ * Genera reportes para todas las empresas
+ */
+export async function generateAllCompanyReports(): Promise<WeeklyReportResult[]> {
+  const allCompanies = await withRLSContext('system', async (db) => {
+    return await db.query.companies.findMany();
+  });
+
+  const results: WeeklyReportResult[] = [];
+
+  for (const company of allCompanies) {
     try {
-      const result = await AIGatewayService.generateCompletion(prompt, {
-        model: 'gpt-4o-mini',
-        systemPrompt:
-          'Eres un analista de OKRs senior. Genera resúmenes ejecutivos claros y accionables.',
-        maxTokens: 500,
-      });
-
-      return result.text;
+      const result = await generateCompanyReport(company.id);
+      results.push(result);
     } catch (error) {
-      console.error('[Weekly Report] Error generating AI summary:', error);
-      return `Resumen no disponible. Los datos están disponibles en el reporte detallado.`;
+      console.error(`[Weekly Report] Error generating report for ${company.name}:`, error);
     }
   }
 
-  /**
-   * Obtiene recipientes del reporte (corporativos y gerentes)
-   */
-  private static async getReportRecipients(companyId: string) {
-    return await withRLSContext('system', async (db) => {
-      return await db.query.profiles.findMany({
-        where: and(eq(profiles.companyId, companyId)),
-      });
-    });
-  }
-
-  /**
-   * Genera reportes para todas las empresas
-   */
-  static async generateAllCompanyReports(): Promise<WeeklyReportResult[]> {
-    const allCompanies = await withRLSContext('system', async (db) => {
-      return await db.query.companies.findMany();
-    });
-
-    const results: WeeklyReportResult[] = [];
-
-    for (const company of allCompanies) {
-      try {
-        const result = await this.generateCompanyReport(company.id);
-        results.push(result);
-      } catch (error) {
-        console.error(`[Weekly Report] Error generating report for ${company.name}:`, error);
-      }
-    }
-
-    return results;
-  }
+  return results;
 }
